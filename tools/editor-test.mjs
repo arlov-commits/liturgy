@@ -38,6 +38,7 @@ await new Promise((r) => setTimeout(r, 800));
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
 const sha = (b) => createHash('sha1').update(b).digest('hex');
+const rawSeen = new Set();
 await ctx.route('https://api.github.com/**', async (route) => {
   const req = route.request(), auth = req.headers().authorization || '', url = new URL(req.url());
   const headers = { 'access-control-allow-origin': '*', 'content-type': 'application/json' };
@@ -57,6 +58,11 @@ await ctx.route('https://api.github.com/**', async (route) => {
     return json(200, { content: { sha: sha(readFileSync(file)) } });
   }
   if (!existsSync(file)) return json(404, {});
+  // 'rawcache' key: the first read of each file answers with the plain file, like a stale browser cache did
+  if (auth === 'Bearer rawcache' && !statSync(file).isDirectory() && !rawSeen.has(rel)) {
+    rawSeen.add(rel);
+    return route.fulfill({ status: 200, headers: { ...headers, 'content-type': 'text/plain; charset=utf-8' }, body: readFileSync(file) });
+  }
   if (statSync(file).isDirectory()) return json(200, readdirSync(file).map((name) => ({ name, type: 'file' })));
   const buf = readFileSync(file);
   return json(200, { sha: sha(buf), content: buf.toString('base64'), encoding: 'base64' });
@@ -65,6 +71,7 @@ const page = await ctx.newPage();
 page.on('pageerror', (e) => check(false, 'no script errors', e.message));
 const status = () => page.textContent('#status');
 const settled = () => page.waitForFunction(() => { const s = document.querySelector('#status').textContent; return !/Updating|Loading|Saving/.test(s) && s.length > 0; }, null, { timeout: 60000 });
+const saveDone = () => page.waitForFunction(() => /^(Saved|Not saved|Downloaded)/.test(document.querySelector('#status').textContent), null, { timeout: 30000 });
 const afterEdit = async () => { await page.waitForTimeout(1200); await settled(); };
 const preview = () => page.frames().find((f) => f.url().includes('preview.html'));
 const edit = (fn) => page.evaluate((fn) => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: new Function('t', fn)(v.state.doc.toString()) } }); }, fn);
@@ -89,7 +96,7 @@ try {
   const first = await page.inputValue('#section');
   await edit("return '// test edit\\n' + t"); await afterEdit();
   check((await page.textContent('#save')).includes('2 files'), 'unsaved changes are counted', await page.textContent('#save'));
-  await page.keyboard.press('Control+s'); await settled();
+  await page.keyboard.press('Control+s'); await saveDone();
   check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// test edit') &&
     readFileSync(path.join(repo, 'settings.css'), 'utf8').includes('--english-size: 12pt'), 'Ctrl+S saves text and settings to the repo');
 
@@ -106,14 +113,23 @@ try {
 
   writeFileSync(path.join(repo, 'text', first), 'changed elsewhere\n');
   await edit("return t + '\\n'"); await afterEdit();
-  await page.click('#save'); await settled();
+  await page.click('#save'); await saveDone();
   check((await status()).includes('someone else'), 'never overwrites a newer change on GitHub');
+
+  await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'rawcache'));
+  page.once('dialog', (d) => d.accept());
+  await page.reload(); await settled();
+  check(/\d+ pages/.test(await status()), 'plain-text answers from GitHub (stale cache) still load', await status());
+  await edit("return '// after raw read\\n' + t"); await afterEdit();
+  await page.click('#save'); await saveDone();
+  check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// after raw read'),
+    '…and still save (version looked up first)', await status());
 
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'readonly'));
   page.once('dialog', (d) => d.accept());
   await page.reload(); await settled();
   await edit("return t + '\\n'"); await afterEdit();
-  await page.click('#save'); await settled();
+  await page.click('#save'); await saveDone();
   check((await status()).includes('can only read'), 'read-only key: explains how to fix it');
 } finally {
   await browser.close();

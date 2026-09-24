@@ -74,6 +74,7 @@
     };
   }
 
+  const parseJson = (text) => { try { return JSON.parse(text); } catch { return null; } };
   const b64decode = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, "")), (c) => c.charCodeAt(0)));
   const b64encode = (text) => {
     const bytes = new TextEncoder().encode(text);
@@ -106,10 +107,12 @@
 
   // GitHub's REST API: /repos/{owner}/{repo}/contents/{path}. Remembers each file's version (sha) as read,
   // so a save can't silently overwrite a change someone else made in the meantime.
+  // "no-store": the browser must never answer from its own cache — an older version of this app asked for the
+  // same addresses as plain text, and a stored plain-text answer broke the JSON reading ("// Test bo… is not valid JSON").
   function github(repo, token) {
     const shas = {};
     const call = (url, init = {}) => fetch("https://api.github.com/repos/" + repo + url, {
-      cache: "no-cache", ...init,
+      cache: "no-store", ...init,
       headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28", ...init.headers },
     });
     const contents = (path) => "/contents/" + path.split("/").map(encodeURIComponent).join("/");
@@ -126,17 +129,28 @@
         const r = await call(contents(path));
         if (r.status === 404) { if (optional) { shas[path] = null; return null; } throw new SourceError(`${path} is not in ${repo}`); }
         if (!r.ok) throw new SourceError(`GitHub said ${r.status} for ${path}`);
-        const file = await r.json();
-        shas[path] = file.sha;
-        return b64decode(file.content);
+        const body = await r.text();
+        const file = parseJson(body);
+        if (file && typeof file.content === "string") {
+          shas[path] = file.sha;
+          return b64decode(file.content);
+        }
+        // Got the file itself instead of GitHub's description of it: use it; its version is looked up when saving
+        delete shas[path];
+        return body;
       },
       async list(dir) {
         const r = await call(contents(dir));
-        if (!r.ok) return [];
-        return (await r.json()).filter((f) => f.type === "file").map((f) => f.name);
+        const files = r.ok ? parseJson(await r.text()) : null;
+        return Array.isArray(files) ? files.filter((f) => f.type === "file").map((f) => f.name) : [];
       },
       // Saves one file as a commit on the repo's main branch
       async put(path, text, message) {
+        if (!(path in shas)) {   // version unknown (see get): ask GitHub for it now
+          const r = await call(contents(path));
+          const file = r.ok ? parseJson(await r.text()) : null;
+          shas[path] = file && file.sha ? file.sha : null;
+        }
         const body = { message, content: b64encode(text) };
         if (shas[path]) body.sha = shas[path];
         const r = await call(contents(path), { method: "PUT", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
