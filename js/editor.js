@@ -173,9 +173,12 @@
   // editing it changes it in all of them.
   const labelOf = (name) => name.replace(/\.txt$/, "");
   // A chapter's title for lists: its [toc: …] name, else its first title
+  // A chapter's title for lists: its [toc: …] name, else its first title line, else its file name
   const titleOf = (text, name) => {
     const m = LiturgyParse.parse(text || "", name).match(/data-toc="([^"]*)"/);
-    return m ? new DOMParser().parseFromString(m[1], "text/html").documentElement.textContent : labelOf(name);
+    if (m) return new DOMParser().parseFromString(m[1], "text/html").documentElement.textContent;
+    const first = (text || "").split("\n").find((l) => /^#\s/.test(l.trim()));
+    return first ? first.replace(/^#+\s*/, "").replace(/[~\[\]]+/g, " ").replace(/\s+/g, " ").trim() : labelOf(name);
   };
   async function startText() {
     state.textFiles = await state.source.list("text");   // [] when the source can't list folders
