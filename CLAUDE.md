@@ -9,7 +9,8 @@ It will be used by a **non-technical editor**. Every feature must be usable with
 - **`liturgy` (this repo, public):** app code only.
 - **`liturgy-text` (private):** the actual liturgy text (BTTS translation — never copy it into
   this public repo, not even as test fixtures). For development, clone it next to this repo:
-  `../liturgy-text/`. Layout there: `text/*.txt` (one file per section), `books/*.txt`
+  `../liturgy-text/`. Layout there: `text/*.txt` (one file per liturgical section — Excel tabs were
+  merged; `// ====== from Excel …` comments mark the old tab boundaries), `books/*.txt`
   (a booklet = a list of section files in order), `tools/` (the Excel converter).
 
 ## Non-negotiable rule: use existing libraries, don't hand-roll
@@ -94,7 +95,7 @@ node tools/render-test.mjs paged out         # PDF via Paged.js preview
 node tools/editor-test.mjs                   # end-to-end editor checks against a fake GitHub (temp copy of ../liturgy-text)
 python3 tools/check_glyphs.py ../liturgy-text/text   # must report 0
 ```
-Booklets: `books/test.txt` (2 sections), `books/full.txt` (all 30 sections).
+Booklets: `books/test.txt` (2 sections), `books/full.txt` (all 15 sections).
 Run `tools/editor-test.mjs` before pushing editor changes.
 Always look at rendered pages (PDF → PNG) before claiming a layout change works.
 
@@ -102,7 +103,7 @@ Always look at rendered pages (PDF → PNG) before claiming a layout change work
 One item at a time, one commit per item. Brief, plain-language summaries.
 
 ## Roadmap
-1. ✅ Text format + converter — all 30 printed sections converted and verified against the workbook
+1. ✅ Text format + converter — whole workbook converted and verified; one file per liturgical section (15), not per Excel tab
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "keep together" ✅ (`[keep together]`…, one page or facing pages, blank pages placed by setting); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "use a folder on this computer" ✅ (File System Access API, Chrome/Edge);
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, Booklet tab: add existing chapters / reorder / remove ✅, new booklet / new chapter ✅)
