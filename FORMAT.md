@@ -1,4 +1,6 @@
-# Liturgy text format — v0.2 (draft)
+# Liturgy text format — v0.3 (draft)
+
+Pages break by themselves: there are no manual page breaks (an old `---` line is ignored and flagged).
 
 Each section of the liturgy is one plain-text file (UTF-8), e.g. `text/03-amitabha-sutra.txt`.
 The files hold **words only**. Fonts, sizes, spacing, margins and page numbers live in the
@@ -36,8 +38,8 @@ qí shù jǐ gū dú yuán
 | `# ` | title line (centered, larger) |
 | `## ` | small heading (centered, smaller Chinese) |
 | `> ` | small note line — leader instructions ("The Leader says:"), Sanskrit equivalents, "Proceed to…" |
-| `---` | page break |
-| `[one page]` … `[/one page]` | keep everything between on one page (each marker on its own line). If it's taller than a page it is shrunk to fit — but not below the “fit smallest” setting; then it runs over and is flagged. |
+| `[keep together]` … `[/keep together]` | keep the lines between on one page (each marker on its own line; the editor's **Keep together** button adds them). If they don't fit a page even shrunk (not below the “fit smallest” setting), they run over pages: an even number of pages starts on a left-hand page so the pages face each other; an odd number may start on either side. A blank page is added where needed — just before, or at the end of the chapter before (setting “blank page”). |
+| `[blank page]` | a page left empty on purpose (e.g. at the start of the book) |
 | `//` | comment — never printed |
 
 ## Page references

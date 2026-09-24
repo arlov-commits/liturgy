@@ -11,6 +11,11 @@
     default: ['"Lora"', '"Gentium Book Plus"'],
   };
   const WEIGHTS = { 400: "regular", 600: "semibold" };
+  // Settings that are a choice between named options (value → what the editor sees)
+  const CHOICES = {
+    "--chapter-start": { page: "on a new page", right: "on a new right-hand page", auto: "straight after the chapter before" },
+    "--blank-page": { before: "just before the span", "chapter-end": "at the end of the chapter before" },
+  };
   const STEP = { in: 0.05, pt: 0.1, em: 0.02, px: 1, mm: 1, cm: 0.1 };
 
   // Reads settings.css → [{ title, items: [{ name, value, hint }] }]
@@ -76,6 +81,10 @@
       if (/-font$/.test(item.name)) {
         const choices = FONT_CHOICES[item.name] || FONT_CHOICES.default;
         input = el("select", { id }, ...[...new Set([current(), ...choices])].map((f) => el("option", { value: f, textContent: f.split(",")[0].replace(/"/g, "") })));
+        input.value = current();
+        input.onchange = () => update(input.value);
+      } else if (CHOICES[item.name]) {
+        input = el("select", { id }, ...Object.entries(CHOICES[item.name]).map(([v, n]) => el("option", { value: v, textContent: n })));
         input.value = current();
         input.onchange = () => update(input.value);
       } else if (/-weight$/.test(item.name)) {

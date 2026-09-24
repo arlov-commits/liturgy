@@ -18,12 +18,26 @@
   @bottom-left { content: counter(page); font-family: var(--page-number-font), "Liturgy Extra", serif; font-size: var(--page-number-size); }
 }
 
-.sec { break-before: page; }
+/* Where each chapter starts (setting "chapter start"); preview.html may move one to the other side
+   (start-left / start-right) to put a needed blank page at the end of the chapter before */
+.sec { break-before: var(--chapter-start); }
 .sec:first-child { break-before: auto; }
-.page-break { break-after: page; height: 0; }
+.sec.start-left { break-before: left; }
+.sec.start-right { break-before: right; }
+/* no page number on the blank pages the layout adds */
+@page :blank {
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+}
+/* [blank page]: a page left empty on purpose */
+.blank-page { break-before: page; break-after: page; height: 1px; }
 /* [one page] … [/one page]: kept on one page (shrunk to fit by preview.html if taller than a page) */
+/* [keep together]: one page if it fits (preview.html shrinks it a little if needed); otherwise it runs over
+   pages, starting on a new page — on a left-hand page when it takes an even number of pages, so they face */
 .keep { break-inside: avoid; }
-.keep.too-long { break-inside: auto; }
+.keep.whole-page { break-before: page; }
+.keep.spread { break-inside: auto; break-before: page; }
+.keep.spread.facing { break-before: left; }
 
 /* [contents] → table of contents: title ..... page */
 .toc { font-family: var(--english-font), "Liturgy Extra", serif; font-size: var(--contents-size); font-weight: var(--english-weight); margin: 0 0 var(--space-between-verses); }

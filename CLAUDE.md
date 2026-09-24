@@ -65,8 +65,11 @@ The Text tab's colouring repeats `parse.js`'s line rules — keep them in step w
 - **Font vetting:** Fontsource's Tinos and Noto Serif TC draw ō ū ā with a *detached* macron.
   Pinyin uses Gentium Book Plus (SIL) — verified correct for all tone marks incl. ǖ ǘ ǚ ǜ.
   Any new pinyin/English font must pass the tone-mark render check before adoption.
-- Excel page breaks are kept in the text only as `// ---` comments — the new page size flows
-  differently. Real breaks are `---`.
+- No manual page breaks: pages break by themselves. `[keep together]` spans are planned in `preview.html`
+  (`planKeeps`: one page, shrunk if needed, else a spread; even page counts start on a left page via
+  `break-before: left`, which makes Paged.js add a blank page). `editor.js improveLayout()` re-runs the layout
+  hidden (≤4 passes) when a span took more pages than measured, or to move the blank page to the chapter end
+  (setting `--blank-page: chapter-end`, done by starting that chapter on the other side).
 - Paged.js quirks (handled in `preview.html`): it drops `@media screen` rules from the sheets it paginates
   (screen-only looks go in preview.html's own `<style>`), it paginates the whole page if given no content,
   and it can leave an invisible copy of a moved block in a page's overflow (`removeOverflow()`).
@@ -100,7 +103,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 
 ## Roadmap
 1. ✅ Text format + converter — all 30 printed sections converted and verified against the workbook
-2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
+2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "keep together" ✅ (`[keep together]`…, one page or facing pages, blank pages placed by setting); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "use a folder on this computer" ✅ (File System Access API, Chrome/Edge);
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, Booklet tab: add existing chapters / reorder / remove ✅, new booklet / new chapter ✅)
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell ✅

@@ -39,8 +39,10 @@
 
   --note-scale: 0.9;       /* "> " note lines (instructions, Sanskrit) are this much smaller */
 
-  /* ---- [one page] groups ---- */
-  --fit-smallest: 0.7;     /* a [one page] group taller than a page is shrunk to fit, but never below this (0.7 = 70%) */
+  /* ---- Pages and chapters ---- */
+  --chapter-start: page;   /* where each chapter starts */
+  --fit-smallest: 0.7;     /* a [keep together] span a little too tall for a page is shrunk to fit, but never below this (0.7 = 70%); longer spans go on facing pages */
+  --blank-page: before;    /* where a blank page goes when a kept-together span must start on a left-hand page */
 
   /* ---- Contents page ([contents]) ---- */
   --contents-size: 9pt;      /* size of the table of contents lines */

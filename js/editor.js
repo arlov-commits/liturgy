@@ -7,7 +7,8 @@
   const q = new URLSearchParams(location.search);
   const $ = (sel) => document.querySelector(sel);
 
-  const state = { source: null, bookName: q.get("book") || "test", book: null, saved: {}, settings: { groups: [], changes: {} } };
+  const state = { source: null, bookName: q.get("book") || "test", book: null, saved: {}, settings: { groups: [], changes: {} },
+    layout: { pages: {}, flip: {}, hard: [], passes: 0 } };
   let frame = null;     // the preview on show
   let pending = null;   // the preview being rendered
   let timer = null;
@@ -18,9 +19,10 @@
   }
 
   // ---- preview ----
+  // Every change starts the page layout afresh (see previewDone for the extra passes facing pages may need)
   function refresh(delay = 0) {
     clearTimeout(timer);
-    timer = setTimeout(render, delay);
+    timer = setTimeout(() => { state.layout = { pages: {}, flip: {}, hard: [], passes: 0 }; render(); }, delay);
   }
   function render() {
     if (pending) pending.remove();
@@ -34,6 +36,7 @@
   // called by preview.html when its pages are laid out
   function previewDone(win, info) {
     if (!pending || win !== pending.contentWindow) return;
+    if (!info.error && improveLayout(info.spreads || [])) return void setTimeout(render);   // another pass, still hidden
     const old = frame;
     frame = pending;
     pending = null;
@@ -47,11 +50,33 @@
     if (info.error) setStatus("Problem: " + info.error, true);
     else setStatus(`${state.book.sections.length} chapter${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
       (info.problems ? ` · ${info.problems} problem(s) — marked in red, and underlined in the text` : "") +
-      (info.tooLong ? ` · ${info.tooLong} [one page] group(s) too long to fit even when shrunk — dashed red` : ""));
+      (info.blanks ? ` · ${info.blanks} blank page(s) added for facing pages` : ""));
   }
   function bookForPreview() {
-    return { sections: state.book.sections.map((s) => ({ name: s.name, text: s.text })), css: state.book.css };
+    return { sections: state.book.sections.map((s) => ({ name: s.name, text: s.text })), css: state.book.css, plan: state.layout };
   }
+  // Kept-together spans that run over pages: after a layout, check where they landed and adjust the plan.
+  // Returns true when another (hidden) pass is worth it.
+  //  - a span took a different number of pages than measured → redo with the real count (even = facing)
+  //  - "blank page: at the end of the chapter before": move the chapter start instead of a blank before the span
+  //  - that didn't land it on a left-hand page (another span in the chapter wants the other side) → back to a blank before it
+  function improveLayout(spreads) {
+    const L = state.layout;
+    if (!spreads.length || L.passes >= 4) return false;
+    const chapterEnd = (state.settings.changes["--blank-page"] || defaultSetting("--blank-page")) === "chapter-end";
+    let again = false;
+    for (const sp of spreads) {
+      if (sp.actual !== sp.planned && L.pages[sp.key] !== sp.actual) { L.pages[sp.key] = sp.actual; again = true; }
+      else if (sp.actual % 2 === 0 && !sp.left && !L.hard.includes(sp.file)) { L.hard.push(sp.file); again = true; }
+      else if (chapterEnd && sp.blankBefore && !L.flip[sp.file] && !L.hard.includes(sp.file)) {
+        L.flip[sp.file] = sp.chapterStartsLeft ? "right" : "left";
+        again = true;
+      }
+    }
+    if (again) L.passes++;
+    return again;
+  }
+  const defaultSetting = (name) => (state.settings.groups.flatMap((g) => g.items).find((i) => i.name === name) || {}).value;
 
   // ---- connecting ----
   function askForKey(repo, why) {
@@ -267,6 +292,17 @@
     await setChapters([...chapterNames(), name]);
     jumpTo(name, 3);
   }
+  // Keep together: wrap the selected lines in [keep together] … [/keep together]
+  $("#keep-together").onclick = () => {
+    const v = state.text && state.text.view;
+    if (!v) return;
+    const sel = v.state.selection.main;
+    if (sel.empty) return setStatus("Select the lines to keep together first (drag over them in the text), then click Keep together.", true);
+    const first = v.state.doc.lineAt(sel.from), last = v.state.doc.lineAt(sel.to > sel.from && v.state.doc.lineAt(sel.to).from === sel.to ? sel.to - 1 : sel.to);
+    v.dispatch({ changes: [{ from: first.from, insert: "[keep together]\n" }, { from: last.to, insert: "\n[/keep together]" }] });
+    v.focus();
+  };
+
   // pinyin suggestions: remembered per browser
   try { $("#suggest").checked = localStorage.getItem("liturgy.suggestPinyin") === "1"; } catch {}
   $("#suggest").onchange = () => {

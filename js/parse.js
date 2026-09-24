@@ -6,7 +6,9 @@
   const IDEOGRAPH = /[㐀-䶿一-鿿豈-﫿\u{20000}-\u{2ffff}]/u;
   const HAS_CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯\u{20000}-\u{2ffff}]/u;
   const REPEAT = /^x\d+$/i;
-  const KEEP_START = /^\[one page\]$/i, KEEP_END = /^\[\/one page\]$/i;
+  // [keep together] … [/keep together] ([one page] is the older name)
+  const KEEP_START = /^\[(keep together|one page)\]$/i, KEEP_END = /^\[\/(keep together|one page)\]$/i;
+  const BLANK_PAGE = /^\[blank page\]$/i;
   const CONTENTS = /^\[contents\]$/i, TOC_TITLE = /^\[toc:\s*(.*?)\s*\]$/i;
   // ASCII punctuation inside a Chinese line is shown as its full-width form
   const FULL_WIDTH = { ",": "，", ".": "。", "!": "！", "?": "？", ":": "：", ";": "；" };
@@ -64,7 +66,7 @@
     const open = (n) => (block = block || { html: [], en: [], level: 0, mantra: false, start: n + 1 });
     let tocTitle = null;
 
-    let keepFrom = 0;   // line of an open [one page]
+    let keepFrom = 0;   // line of an open [keep together]
     for (let n = 0; n < lines.length; n++) {
       const raw = lines[n];
       const line = raw.trim();
@@ -74,18 +76,23 @@
       if (toc) { tocTitle = toc[1]; continue; }
       if (KEEP_START.test(line)) {
         close();
-        if (keepFrom) problems.push({ line: n + 1, severity: "error", message: "[one page] inside another [one page] — close the first with [/one page]" });
-        else { out.push('<div class="keep">'); keepFrom = n + 1; }
+        if (keepFrom) problems.push({ line: n + 1, severity: "error", message: "[keep together] inside another one — close the first with [/keep together]" });
+        else { out.push(`<div class="keep" data-line="${n + 1}">`); keepFrom = n + 1; }
         continue;
       }
       if (KEEP_END.test(line)) {
         close();
-        if (!keepFrom) problems.push({ line: n + 1, severity: "error", message: "[/one page] without a [one page] above it" });
+        if (!keepFrom) problems.push({ line: n + 1, severity: "error", message: "[/keep together] without a [keep together] above it" });
         else { out.push("</div>"); keepFrom = 0; }
         continue;
       }
       if (!line) { close(); continue; }
-      if (line === "---") { close(); out.push('<div class="page-break"></div>'); continue; }
+      if (BLANK_PAGE.test(line)) { close(); out.push('<div class="blank-page"></div>'); continue; }
+      if (line === "---") {
+        // page breaks are automatic now
+        problems.push({ line: n + 1, severity: "warning", message: "Page breaks are automatic — this line is ignored. To keep lines on one page (or on facing pages), use Keep together." });
+        continue;
+      }
       open(n);
       if (REPEAT.test(line)) {
         block.html.push(`<div class="repeat">${esc(line)}</div>`);
@@ -115,7 +122,7 @@
     }
     close();
     if (keepFrom) {
-      problems.push({ line: keepFrom, severity: "warning", message: "This [one page] is never closed — add [/one page] after the last block" });
+      problems.push({ line: keepFrom, severity: "warning", message: "This [keep together] is never closed — add [/keep together] after the last line to keep" });
       out.push("</div>");
     }
     const tocAttr = tocTitle && tocTitle !== "-" ? ` data-toc="${esc(tocTitle)}"` : "";
