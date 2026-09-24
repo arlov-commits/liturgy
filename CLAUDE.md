@@ -27,7 +27,7 @@ Current choices:
 | Letter-sheet imposition (later) | try **Bookbinder JS** "Perfectbound" first; else **pdf-lib** | |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | |
 
-Our own code should stay small glue: `js/parse.js` (text → HTML) and wiring.
+Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from) and wiring.
 
 ## Formatting lives in CSS, not in the text
 - `css/settings.css` — the only file the editor should need for looks: named variables with
@@ -56,6 +56,8 @@ Our own code should stay small glue: `js/parse.js` (text → HTML) and wiring.
 ```
 npm install                                  # playwright (dev only)
 python3 -m http.server -d ..                 # then open /liturgy/index.html?book=test
+                                             # (no ../liturgy-text folder, e.g. on github.io → asks for a GitHub key
+                                             #  and reads the private repo; ?repo=owner/name to point elsewhere)
 node tools/render-test.mjs native out        # PDF via Chrome print
 node tools/render-test.mjs paged out         # PDF via Paged.js preview
 ```
@@ -67,7 +69,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 ## Roadmap
 1. ✅ Text format + converter (2 sections: Amitabha Sutra, Rebirth Mantra)
 2. ⏳ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit this block on one page" marker; TOC with automatic page numbers; automatic cross-references (replace "(Page 91)")
-3. Editor: CodeMirror (text) + settings tab + live preview; save to private repo via GitHub token (entered once); "open local folder" (File System Access API) as backup
+3. Editor: CodeMirror (text) + settings tab + live preview; read from private repo via GitHub key ✅ (read-only for now); save to it (needs a key with write access); "open local folder" (File System Access API) as backup
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order; PWA shell
 6. Convert the remaining 33 sheets
