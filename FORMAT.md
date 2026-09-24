@@ -6,8 +6,9 @@ stylesheet, never in these files.
 
 ## Booklets
 
-A booklet is a list in `books/<name>.txt`: the section file names, in order, one per line
-(`//` lines are comments). In the editor it's the “Booklet contents” entry of the Text tab.
+A booklet is a list in `books/<name>.txt`: the chapter file names, in order, one per line
+(`//` lines are comments). In the editor it's the Booklet tab (add, reorder, remove chapters). A chapter
+(one `text/*.txt` file) can be in several booklets; its name in lists is its `[toc: …]` or first title.
 
 ## Blocks
 

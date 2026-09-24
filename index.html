@@ -53,13 +53,25 @@
 <main id="app" hidden>
   <aside id="panel">
     <nav id="tabs">
+      <button type="button" data-tab="book">Booklet</button>
       <button type="button" data-tab="text" class="on">Text</button>
       <button type="button" data-tab="settings">Settings</button>
       <button type="button" data-tab="print">Print</button>
     </nav>
+    <div id="tab-book" class="tab" hidden>
+      <h3>Chapters in this booklet</h3>
+      <p id="no-chapters" class="hint" hidden>No chapters yet — add one below.</p>
+      <ol id="chapters"></ol>
+      <div class="add">
+        <label for="add-chapter"><b>Add a chapter</b> (Amitabha Sutra, 88 Buddhas, …)</label>
+        <div class="row"><select id="add-chapter"></select> <button type="button" id="add-chapter-btn" disabled>Add</button></div>
+      </div>
+      <p><button type="button" class="new-chapter">New chapter…</button> <span class="hint">a blank chapter to type yourself</span></p>
+      <p class="hint">A chapter can be in several booklets. Editing it changes it in all of them.</p>
+    </div>
     <div id="tab-text" class="tab">
-      <div class="row"><label for="section">Section</label> <select id="section"></select>
-        <button type="button" id="new-section" title="Make a new section file and add it to the end of this booklet">New section</button></div>
+      <div class="row"><label for="section">Chapter</label> <select id="section"></select>
+        <button type="button" class="new-chapter" title="Make a new chapter and add it to the end of this booklet">New chapter…</button></div>
       <div id="cm"></div>
       <label class="hint"><input type="checkbox" id="suggest"> Suggest pinyin readings (pinyin-pro) — dotted blue marks, suggestions only</label>
       <p class="hint">Blank line = new block · <b># </b>title · <b>## </b>small heading · <b>---</b> new page ·

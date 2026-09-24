@@ -45,7 +45,7 @@
     followCursor();
     $("#print").disabled = !!info.error;
     if (info.error) setStatus("Problem: " + info.error, true);
-    else setStatus(`${state.book.sections.length} section${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
+    else setStatus(`${state.book.sections.length} chapter${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
       (info.problems ? ` · ${info.problems} problem(s) — marked in red, and underlined in the text` : "") +
       (info.tooLong ? ` · ${info.tooLong} [one page] group(s) too long to fit even when shrunk — dashed red` : ""));
   }
@@ -132,7 +132,7 @@
     const name = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "booklet";
     if (existing.includes(name)) return alert(`There is already a booklet called “${name}”.`);
     const path = `books/${name}.txt`;
-    const text = `// ${title} — the section files of this booklet, in order, one per line\n`;
+    const text = `// ${title} — the chapter files of this booklet, in order, one per line\n`;
     if (!state.source.canSave) {
       download(path, text);
       return setStatus(`Downloaded ${name}.txt — put it in ${state.source.where}books/, then reload`);
@@ -143,63 +143,62 @@
     location.search = u;
   }
 
-  // ---- text ----
-  // The Text tab edits the booklet's sections plus its contents list (books/<name>.txt).
-  const CONTENTS = "@contents";
+  // ---- chapters (the Text tab) ----
+  // A booklet is a list of chapter files (books/<name>.txt → text/*.txt). A chapter can be in several booklets;
+  // editing it changes it in all of them.
   const labelOf = (name) => name.replace(/\.txt$/, "");
+  // A chapter's title for lists: its [toc: …] name, else its first title
+  const titleOf = (text, name) => {
+    const m = LiturgyParse.parse(text || "", name).match(/data-toc="([^"]*)"/);
+    return m ? new DOMParser().parseFromString(m[1], "text/html").documentElement.textContent : labelOf(name);
+  };
   async function startText() {
     state.textFiles = await state.source.list("text");   // [] when the source can't list folders
-    state.known = {};   // every section loaded or made, by name — taking one out of the list and back keeps its edits
+    state.known = {};   // every chapter loaded or made, by name — taking one out and back keeps its edits
     for (const s of state.book.sections) addKnown(s);
-    state.contents = { name: CONTENTS, label: "☰ Booklet contents (list of sections)", text: state.book.listText, check: checkList };
-    state.text = LiturgyText.build($("#cm"), $("#section"), (e) => {
-      changed();
-      if (e === state.contents) { clearTimeout(state.listTimer); state.listTimer = setTimeout(updateSections, 600); }
-      else refresh(700);
-    }, (e, line) => {
-      if (e === state.contents) return;
+    state.contents = { text: state.book.listText };
+    state.text = LiturgyText.build($("#cm"), $("#section"), () => { changed(); refresh(700); }, (e, line) => {
       state.cursor = { file: e.name, line };
       clearTimeout(state.cursorTimer);
       state.cursorTimer = setTimeout(followCursor, 250);
     });
-    state.text.setEntries([...state.book.sections, state.contents]);
+    state.text.setEntries(state.book.sections);
+    renderChapters();
+    loadLibrary();
   }
   function addKnown(s) {
-    s.label = labelOf(s.name);
+    s.label = titleOf(s.text, s.name);
     s.check = checkSection;
     state.known[s.name] = s;
+    return s;
   }
-  // A section's problems: parse.js's pinyin checks + page references to sections not in this booklet
+  // A chapter's problems: parse.js's pinyin checks + page references to chapters not in this booklet
   checkSection.withSuggestions = true;
   function checkSection(text) {
     const here = new Set(state.book.sections.map((s) => labelOf(s.name)));
     const problems = LiturgyParse.check(text);
     text.split("\n").forEach((line, i) => {
       for (const ref of LiturgyParse.pageRefs(line)) {
-        if (!here.has(ref)) problems.push({ line: i + 1, severity: "error", message: `“${ref}” is not a section of this booklet, so its page can't be found. Use a name from the Section list.` });
+        if (!here.has(ref)) problems.push({ line: i + 1, severity: "error", message: `“${ref}” is not a chapter of this booklet, so its page can't be found. Add that chapter in the Booklet tab, or check the name.` });
       }
     });
     return problems;
   }
-  // Problems in the contents list: names with no section file behind them
-  function checkList(text) {
-    const problems = [], seen = new Set();
-    text.split("\n").forEach((raw, i) => {
-      const name = raw.trim();
-      if (!name || name.startsWith("//")) return;
-      if (seen.has(name)) problems.push({ line: i + 1, severity: "warning", message: "This section is listed twice" });
-      seen.add(name);
-      if (!state.known[name] && state.textFiles.length && !state.textFiles.includes(name))
-        problems.push({ line: i + 1, severity: "error", message: `There is no section file called “${name}”. Check the spelling, or use New section to make it.` });
-    });
-    return problems;
+
+  // ---- the Booklet tab: which chapters, in which order ----
+  const chapterNames = () => LiturgySource.listNames(state.contents.text);
+  // Rewrites the list file: keeps its opening // comment lines, then one chapter per line
+  async function setChapters(names) {
+    const head = state.contents.text.split("\n").filter((l, i, all) => l.trim().startsWith("//") && all.slice(0, i).every((x) => x.trim().startsWith("//")));
+    state.contents.text = [...head, ...names].join("\n") + "\n";
+    await updateSections();
   }
-  // The contents list changed: load any newly listed sections, then show the new set
+  // Loads any newly listed chapters, then shows the new set
   async function updateSections() {
     const sections = [];
-    for (const name of LiturgySource.listNames(state.contents.text)) {
+    for (const name of chapterNames()) {
       if (!state.known[name]) {
-        const text = await state.source.get("text/" + name, true).catch(() => null);
+        const text = state.library[name] ?? await state.source.get("text/" + name, true).catch(() => null);
         if (text === null) continue;
         addKnown({ name, text });
         state.saved["text/" + name] = text;
@@ -208,21 +207,65 @@
       if (!sections.includes(state.known[name])) sections.push(state.known[name]);
     }
     state.book.sections = sections;
-    state.text.setEntries([...sections, state.contents]);
+    state.text.setEntries(sections);
+    renderChapters();
     changed();
     refresh();
   }
+  // Every chapter file there is, with its title (read once, in the background) — for "Add a chapter"
+  state.library = {};
+  async function loadLibrary() {
+    const names = state.textFiles.filter((n) => n.endsWith(".txt"));
+    await Promise.all(names.map(async (n) => { state.library[n] = await state.source.get("text/" + n, true).catch(() => null); }));
+    renderChapters();
+  }
+  function renderChapters() {
+    const list = $("#chapters"), names = chapterNames();
+    list.textContent = "";
+    names.forEach((name, i) => {
+      const s = state.known[name];
+      const li = document.createElement("li");
+      const btn = (text, title, fn, disabled) => Object.assign(document.createElement("button"), { type: "button", textContent: text, title, onclick: fn, disabled });
+      const move = (d) => { const n = [...names]; [n[i], n[i + d]] = [n[i + d], n[i]]; setChapters(n); };
+      li.append(
+        Object.assign(document.createElement("span"), { className: "title", textContent: s ? s.label : `${labelOf(name)} — missing: no chapter file with this name` }),
+        btn("Edit", "Open this chapter in the Text tab", () => jumpTo(name, 1), !s),
+        btn("↑", "Move up", () => move(-1), i === 0),
+        btn("↓", "Move down", () => move(1), i === names.length - 1),
+        btn("Remove", "Take this chapter out of the booklet (the chapter itself is kept)", () => setChapters(names.filter((_, j) => j !== i))),
+      );
+      if (!s) li.classList.add("missing");
+      list.append(li);
+    });
+    $("#no-chapters").hidden = names.length > 0;
+    // "Add a chapter": every chapter file not already in this booklet, by title
+    const pick = $("#add-chapter");
+    pick.textContent = "";
+    pick.append(Object.assign(document.createElement("option"), { value: "", textContent: "— choose a chapter —" }));
+    const choices = Object.keys({ ...state.library, ...state.known }).filter((n) => !names.includes(n)).sort();
+    for (const n of choices) {
+      const text = state.known[n] ? state.known[n].text : state.library[n];
+      pick.append(Object.assign(document.createElement("option"), { value: n, textContent: `${titleOf(text, n)}  (${labelOf(n)})` }));
+    }
+    $("#add-chapter-btn").disabled = true;
+  }
+  $("#add-chapter").onchange = () => { $("#add-chapter-btn").disabled = !$("#add-chapter").value; };
+  $("#add-chapter-btn").onclick = async () => {
+    const name = $("#add-chapter").value;
+    if (!name) return;
+    await setChapters([...chapterNames(), name]);
+    setStatus(`Added “${state.known[name] ? state.known[name].label : name}” at the end`);
+  };
   async function newSection() {
-    const title = (prompt("Name of the new section (for example: Meng Shan Offering)") || "").trim();
+    const title = (prompt("Name of the new chapter (for example: Evening Transference)") || "").trim();
     if (!title) return;
-    const base = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "section";
+    const base = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "chapter";
     const name = base + ".txt";
-    if (state.known[name] || state.textFiles.includes(name)) return alert(`There is already a section called “${base}”. Pick another name, or add “${name}” to the booklet contents.`);
+    if (state.known[name] || state.textFiles.includes(name) || name in state.library)
+      return alert(`There is already a chapter called “${base}”. Pick another name, or add that chapter with “Add a chapter”.`);
     addKnown({ name, text: `# ${title.toUpperCase()}\n\n` });
-    state.text.setText(CONTENTS, state.contents.text.replace(/\n*$/, "\n") + name + "\n");
-    clearTimeout(state.listTimer);
-    await updateSections();
-    state.text.show(name, 3);
+    await setChapters([...chapterNames(), name]);
+    jumpTo(name, 3);
   }
   // pinyin suggestions: remembered per browser
   try { $("#suggest").checked = localStorage.getItem("liturgy.suggestPinyin") === "1"; } catch {}
@@ -231,7 +274,7 @@
     LiturgyText.setSuggesting($("#suggest").checked, state.text && state.text.view).catch(() => setStatus("Couldn't load the pinyin suggestions", true));
   };
   if ($("#suggest").checked) $("#suggest").onchange();
-  $("#new-section").onclick = () => newSection().catch((e) => setStatus("Problem: " + e.message, true));
+  for (const b of document.querySelectorAll(".new-chapter")) b.onclick = () => newSection().catch((e) => setStatus("Problem: " + e.message, true));
   // keep the verse being edited in view in the pages
   function followCursor() {
     if (frame && state.cursor && frame.contentWindow.showLine) frame.contentWindow.showLine(state.cursor.file, state.cursor.line);
@@ -278,7 +321,7 @@
   }
   function commitMessage(path) {
     if (path === LiturgySource.SETTINGS_FILE) return "Change booklet settings (from the editor)";
-    if (path.startsWith("books/")) return `Change the sections of booklet ${state.bookName} (from the editor)`;
+    if (path.startsWith("books/")) return `Change the chapters of booklet ${state.bookName} (from the editor)`;
     return `${path in state.saved ? "Edit" : "Add"} ${path.replace(/^text\//, "")} (from the editor)`;
   }
   function download(path, text) {
@@ -338,6 +381,7 @@
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
     await startSettings();
     await startText();
+    if (!state.book.sections.length) $('#tabs button[data-tab="book"]').click();
     state.saved = currentFiles();
     changed();
     $("#app").hidden = false;

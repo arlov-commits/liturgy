@@ -63,7 +63,7 @@ await ctx.route('https://api.github.com/**', async (route) => {
     rawSeen.add(rel);
     return route.fulfill({ status: 200, headers: { ...headers, 'content-type': 'text/plain; charset=utf-8' }, body: readFileSync(file) });
   }
-  if (statSync(file).isDirectory()) return json(200, readdirSync(file).map((name) => ({ name, type: 'file' })));
+  if (statSync(file).isDirectory()) return json(200, readdirSync(file).map((name) => ({ name, type: statSync(path.join(file, name)).isDirectory() ? 'dir' : 'file' })));
   const buf = readFileSync(file);
   return json(200, { sha: sha(buf), content: buf.toString('base64'), encoding: 'base64' });
 });
@@ -124,6 +124,20 @@ try {
   await page.click('#save'); await saveDone();
   check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// after raw read'),
     '…and still save (version looked up first)', await status());
+
+  // Booklet tab: a new blank booklet, built by adding existing chapters
+  const onDialog = (d) => (d.type() === 'prompt' ? d.accept('Test booklet') : d.accept());
+  page.on('dialog', onDialog);
+  await Promise.all([page.waitForNavigation(), page.selectOption('#book', '@new')]); await settled();
+  page.off('dialog', onDialog);
+  await page.waitForFunction(() => document.querySelectorAll('#add-chapter option').length > 1);
+  const libraryNames = await page.evaluate(() => [...document.querySelectorAll('#add-chapter option')].slice(1, 3).map((o) => o.value));
+  for (const n of libraryNames) { await page.selectOption('#add-chapter', n); await page.click('#add-chapter-btn'); await page.waitForTimeout(300); }
+  await page.click('#chapters li:nth-child(2) button[title="Move up"]'); await afterEdit();
+  await page.keyboard.press('Control+s'); await saveDone();
+  const list = readFileSync(path.join(repo, 'books', 'test-booklet.txt'), 'utf8').split('\n').filter((l) => l && !l.startsWith('//'));
+  check(list.join() === [...libraryNames].reverse().join() && (await status()).startsWith('Saved'),
+    'new booklet: add existing chapters, reorder, save', list.join(' '));
 
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'readonly'));
   page.once('dialog', (d) => d.accept());

@@ -29,7 +29,8 @@ Current choices:
 | Remembering a picked folder | **idb-keyval** (vendored) | stores the folder handle in IndexedDB |
 
 Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
-`js/editor.js` (the editor page), `js/texttab.js` / `js/settings.js` (its two tabs) and wiring.
+`js/editor.js` (the editor page, incl. the Booklet tab), `js/texttab.js` / `js/settings.js` (Text and Settings tabs) and wiring.
+In the UI a section file is a **chapter**; a booklet is built by adding existing chapters (shared between booklets) or new ones.
 The Text tab's colouring repeats `parse.js`'s line rules — keep them in step with FORMAT.md.
 
 ## Pages
@@ -101,7 +102,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 1. ✅ Text format + converter — all 30 printed sections converted and verified against the workbook
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "use a folder on this computer" ✅ (File System Access API, Chrome/Edge);
-4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, edit the list ✅, new booklet / new section ✅)
+4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, Booklet tab: add existing chapters / reorder / remove ✅, new booklet / new chapter ✅)
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell ✅
 6. ✅ Convert the remaining sheets (done with the converter in liturgy-text/tools)
 7. ✅ Bundle an Ext-B font for 𤙖 (Jigmo2)

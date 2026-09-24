@@ -29,6 +29,17 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #cm { flex: 1; min-height: 0; border: 1px solid #ccc; }
 #tab-text .hint { margin: 0; }
 
+/* Booklet tab */
+#tab-book h3 { margin: 8px 0; font-size: 15px; }
+#chapters { padding-left: 24px; margin: 0 0 16px; }
+#chapters li { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid #eee; }
+#chapters li .title { flex: 1; min-width: 0; }
+#chapters li.missing .title { color: #b00; }
+#chapters li button { padding: 1px 7px; font-size: 13px; }
+#tab-book .add { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; }
+#tab-book .add .row { display: flex; gap: 6px; margin-top: 4px; }
+#tab-book .add select { flex: 1; min-width: 0; font: inherit; }
+
 /* Settings tab */
 #tab-settings fieldset { border: 0; border-top: 1px solid #ddd; margin: 14px 0 0; padding: 6px 0 0; }
 #tab-settings legend { font-weight: 700; padding-right: 6px; }
