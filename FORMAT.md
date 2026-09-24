@@ -1,4 +1,4 @@
-# Liturgy text format — v0.1 (draft)
+# Liturgy text format — v0.2 (draft)
 
 Each section of the liturgy is one plain-text file (UTF-8), e.g. `text/03-amitabha-sutra.txt`.
 The files hold **words only**. Fonts, sizes, spacing, margins and page numbers live in the
@@ -34,6 +34,7 @@ qí shù jǐ gū dú yuán
 |---|---|
 | `# ` | title line (centered, larger) |
 | `## ` | small heading (centered, smaller Chinese) |
+| `> ` | small note line — leader instructions ("The Leader says:"), Sanskrit equivalents, "Proceed to…" |
 | `---` | page break |
 | `[one page]` … `[/one page]` | keep everything between on one page (each marker on its own line). If it's taller than a page it is shrunk to fit — but not below the “fit smallest” setting; then it runs over and is flagged. |
 | `//` | comment — never printed |

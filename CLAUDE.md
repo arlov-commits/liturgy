@@ -69,6 +69,16 @@ The Text tab's colouring repeats `parse.js`'s line rules — keep them in step w
 - Paged.js quirks (handled in `preview.html`): it drops `@media screen` rules from the sheets it paginates
   (screen-only looks go in preview.html's own `<style>`), it paginates the whole page if given no content,
   and it can leave an invisible copy of a moved block in a page's overflow (`removeOverflow()`).
+- **Missing glyphs:** every font list in `book.css` ends with **"Liturgy Extra"** (`fonts/extra/`,
+  built by `tools/build_extra_font.py`, licence in `fonts/extra/LICENSE.txt`): ~17,000 rare Chinese
+  characters from the full Noto Serif CJK TC (Fontsource's Noto Serif TC omits e.g. 嚩 跢 鋄 㝹) in
+  lazy-loaded chunks, plus ornaments (☸ ✦ ❁ ༺ ⊹ 𓆝 ˖ …). So font settings are bare names (`"Lora"`, no
+  generic `serif` — that would win before the fallback). Run `python3 tools/check_glyphs.py ../liturgy-text/text`
+  after any text or font change — it must report 0 (𤙖 until the Ext-B font is added). Renders in a dev
+  container can hide gaps if it has system CJK fonts; trust `check_glyphs.py`, not the render.
+- **Open glyph gap:** 𤙖 (U+24656, CJK Ext-B, Shurangama mantra heart) is in no bundled font; it
+  currently relies on Windows' MingLiU-ExtB / SimSun-ExtB. TODO: add an Ext-B serif source (e.g.
+  I.Ming or Jigmo, both free, on GitHub) to `build_extra_font.py`.
 - Page 1 is a right-hand page: binding margin on the left for odd pages, right for even.
 
 ## Dev loop
@@ -81,7 +91,9 @@ python3 -m http.server -d ..                 # then open /liturgy/index.html?boo
 node tools/render-test.mjs native out        # PDF via Chrome print (CHROMIUM=<path> to use another Chromium)
 node tools/render-test.mjs paged out         # PDF via Paged.js preview
 node tools/editor-test.mjs                   # end-to-end editor checks against a fake GitHub (temp copy of ../liturgy-text)
+python3 tools/check_glyphs.py ../liturgy-text/text   # must list nothing new (𤙖 until the Ext-B font is added)
 ```
+Booklets: `books/test.txt` (2 sections), `books/full.txt` (all 30 sections).
 Run `tools/editor-test.mjs` before pushing editor changes.
 Always look at rendered pages (PDF → PNG) before claiming a layout change works.
 
@@ -89,9 +101,10 @@ Always look at rendered pages (PDF → PNG) before claiming a layout change work
 One item at a time, one commit per item. Brief, plain-language summaries.
 
 ## Roadmap
-1. ✅ Text format + converter (2 sections: Amitabha Sutra, Rebirth Mantra)
+1. ✅ Text format + converter — all 30 printed sections converted and verified against the workbook
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "use a folder on this computer" ✅ (File System Access API, Chrome/Edge);
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, edit the list ✅, new booklet / new section ✅)
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell ✅
-6. Convert the remaining 33 sheets
+6. ✅ Convert the remaining sheets (done with the converter in liturgy-text/tools)
+7. Bundle an Ext-B font for 𤙖 (see gotchas)

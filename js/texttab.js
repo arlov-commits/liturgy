@@ -15,6 +15,7 @@
     if (REPEAT.test(line)) return "repeat";
     if (line.includes("|") && HAS_CJK.test(line)) return "mantra";
     if (HAS_CJK.test(line)) { state.afterChinese = true; return "chinese"; }
+    if (line.startsWith(">")) return "note";
     if (/^#{1,2}(\s|$)/.test(line)) return "heading";
     return afterChinese ? "pinyin" : null;
   }
@@ -29,7 +30,7 @@
       if (next > 0 && state.kind !== "comment") stream.pos += next; else stream.skipToEnd();
       return state.kind;
     },
-    tokenTable: { pageRef: tags.link, pageBreak: tags.processingInstruction, repeat: tags.keyword, mantra: tags.special(tags.string), chinese: tags.string, pinyin: tags.atom },
+    tokenTable: { note: tags.quote, pageRef: tags.link, pageBreak: tags.processingInstruction, repeat: tags.keyword, mantra: tags.special(tags.string), chinese: tags.string, pinyin: tags.atom },
   });
   const colours = HighlightStyle.define([
     { tag: tags.comment, color: "#8a8a8a", fontStyle: "italic" },
@@ -40,10 +41,11 @@
     { tag: tags.special(tags.string), color: "#6a3d9a" },
     { tag: tags.atom, color: "#2a7a3a" },
     { tag: tags.link, color: "#0a6b8a", textDecoration: "underline" },
+    { tag: tags.quote, color: "#6b5a3a", fontStyle: "italic" },
   ]);
   const theme = EditorView.theme({
     "&": { height: "100%", fontSize: "15px", backgroundColor: "#fff" },
-    ".cm-scroller": { fontFamily: '"Gentium Book Plus", "Noto Serif TC", serif', lineHeight: "1.55" },
+    ".cm-scroller": { fontFamily: '"Gentium Book Plus", "Noto Serif TC", "Liturgy Extra", serif', lineHeight: "1.55" },
   });
 
   // Problems (pinyin checks from parse.js, or whatever `check` gives) as underlines + gutter marks

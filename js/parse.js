@@ -99,10 +99,13 @@
         );
       } else if (HAS_CJK.test(line)) {
         const next = (lines[n + 1] || "").trim();
-        const hasPinyin = next && !HAS_CJK.test(next) && !next.startsWith("#") && next !== "---" && !REPEAT.test(next);
+        const hasPinyin = next && !HAS_CJK.test(next) && !/^[#>]/.test(next) && next !== "---" && !REPEAT.test(next);
         block.html.push(chineseLine(line, hasPinyin ? next : "", n + 1, problems));
         if (hasPinyin) pairs.push({ line: n + 1, han: line, pinyinLine: n + 2, pinyin: lines[n + 1] });
         if (hasPinyin) n++;
+      } else if (line.startsWith(">")) {
+        // small note line: leader instructions, Sanskrit equivalents
+        block.html.push(`<p class="en note">${inline(esc(line.replace(/^>\s*/, "")))}</p>`);
       } else {
         const m = line.match(/^(#{1,2})\s*(.*)$/);
         if (m) block.level = block.level ? Math.min(block.level, m[1].length) : m[1].length;

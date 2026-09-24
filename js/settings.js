@@ -4,10 +4,11 @@
   "use strict";
 
   // Fonts that may be picked for each kind of text. Pinyin must pass the tone-mark check (see CLAUDE.md).
+  // No generic "serif" at the end: book.css adds "Liturgy Extra" after these for rare characters.
   const FONT_CHOICES = {
-    "--pinyin-font": ['"Gentium Book Plus", serif'],
-    "--chinese-font": ['"Noto Serif TC", "Noto Serif CJK TC", serif'],
-    default: ['"Lora", serif', '"Gentium Book Plus", serif'],
+    "--pinyin-font": ['"Gentium Book Plus"'],
+    "--chinese-font": ['"Noto Serif TC"'],
+    default: ['"Lora"', '"Gentium Book Plus"'],
   };
   const WEIGHTS = { 400: "regular", 600: "semibold" };
   const STEP = { in: 0.05, pt: 0.1, em: 0.02, px: 1, mm: 1, cm: 0.1 };

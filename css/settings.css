@@ -1,6 +1,9 @@
 /* ===================================================================
    BOOKLET SETTINGS — change the numbers here; everything else follows.
    pt = points (1/72 inch), in = inches, em = "times the text size"
+   Fonts: the name in quotes must be a font bundled in fonts/ (or installed
+   on the computer). Rare characters and ornaments are filled in
+   automatically from the bundled "Liturgy Extra" font.
    =================================================================== */
 :root {
   /* ---- Page (quarter of a letter sheet) ---- */
@@ -12,27 +15,29 @@
   --margin-bottom: 0.45in;
 
   /* ---- Page numbers (outside bottom corner) ---- */
-  --page-number-font: "Lora", serif;
+  --page-number-font: "Lora";
   --page-number-size: 10pt;
 
   /* ---- English ---- */
-  --english-font: "Lora", serif;
+  --english-font: "Lora";
   --english-size: 8.2pt;
   --english-weight: 600;       /* 400 = regular, 600 = semibold (like the old Lucida Bright Demi) */
 
   /* ---- Chinese ---- */
-  --chinese-font: "Noto Serif TC", "Noto Serif CJK TC", serif;
+  --chinese-font: "Noto Serif TC";
   --chinese-size: 14.5pt;
   --character-spacing: 1.72em; /* width of each character slot (like Excel's columns) */
 
   /* ---- Pinyin ---- */
-  --pinyin-font: "Gentium Book Plus", serif;
+  --pinyin-font: "Gentium Book Plus";
   --pinyin-size: 8.4pt;
 
   /* ---- Spacing ---- */
   --space-english-to-chinese: 1pt;  /* gap above the Chinese line */
   --space-chinese-to-pinyin: -1pt;  /* gap between a character and its pinyin */
   --space-between-verses: 6pt;
+
+  --note-scale: 0.9;       /* "> " note lines (instructions, Sanskrit) are this much smaller */
 
   /* ---- [one page] groups ---- */
   --fit-smallest: 0.7;     /* a [one page] group taller than a page is shrunk to fit, but never below this (0.7 = 70%) */
