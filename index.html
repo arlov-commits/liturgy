@@ -7,11 +7,19 @@
 <link rel="stylesheet" href="css/settings.css">
 <link rel="stylesheet" href="css/book.css">
 <style>
-  @media print { #status { display: none; } }
+  @media print { #status, #signin { display: none; } }
   /* screen-only chrome for the preview; not part of the book */
   @media screen {
     body { background: #e8e6e1; margin: 0; }
     #status { font: 13px system-ui, sans-serif; padding: 6px 10px; background: #fff; border-bottom: 1px solid #ccc; }
+    #status a { margin-left: 1em; color: #555; }
+    #signin { font: 15px/1.5 system-ui, sans-serif; max-width: 36em; margin: 24px auto; padding: 20px 24px; background: #fff; border: 1px solid #ccc; }
+    #signin h2 { margin-top: 0; font-size: 20px; }
+    #signin .why { color: #b00; }
+    #signin li { margin-bottom: 6px; }
+    #signin input { width: 100%; box-sizing: border-box; font: 15px monospace; padding: 6px; margin: 8px 0; }
+    #signin button { font: inherit; padding: 6px 18px; }
+    #signin .small { font-size: 13px; color: #555; }
     .pagedjs_pages { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
     .pagedjs_page { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
   }
@@ -19,17 +27,44 @@
 </head>
 <body>
 <div id="status">Loading…</div>
+<form id="signin" hidden>
+  <h2>Connect to the liturgy text</h2>
+  <p class="why"></p>
+  <p>The words of the booklets are kept in a private GitHub repository. To show them, this page needs
+     a GitHub <b>key</b> that can read that one repository. You do this once on each computer/browser.</p>
+  <ol>
+    <li><a class="make-key" target="_blank" rel="noopener">Open GitHub's “new key” page</a> (sign in to GitHub if it asks).</li>
+    <li><b>Token name</b>: anything, e.g. “Liturgy booklet”. <b>Expiration</b>: how long the key should work — after that you make a new one.</li>
+    <li><b>Resource owner</b>: <b class="owner"></b>. <b>Repository access</b>: “Only select repositories” → <b class="repo"></b>.</li>
+    <li><b>Permissions</b>: add <b>Contents</b> and set it to <b>Read-only</b>.</li>
+    <li>Click <b>Generate token</b>, copy the key (it starts with <code>github_pat_</code>) and paste it here:</li>
+  </ol>
+  <input name="key" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>
+  <button>Connect</button>
+  <p class="small">The key is kept in this browser only. “Forget key” in the top bar removes it.</p>
+</form>
 <main id="book"></main>
 <script src="js/parse.js"></script>
+<script src="js/source.js"></script>
 <script>
-// Prototype loader: ?text=<folder of liturgy-text>&book=<name>&engine=paged|none
+// Prototype loader: ?text=<folder of liturgy-text> or ?repo=<owner/name>, &book=<name>&engine=paged|none
 (async function () {
   const q = new URLSearchParams(location.search);
-  const base = (q.get("text") || "../liturgy-text/").replace(/\/?$/, "/");
   const bookName = q.get("book") || "test";
   const engine = q.get("engine") || "paged";
   const status = document.getElementById("status");
-  const get = async (p) => { const r = await fetch(base + p); if (!r.ok) throw new Error(p + " " + r.status); return r.text(); };
+
+  let source;
+  try {
+    source = await LiturgySource.open(q, bookName);
+  } catch (e) {
+    if (!e.needKey) throw e;
+    askForKey(q.get("repo") || LiturgySource.DEFAULT_REPO, e.message);
+    status.textContent = "Not connected";
+    document.body.dataset.ready = "signin";
+    return;
+  }
+  const get = source.get;
 
   const list = (await get(`books/${bookName}.txt`)).split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
   const html = [];
@@ -56,8 +91,35 @@
   } else {
     status.textContent = `${list.length} sections · ${problems} pinyin problem(s) · press Ctrl+P to see pages`;
   }
+  if (source.usesKey) addForgetLink();
   document.body.dataset.ready = "1";
-})().catch((e) => { document.getElementById("status").textContent = "Error: " + e.message; document.body.dataset.ready = "err"; });
+})().catch((e) => {
+  document.getElementById("status").textContent = "Error: " + e.message;
+  if (LiturgySource.key.get()) addForgetLink();
+  document.body.dataset.ready = "err";
+});
+
+function askForKey(repo, why) {
+  const form = document.getElementById("signin");
+  const [owner, name] = repo.split("/");
+  form.querySelector(".why").textContent = why;
+  form.querySelector(".owner").textContent = owner;
+  form.querySelector(".repo").textContent = name;
+  form.querySelector(".make-key").href = "https://github.com/settings/personal-access-tokens/new?" +
+    new URLSearchParams({ name: "Liturgy booklet", description: `Read ${repo} for the booklet preview`, target_name: owner, contents: "read" });
+  form.onsubmit = (ev) => {
+    ev.preventDefault();
+    LiturgySource.key.set(form.elements.key.value.trim());
+    location.reload();
+  };
+  form.hidden = false;
+}
+
+function addForgetLink() {
+  const a = Object.assign(document.createElement("a"), { href: "#", textContent: "Forget key" });
+  a.onclick = (ev) => { ev.preventDefault(); LiturgySource.key.forget(); location.reload(); };
+  document.getElementById("status").append(a);
+}
 </script>
 </body>
 </html>
