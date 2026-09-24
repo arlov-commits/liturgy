@@ -5,6 +5,7 @@
 <link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Liturgy booklet</title>
+<link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="css/editor.css">
 </head>
 <body>
@@ -37,14 +38,23 @@
 <main id="app" hidden>
   <aside id="panel">
     <nav id="tabs">
-      <button type="button" data-tab="settings" class="on">Settings</button>
+      <button type="button" data-tab="text" class="on">Text</button>
+      <button type="button" data-tab="settings">Settings</button>
     </nav>
-    <div id="tab-settings" class="tab"></div>
+    <div id="tab-text" class="tab">
+      <div class="row"><label for="section">Section</label> <select id="section"></select></div>
+      <div id="cm"></div>
+      <p class="hint">Blank line = new block · <b># </b>title · <b>## </b>small heading · <b>---</b> new page ·
+        <b>//</b> note (not printed) · <a href="https://github.com/arlov-commits/liturgy/blob/main/FORMAT.md" target="_blank" rel="noopener">full guide</a></p>
+    </div>
+    <div id="tab-settings" class="tab" hidden></div>
   </aside>
   <section id="preview" aria-label="Pages"></section>
 </main>
 
+<script src="vendor/codemirror.min.js"></script>
 <script src="js/source.js"></script>
+<script src="js/texttab.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/editor.js"></script>
 </body>

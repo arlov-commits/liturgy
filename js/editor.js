@@ -92,6 +92,11 @@
     });
   }
 
+  // ---- text ----
+  function startText() {
+    state.text = LiturgyText.build($("#cm"), $("#section"), state.book.sections, () => { changed(); refresh(700); });
+  }
+
   // ---- saving ----
   // Every file the editor can change, as it is now in memory
   function currentFiles() {
@@ -150,6 +155,7 @@
     $("#forget").hidden = !state.source.usesKey;
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
     await startSettings();
+    startText();
     state.saved = currentFiles();
     changed();
     $("#app").hidden = false;

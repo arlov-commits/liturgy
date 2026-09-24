@@ -22,13 +22,14 @@ Current choices:
 | Pagination / on-screen page preview | **Paged.js** (vendored, `vendor/paged.min.js`) | Chosen over Vivliostyle in Phase 2 (see below). Needs the small var-filling shim in `index.html` because it can't read `var()` inside `@page`. |
 | Pinyin under characters | native `<ruby>` + `ruby-position: under` | never position pinyin manually |
 | Final print | Chrome's own print (Chrome 131+ supports `@page :left/:right` margin boxes and `var()`) | |
-| Text editing | **CodeMirror 6** | never `contenteditable` |
+| Text editing | **CodeMirror 6** (vendored, `vendor/codemirror.min.js`) | never `contenteditable`. Bundle built from `tools/vendor/codemirror.mjs` by `npm run vendor` — add any new CodeMirror import there. |
 | Pinyin checking (later) | **pinyin-pro** | suggestions only — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate |
 | Letter-sheet imposition (later) | try **Bookbinder JS** "Perfectbound" first; else **pdf-lib** | |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | |
 
 Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
-`js/editor.js` (the editor page) and wiring.
+`js/editor.js` (the editor page), `js/texttab.js` / `js/settings.js` (its two tabs) and wiring.
+The Text tab's colouring repeats `parse.js`'s line rules — keep them in step with FORMAT.md.
 
 ## Pages
 - `index.html` — the editor: top bar, panels, and the pages in a frame. The frame re-renders hidden and swaps in
@@ -65,7 +66,8 @@ Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.j
 
 ## Dev loop
 ```
-npm install                                  # playwright (dev only)
+npm install                                  # playwright, esbuild, CodeMirror sources (dev only)
+npm run vendor                               # rebuild vendor/codemirror.min.js
 python3 -m http.server -d ..                 # then open /liturgy/index.html?book=test  (preview only: preview.html)
                                              # (no ../liturgy-text folder, e.g. on github.io → asks for a GitHub key
                                              #  and reads the private repo; ?repo=owner/name to point elsewhere)
