@@ -41,7 +41,7 @@ qí shù jǐ gū dú yuán
 | `## ` | small heading (centered, smaller Chinese) |
 | `> ` | small note line — leader instructions ("The Leader says:"), Sanskrit equivalents, "Proceed to…" |
 | `[keep together]` … `[/keep together]` | keep the lines between on one page (each marker on its own line; the editor's **Keep together** button adds them). If they don't fit a page even shrunk (not below the “fit smallest” setting), they run over pages: an even number of pages starts on a left-hand page so the pages face each other; an odd number may start on either side. A blank page is added where needed — just before, or at the end of the chapter before (setting “blank page”). |
-| `[border]` … `[/border]` | a box around the lines between (the editor's **Border** button adds the markers). Line thickness, style, colour, padding, rounded corners and spacing are in Settings → Borders. Kept on one page unless taller than a page. Spans may be put inside one another (e.g. a border inside a keep together) but must be closed in reverse order. |
+| `[border]` … `[/border]` | a box around the lines between (the editor's **Border** button adds the markers). Line thickness, style, colour, padding, rounded corners and spacing are in Settings → Borders. Kept on one page unless taller than a page. Spans may be put inside one another — a border inside a keep together, or a keep together inside a longer keep together (the inner group stays on one page, or on facing pages if too long, within the longer span) — but must be closed in reverse order. |
 | `[blank page]` | a page left empty on purpose (e.g. at the start of the book) |
 | `//` | comment — never printed |
 

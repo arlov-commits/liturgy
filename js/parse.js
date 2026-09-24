@@ -7,7 +7,7 @@
   const HAS_CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯\u{20000}-\u{2ffff}]/u;
   const REPEAT = /^x\d+$/i;
   // Spans of lines: [keep together] … [/keep together] ([one page] is the older name), [border] … [/border].
-  // They may be put inside one another, but must be closed in the reverse order.
+  // They may be put inside one another (also the same kind), but must be closed in the reverse order.
   const SPANS = { "keep together": "keep", "one page": "keep", border: "bordered" };
   const SPAN_MARK = /^\[(\/?)(keep together|one page|border)\]$/i;
   const BLANK_PAGE = /^\[blank page\]$/i;
@@ -89,8 +89,10 @@
         close();
         const name = mark[2].toLowerCase(), cls = SPANS[name], shown = name === "one page" ? "keep together" : name;
         if (!mark[1]) {
-          if (open_.some((o) => o.cls === cls)) problems.push({ line: n + 1, severity: "error", message: `[${shown}] inside another one — close the first with [/${shown}]` });
-          else { out.push(`<div class="${cls}" data-line="${n + 1}">`); open_.push({ cls, shown, line: n + 1 }); }
+          // spans may sit inside one another, even of the same kind (a verse group kept together inside a
+          // longer kept-together span)
+          out.push(`<div class="${cls}" data-line="${n + 1}">`);
+          open_.push({ cls, shown, line: n + 1 });
         } else if (!open_.length || open_[open_.length - 1].cls !== cls) {
           const top = open_[open_.length - 1];
           problems.push({ line: n + 1, severity: "error", message: top
