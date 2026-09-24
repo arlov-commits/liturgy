@@ -8,7 +8,9 @@
   const FONT_CHOICES = {
     "--pinyin-font": ['"Gentium Book Plus"'],
     "--chinese-font": ['"Noto Serif TC"'],
-    default: ['"Lora"', '"Gentium Book Plus"'],
+    // English and page numbers: fonts bundled in fonts/ that passed the tone-mark check
+    default: ['"Lora"', '"Gentium Book Plus"', '"Crimson Pro"', '"Alegreya"', '"Libre Baskerville"', '"Merriweather"',
+      '"Noto Serif"', '"Source Serif 4"', '"Noto Sans"', '"Source Sans 3"'],
   };
   const WEIGHTS = { 400: "regular", 600: "semibold" };
   // Settings that are a choice between named options (value → what the editor sees)
@@ -83,7 +85,9 @@
       const num = current().match(/^(-?\d*\.?\d+)([a-z%]*)$/);
       if (/-font$/.test(item.name)) {
         const choices = FONT_CHOICES[item.name] || FONT_CHOICES.default;
-        input = el("select", { id }, ...[...new Set([current(), ...choices])].map((f) => el("option", { value: f, textContent: f.split(",")[0].replace(/"/g, "") })));
+        const SANS = ['"Noto Sans"', '"Source Sans 3"'];
+        input = el("select", { id }, ...[...new Set([current(), ...choices])].map((f) => el("option", { value: f,
+          textContent: f.split(",")[0].replace(/"/g, "") + (SANS.includes(f) ? " (plain, sans-serif)" : ""), style: `font-family: ${f}` })));
         input.value = current();
         input.onchange = () => update(input.value);
       } else if (CHOICES[item.name]) {
