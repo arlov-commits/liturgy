@@ -60,13 +60,17 @@
       if (block.level === 1) cls.push("title");
       if (block.level === 2) cls.push("subtitle");
       if (block.mantra) cls.push("mantra");
-      out.push(`<div class="${cls.join(" ")}" data-line="${block.start}">${block.html.join("")}</div>`);
+      // a [toc: …] partway through the chapter: an extra contents entry, pointing at this block
+      const entry = pendingEntry ? ` id="${anchor(name || "")}-l${block.start}" data-toc-entry="${esc(pendingEntry)}"` : "";
+      pendingEntry = null;
+      blocks++;
+      out.push(`<div class="${cls.join(" ")}" data-line="${block.start}"${entry}>${block.html.join("")}</div>`);
       // the section's name in a table of contents: its first title, unless [toc: …] says otherwise
       if (block.level === 1 && tocTitle === null && block.en.length) tocTitle = block.en.join(" ").replace(/[~\[\]]+/g, " ").replace(/\s+/g, " ").trim();
       block = null;
     };
     const open = (n) => (block = block || { html: [], en: [], level: 0, mantra: false, start: n + 1 });
-    let tocTitle = null;
+    let tocTitle = null, pendingEntry = null, blocks = 0;
 
     const open_ = [];   // spans ([keep together], [border]) not closed yet
     for (let n = 0; n < lines.length; n++) {
@@ -75,7 +79,11 @@
       if (line.startsWith("//")) continue;
       if (CONTENTS.test(line)) { close(); out.push('<nav class="toc"></nav>'); continue; }
       const toc = line.match(TOC_TITLE);
-      if (toc) { tocTitle = toc[1]; continue; }
+      if (toc) {
+        // at the top: the chapter's name in the contents; further down: an extra entry for the next block
+        if (blocks === 0 && !block) tocTitle = toc[1]; else pendingEntry = toc[1];
+        continue;
+      }
       const mark = line.match(SPAN_MARK);
       if (mark) {
         close();

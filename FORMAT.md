@@ -56,8 +56,10 @@ prints `?` and is flagged.
   `[contents]` in the booklet list; its heading is the “contents title” setting).
 - `[contents]` on its own line in a chapter prints a table of contents there: one line per section of the booklet
   (except the section it's in), with the page each starts on — filled in automatically.
-- A section is listed under its first `#` title. To list it under another name, put `[toc: Name]` on a line
-  of its own anywhere in the section; `[toc: -]` leaves the section out.
+- A chapter is listed under its first `#` title. To list it under another name, put `[toc: Name]` on a line
+  of its own at the top of the chapter (before its first block); `[toc: -]` leaves the chapter out.
+- `[toc: Name]` further down a chapter adds an extra entry for the block that follows it (e.g. the parts of the
+  Meal Offering).
 
 ## Mantra lines (romanization beside the Chinese)
 
