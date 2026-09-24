@@ -170,6 +170,7 @@
     state.known[s.name] = s;
   }
   // A section's problems: parse.js's pinyin checks + page references to sections not in this booklet
+  checkSection.withSuggestions = true;
   function checkSection(text) {
     const here = new Set(state.book.sections.map((s) => labelOf(s.name)));
     const problems = LiturgyParse.check(text);
@@ -223,6 +224,13 @@
     await updateSections();
     state.text.show(name, 3);
   }
+  // pinyin suggestions: remembered per browser
+  try { $("#suggest").checked = localStorage.getItem("liturgy.suggestPinyin") === "1"; } catch {}
+  $("#suggest").onchange = () => {
+    try { localStorage.setItem("liturgy.suggestPinyin", $("#suggest").checked ? "1" : "0"); } catch {}
+    LiturgyText.setSuggesting($("#suggest").checked, state.text && state.text.view).catch(() => setStatus("Couldn't load the pinyin suggestions", true));
+  };
+  if ($("#suggest").checked) $("#suggest").onchange();
   $("#new-section").onclick = () => newSection().catch((e) => setStatus("Problem: " + e.message, true));
   // keep the verse being edited in view in the pages
   function followCursor() {

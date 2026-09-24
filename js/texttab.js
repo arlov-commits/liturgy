@@ -47,10 +47,44 @@
   });
 
   // Problems (pinyin checks from parse.js, or whatever `check` gives) as underlines + gutter marks
-  const problems = (check) => linter((view) => check(view.state.doc.toString()).map((p) => {
-    const line = view.state.doc.line(Math.min(p.line, view.state.doc.lines));
-    return { from: line.from, to: line.to, severity: p.severity, message: p.message };
-  }), { delay: 400 });
+  // (a problem may give from/to columns within its line; otherwise the whole line is marked)
+  const problems = (check) => linter((view) => {
+    const text = view.state.doc.toString();
+    return [...check(text), ...(check === LiturgyParse.check || check.withSuggestions ? suggestions(text) : [])].map((p) => {
+      const line = view.state.doc.line(Math.min(p.line, view.state.doc.lines));
+      const from = p.from != null ? line.from + Math.min(p.from, line.length) : line.from;
+      const to = p.to != null ? line.from + Math.min(p.to, line.length) : line.to;
+      return { from, to, severity: p.severity, message: p.message };
+    });
+  }, { delay: 400, needsRefresh: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(recheck))) });
+
+  // Optional pinyin suggestions from pinyin-pro (loaded when switched on). Only shown where pinyin-pro reads a
+  // character differently from the text — liturgical readings (nā mó, 土 dù, 般若 bō rě) are often deliberate.
+  let suggesting = false;
+  const recheck = CM.StateEffect.define();
+  const clean = (syl) => syl.toLowerCase().normalize("NFC").replace(/[^\p{L}]/gu, "");
+  function suggestions(text) {
+    if (!suggesting || typeof pinyinPro === "undefined") return [];
+    const out = [];
+    for (const p of LiturgyParse.pairs(text)) {
+      if (p.ideographs.length !== p.syllables.length) continue;   // counts differ: that's already an error
+      const read = pinyinPro.pinyin(p.chars.join(""), { type: "array", toneSandhi: false });
+      p.ideographs.forEach((ci, k) => {
+        const written = p.syllables[k], ours = clean(written.text), theirs = clean(read[ci] || "");
+        if (!ours || ours === "_" || !theirs || /\p{Script=Han}/u.test(theirs) || ours === theirs) return;   // (unknown characters come back as themselves)
+        out.push({ line: p.pinyinLine, from: written.at, to: written.at + written.text.length, severity: "info",
+          message: `pinyin-pro reads ${p.chars[ci]} as “${theirs}” (written “${ours}”). Only a suggestion — keep it if the reading is deliberate.` });
+      });
+    }
+    return out;
+  }
+  async function setSuggesting(on, view) {
+    if (on && typeof pinyinPro === "undefined") {
+      await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "vendor/pinyin-pro.min.js"; s.onload = res; s.onerror = rej; document.head.append(s); });
+    }
+    suggesting = on;
+    if (view) { view.dispatch({ effects: recheck.of(null) }); CM.forceLinting(view); }
+  }
 
   // One editor for several files. An entry = { name, label, text, check?(text) → problems }; the editor
   // writes edits back into entry.text. `onChange(entry)` after each edit; `onCursor(entry, line)` when the
@@ -104,5 +138,5 @@
     return { setEntries, show, setText, view, current: () => current };
   }
 
-  root.LiturgyText = { build };
+  root.LiturgyText = { build, setSuggesting };
 })(window);

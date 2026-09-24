@@ -23,7 +23,7 @@ Current choices:
 | Pinyin under characters | native `<ruby>` + `ruby-position: under` | never position pinyin manually |
 | Final print | Chrome's print of the Paged.js preview (Print button → Save as PDF), then the Print tab imposes it | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
 | Text editing | **CodeMirror 6** (vendored, `vendor/codemirror.min.js`) | never `contenteditable`. Bundle built from `tools/vendor/codemirror.mjs` by `npm run vendor` — add any new CodeMirror import there. |
-| Pinyin checking (later) | **pinyin-pro** | suggestions only — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate |
+| Pinyin checking | **pinyin-pro** (vendored, loaded only when “Suggest pinyin readings” is ticked) | suggestions only (blue dotted, opt-in) — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate. `toneSandhi: false` so 一/不 aren't flagged. |
 | Letter-sheet imposition | **pdf-lib** (vendored, `vendor/pdf-lib.min.js`) | Bookbinder JS is a web app, not a package, so pdf-lib it is. `js/impose.js`: 2×2 on letter, duplex (long edge), cut-and-stack. |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | |
 | Remembering a picked folder | **idb-keyval** (vendored) | stores the folder handle in IndexedDB |

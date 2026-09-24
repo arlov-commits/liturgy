@@ -44,7 +44,8 @@
     return `<div class="zh${ok ? "" : " mismatch"}"${flag}>${cells}</div>`;
   }
 
-  function parse(text, name, problems = []) {
+  // pairs: list to add each Chinese line + its pinyin line to: { line, han, pinyinLine, pinyin } (pinyin untrimmed)
+  function parse(text, name, problems = [], pairs = []) {
     const lines = text.replace(/\r\n?/g, "\n").split("\n");
     const out = [];
     let block = null;
@@ -100,6 +101,7 @@
         const next = (lines[n + 1] || "").trim();
         const hasPinyin = next && !HAS_CJK.test(next) && !next.startsWith("#") && next !== "---" && !REPEAT.test(next);
         block.html.push(chineseLine(line, hasPinyin ? next : "", n + 1, problems));
+        if (hasPinyin) pairs.push({ line: n + 1, han: line, pinyinLine: n + 2, pinyin: lines[n + 1] });
         if (hasPinyin) n++;
       } else {
         const m = line.match(/^(#{1,2})\s*(.*)$/);
@@ -124,7 +126,18 @@
     return problems;
   }
 
-  const api = { parse, check, anchor, pageRefs };
+  // Each Chinese line with its pinyin line, and which syllable belongs to which character
+  function pairs(text) {
+    const list = [];
+    parse(text, "", [], list);
+    return list.map((p) => {
+      const syllables = [...p.pinyin.matchAll(/\S+/g)].map((m) => ({ text: m[0], at: m.index }));
+      const chars = Array.from(p.han.trim());
+      return { ...p, chars, ideographs: chars.map((c, i) => (IDEOGRAPH.test(c) ? i : -1)).filter((i) => i >= 0), syllables };
+    });
+  }
+
+  const api = { parse, check, anchor, pageRefs, pairs };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.LiturgyParse = api;
 })(typeof window !== "undefined" ? window : globalThis);
