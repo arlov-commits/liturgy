@@ -187,12 +187,12 @@
       clearTimeout(state.cursorTimer);
       state.cursorTimer = setTimeout(followCursor, 250);
     });
-    state.text.setEntries(state.book.sections);
+    state.text.setEntries(state.book.sections.filter((s) => !s.virtual));
     renderChapters();
     loadLibrary();
   }
   function addKnown(s) {
-    s.label = titleOf(s.text, s.name);
+    s.label = s.virtual ? "Table of contents (made automatically)" : titleOf(s.text, s.name);
     s.check = checkSection;
     state.known[s.name] = s;
     return s;
@@ -222,6 +222,7 @@
   async function updateSections() {
     const sections = [];
     for (const name of chapterNames()) {
+      if (!state.known[name] && name === LiturgySource.CONTENTS_ENTRY) addKnown(LiturgySource.contentsChapter());
       if (!state.known[name]) {
         const text = state.library[name] ?? await state.source.get("text/" + name, true).catch(() => null);
         if (text === null) continue;
@@ -232,7 +233,7 @@
       if (!sections.includes(state.known[name])) sections.push(state.known[name]);
     }
     state.book.sections = sections;
-    state.text.setEntries(sections);
+    state.text.setEntries(sections.filter((s) => !s.virtual));
     renderChapters();
     changed();
     refresh();
@@ -254,7 +255,7 @@
       const move = (d) => { const n = [...names]; [n[i], n[i + d]] = [n[i + d], n[i]]; setChapters(n); };
       li.append(
         Object.assign(document.createElement("span"), { className: "title", textContent: s ? s.label : `${labelOf(name)} — missing: no chapter file with this name` }),
-        btn("Edit", "Open this chapter in the Text tab", () => jumpTo(name, 1), !s),
+        btn("Edit", "Open this chapter in the Text tab", () => jumpTo(name, 1), !s || s.virtual),
         btn("↑", "Move up", () => move(-1), i === 0),
         btn("↓", "Move down", () => move(1), i === names.length - 1),
         btn("Remove", "Take this chapter out of the booklet (the chapter itself is kept)", () => setChapters(names.filter((_, j) => j !== i))),
@@ -263,6 +264,7 @@
       list.append(li);
     });
     $("#no-chapters").hidden = names.length > 0;
+    $("#add-contents").hidden = names.includes(LiturgySource.CONTENTS_ENTRY);
     // "Add a chapter": every chapter file not already in this booklet, by title
     const pick = $("#add-chapter");
     pick.textContent = "";
@@ -274,6 +276,7 @@
     }
     $("#add-chapter-btn").disabled = true;
   }
+  $("#add-contents").onclick = () => setChapters([LiturgySource.CONTENTS_ENTRY, ...chapterNames()]);
   $("#add-chapter").onchange = () => { $("#add-chapter-btn").disabled = !$("#add-chapter").value; };
   $("#add-chapter-btn").onclick = async () => {
     const name = $("#add-chapter").value;
@@ -348,7 +351,7 @@
   // Every file the editor can change, as it is now in memory
   function currentFiles() {
     const files = { [LiturgySource.SETTINGS_FILE]: state.book.css, [`books/${state.bookName}.txt`]: state.contents.text };
-    for (const s of state.book.sections) files["text/" + s.name] = s.text;
+    for (const s of state.book.sections) if (!s.virtual) files["text/" + s.name] = s.text;
     return files;
   }
   const unsaved = () => { const f = currentFiles(); return Object.keys(f).filter((p) => f[p] !== state.saved[p]); };

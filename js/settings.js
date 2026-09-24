@@ -106,6 +106,12 @@
         box.oninput = () => { if (box.value !== "") { range.value = box.value; update(round(box.value) + unit); } };
         input = el("span", { className: "numbox" }, range, box, el("span", { className: "unit", textContent: unit }));
         reset.onclick = () => { range.value = box.value = dflt; update(item.value); };
+      } else if (/^".*"$/.test(item.value)) {
+        // a piece of text: shown and typed without the quote marks CSS needs
+        const unq = (v) => v.replace(/^"|"$/g, "").replace(/\\"/g, '"');
+        input = el("input", { id, value: unq(current()) });
+        input.oninput = () => update(`"${input.value.replace(/"/g, '\\"')}"`);
+        reset.onclick = () => { input.value = unq(item.value); update(item.value); };
       } else {
         input = el("input", { id, value: current() });
         input.oninput = () => update(input.value.trim());

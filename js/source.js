@@ -188,13 +188,17 @@
 
   // A booklet = books/<name>.txt, a list of section files in order (// lines are comments)
   const listNames = (listText) => listText.split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
+  // "[contents]" in a booklet list = a table of contents made automatically (not a file)
+  const CONTENTS_ENTRY = "[contents]";
+  const contentsChapter = () => ({ name: CONTENTS_ENTRY, text: "[toc: -]\n[contents]\n", virtual: true });
   async function loadBook(source, bookName) {
     const listText = await source.get(`books/${bookName}.txt`);
-    const sections = await Promise.all(listNames(listText).map(async (name) => ({ name, text: await source.get("text/" + name) })));
+    const sections = await Promise.all(listNames(listText).map(async (name) =>
+      name === CONTENTS_ENTRY ? contentsChapter() : { name, text: await source.get("text/" + name) }));
     // settings.css in the text repo = the settings saved from the editor (only the changed ones)
     const css = (await source.get(SETTINGS_FILE, true)) || "";
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE };
+  root.LiturgySource = { open, loadBook, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, contentsChapter };
 })(window);

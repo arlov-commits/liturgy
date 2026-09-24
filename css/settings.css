@@ -53,6 +53,7 @@
   --border-space: 6pt;      /* space above and below the box */
 
   /* ---- Contents page ([contents]) ---- */
+  --contents-title: "CONTENTS";   /* heading above the table of contents (empty = none) */
   --contents-size: 9pt;      /* size of the table of contents lines */
   --contents-spacing: 4pt;   /* gap between contents lines */
 

@@ -52,6 +52,13 @@
 .keep.spread.facing { break-before: left; }
 
 /* [contents] → table of contents: title ..... page */
+.toc::before {
+  content: var(--contents-title);
+  display: block;
+  text-align: center;
+  font-size: calc(var(--english-size) * var(--title-scale));
+  margin-bottom: calc(var(--space-between-verses) * 2);
+}
 .toc { font-family: var(--english-font), "Liturgy Extra", serif; font-size: var(--contents-size); font-weight: var(--english-weight); margin: 0 0 var(--space-between-verses); }
 .toc-entry { display: flex; align-items: baseline; gap: 0.3em; margin-bottom: var(--contents-spacing); break-inside: avoid; }
 .toc-dots { flex: 1; min-width: 1em; border-bottom: 1px dotted currentColor; }
