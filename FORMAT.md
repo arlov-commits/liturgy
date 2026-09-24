@@ -25,6 +25,8 @@ qí shù jǐ gū dú yuán
 
 - **English**: any lines with no Chinese in them. Line breaks are kept exactly as typed.
 - **Chinese line**: the characters as printed, including punctuation ( , 。 『 』 › ).
+- (How a verse is *printed* — English first or last, pinyin under or over the characters — is the “verse order”
+  setting, not the text: the text is always written English, Chinese, pinyin.)
 - **Pinyin line**: directly under the Chinese line — one syllable per character, separated by
   spaces. Punctuation gets no syllable. A quote mark may be stuck to a syllable (`«rǔ`, `jīng»`).
   The app lines each syllable up under its character automatically.

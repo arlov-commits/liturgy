@@ -13,6 +13,8 @@
   const WEIGHTS = { 400: "regular", 600: "semibold" };
   // Settings that are a choice between named options (value → what the editor sees)
   const CHOICES = {
+    "--verse-order": { "en-zh-py": "English, Chinese, pinyin", "zh-py-en": "Chinese, pinyin, English",
+      "py-zh-en": "pinyin, Chinese, English", "en-py-zh": "English, pinyin, Chinese" },
     "--chapter-start": { page: "on a new page", right: "on a new right-hand page", auto: "straight after the chapter before" },
     "--border-style": { solid: "a single line", double: "a double line (needs thickness 2pt or more)", dashed: "dashes", dotted: "dots" },
     "--blank-page": { before: "just before the span", "chapter-end": "at the end of the chapter before" },

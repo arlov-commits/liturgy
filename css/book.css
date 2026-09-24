@@ -105,6 +105,18 @@
   margin-top: var(--space-chinese-to-pinyin);
 }
 
+/* Verse order (setting "verse order"; preview.html puts order-… on each chapter). The default is the order of
+   the text file: English, then Chinese with pinyin under it. */
+.order-zh-py-en .block, .order-py-zh-en .block, .order-en-py-zh .block { display: flex; flex-direction: column; }
+.order-zh-py-en .block > .en, .order-py-zh-en .block > .en { order: 2; }
+.order-zh-py-en .block > .repeat, .order-py-zh-en .block > .repeat { order: 3; }
+.order-zh-py-en .block > .zh, .order-py-zh-en .block > .zh { margin-top: 0; }
+.order-zh-py-en .block:has(> .zh) > .en:first-of-type,
+.order-py-zh-en .block:has(> .zh) > .en:first-of-type { margin-top: var(--space-english-to-chinese); }
+/* pinyin above the characters */
+.order-py-zh-en .zh ruby, .order-en-py-zh .zh ruby { ruby-position: over; }
+.order-py-zh-en .zh rt, .order-en-py-zh .zh rt { margin-top: 0; margin-bottom: var(--space-chinese-to-pinyin); }
+
 /* Titles and small headings: centred */
 .title, .subtitle { text-align: center; break-after: avoid; }   /* headings stay with what follows */
 .title .zh, .subtitle .zh { justify-content: center; }

@@ -108,11 +108,14 @@ async function render(id) {
   }
   // while measuring ([keep together] spans) the book's own styles apply as they are
   const raw = bookCss.map((c) => document.head.appendChild(Object.assign(document.createElement("style"), { textContent: c.text })));
-  let extra = document.getElementById("settings-extra");
-  if (!extra) extra = document.head.appendChild(Object.assign(document.createElement("style"), { id: "settings-extra" }));
+  // the editor's changed settings go after the defaults (moved to the end each time, as the defaults were just re-added)
+  const extra = document.getElementById("settings-extra") || Object.assign(document.createElement("style"), { id: "settings-extra" });
   extra.textContent = book.css || "";
+  document.head.appendChild(extra);
 
   main.innerHTML = book.sections.map((s) => LiturgyParse.parse(s.text, s.name)).join("\n");
+  const order = getComputedStyle(document.documentElement).getPropertyValue("--verse-order").trim();
+  if (order) main.querySelectorAll("section").forEach((sec) => sec.classList.add("order-" + order));
   fillContents(main);
   // page references to sections that aren't in this booklet can't be numbered: show "?" and flag them
   for (const a of main.querySelectorAll("a.pageref")) {

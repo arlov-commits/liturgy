@@ -96,6 +96,12 @@ try {
   await page.fill('#set--english-size', '12'); await afterEdit();
   const bigger = +((await status()).match(/(\d+) pages/) || [])[1];
   check(bigger > pages, 'settings: bigger English makes more pages', `${pages} → ${bigger}`);
+  // the preview frames are reused between layouts: a settings change must still apply every time
+  await page.fill('#set--english-size', '8.2'); await afterEdit();
+  const back = +((await status()).match(/(\d+) pages/) || [])[1];
+  await page.fill('#set--english-size', '12'); await afterEdit();
+  const again = +((await status()).match(/(\d+) pages/) || [])[1];
+  check(back === pages && again === bigger, 'settings apply on every redraw (reused preview frames)', `${back}, ${again}`);
 
   await page.click('#tabs button[data-tab="text"]');
   const first = await page.inputValue('#section');

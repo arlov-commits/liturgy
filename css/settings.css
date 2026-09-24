@@ -32,6 +32,9 @@
   --pinyin-font: "Gentium Book Plus";
   --pinyin-size: 8.4pt;
 
+  /* ---- Each verse ---- */
+  --verse-order: en-zh-py;  /* the order of the parts of every verse */
+
   /* ---- Spacing ---- */
   --space-english-to-chinese: 1pt;  /* gap above the Chinese line */
   --space-chinese-to-pinyin: -1pt;  /* gap between a character and its pinyin */
