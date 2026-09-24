@@ -1,6 +1,5 @@
 /* book.css — page layout. Reads every value from settings.css.
-   Every font list ends with "Liturgy Extra" (rare characters, ornaments). The -ExtB names
-   are Windows system fonts: the only current source for 𤙖 until an Ext-B font is bundled. */
+   Every font list ends with "Liturgy Extra" (rare characters incl. CJK Ext-B such as 𤙖, ornaments). */
 
 @page {
   size: var(--page-width) var(--page-height);
@@ -51,7 +50,7 @@
 }
 
 .zh {
-  font-family: var(--chinese-font), "Liturgy Extra", "MingLiU-ExtB", "PMingLiU-ExtB", "SimSun-ExtB", serif;
+  font-family: var(--chinese-font), "Liturgy Extra", serif;
   font-size: var(--chinese-size);
   line-height: 1;
   margin-top: var(--space-english-to-chinese);
@@ -100,5 +99,5 @@
   column-gap: 0.8em;
 }
 .mantra .roman { font-family: var(--pinyin-font), "Liturgy Extra", serif; font-size: calc(var(--pinyin-size) * 1.25); }
-.mantra .mzh { font-family: var(--chinese-font), "Liturgy Extra", "MingLiU-ExtB", "PMingLiU-ExtB", "SimSun-ExtB", serif; font-size: calc(var(--chinese-size) * 0.8); letter-spacing: 0.08em; }
+.mantra .mzh { font-family: var(--chinese-font), "Liturgy Extra", serif; font-size: calc(var(--chinese-size) * 0.8); letter-spacing: 0.08em; }
 .mantra .repeat { font-size: var(--english-size); }

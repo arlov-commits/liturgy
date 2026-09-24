@@ -72,13 +72,10 @@ The Text tab's colouring repeats `parse.js`'s line rules — keep them in step w
 - **Missing glyphs:** every font list in `book.css` ends with **"Liturgy Extra"** (`fonts/extra/`,
   built by `tools/build_extra_font.py`, licence in `fonts/extra/LICENSE.txt`): ~17,000 rare Chinese
   characters from the full Noto Serif CJK TC (Fontsource's Noto Serif TC omits e.g. 嚩 跢 鋄 㝹) in
-  lazy-loaded chunks, plus ornaments (☸ ✦ ❁ ༺ ⊹ 𓆝 ˖ …). So font settings are bare names (`"Lora"`, no
+  lazy-loaded chunks, all of CJK Ext-B (e.g. 𤙖) from Jigmo2 (CC0), plus ornaments (☸ ✦ ❁ ༺ ⊹ 𓆝 ˖ …). So font settings are bare names (`"Lora"`, no
   generic `serif` — that would win before the fallback). Run `python3 tools/check_glyphs.py ../liturgy-text/text`
-  after any text or font change — it must report 0 (𤙖 until the Ext-B font is added). Renders in a dev
+  after any text or font change — it must report 0. Renders in a dev
   container can hide gaps if it has system CJK fonts; trust `check_glyphs.py`, not the render.
-- **Open glyph gap:** 𤙖 (U+24656, CJK Ext-B, Shurangama mantra heart) is in no bundled font; it
-  currently relies on Windows' MingLiU-ExtB / SimSun-ExtB. TODO: add an Ext-B serif source (e.g.
-  I.Ming or Jigmo, both free, on GitHub) to `build_extra_font.py`.
 - Page 1 is a right-hand page: binding margin on the left for odd pages, right for even.
 
 ## Dev loop
@@ -91,7 +88,7 @@ python3 -m http.server -d ..                 # then open /liturgy/index.html?boo
 node tools/render-test.mjs native out        # PDF via Chrome print (CHROMIUM=<path> to use another Chromium)
 node tools/render-test.mjs paged out         # PDF via Paged.js preview
 node tools/editor-test.mjs                   # end-to-end editor checks against a fake GitHub (temp copy of ../liturgy-text)
-python3 tools/check_glyphs.py ../liturgy-text/text   # must list nothing new (𤙖 until the Ext-B font is added)
+python3 tools/check_glyphs.py ../liturgy-text/text   # must report 0
 ```
 Booklets: `books/test.txt` (2 sections), `books/full.txt` (all 30 sections).
 Run `tools/editor-test.mjs` before pushing editor changes.
@@ -107,4 +104,4 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, edit the list ✅, new booklet / new section ✅)
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell ✅
 6. ✅ Convert the remaining sheets (done with the converter in liturgy-text/tools)
-7. Bundle an Ext-B font for 𤙖 (see gotchas)
+7. ✅ Bundle an Ext-B font for 𤙖 (Jigmo2)

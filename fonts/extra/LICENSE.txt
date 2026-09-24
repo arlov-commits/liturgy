@@ -1,6 +1,10 @@
 "Liturgy Extra" (fonts/extra/*.woff2) is a set of subsets of the fonts below, made by
 tools/build_extra_font.py and renamed so they only fill in characters the main fonts lack.
-All of them are licensed under the SIL Open Font License, Version 1.1 (text below).
+The Noto and LXGW parts are licensed under the SIL Open Font License, Version 1.1 (text below).
+
+- extb-*.woff2 — Jigmo2 by Kamichi Koichi (https://kamichikoichi.github.io/jigmo/), glyphs from
+  GlyphWiki. Dedicated to the public domain under CC0 1.0 Universal
+  (https://creativecommons.org/publicdomain/zero/1.0/); no licence text is required.
 
 - rare-cjk-*.woff2 — Noto Serif CJK TC: Copyright 2017 Adobe (http://www.adobe.com/), with Reserved
   Font Name 'Source'. Noto is a trademark of Google Inc.

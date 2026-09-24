@@ -209,3 +209,306 @@
   src: url(./sym-lxgw-wenkai-tc-7.woff2) format('woff2');
   unicode-range: U+2D9;
 }
+/* Ext-B (Jigmo2) begin */
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-00.woff2) format('woff2');
+  unicode-range: U+20000-203E7;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-01.woff2) format('woff2');
+  unicode-range: U+203E8-207CF;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-02.woff2) format('woff2');
+  unicode-range: U+207D0-20BB7;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-03.woff2) format('woff2');
+  unicode-range: U+20BB8-20F9F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-04.woff2) format('woff2');
+  unicode-range: U+20FA0-21387;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-05.woff2) format('woff2');
+  unicode-range: U+21388-2176F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-06.woff2) format('woff2');
+  unicode-range: U+21770-21B57;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-07.woff2) format('woff2');
+  unicode-range: U+21B58-21F3F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-08.woff2) format('woff2');
+  unicode-range: U+21F40-22327;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-09.woff2) format('woff2');
+  unicode-range: U+22328-2270F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-10.woff2) format('woff2');
+  unicode-range: U+22710-22AF7;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-11.woff2) format('woff2');
+  unicode-range: U+22AF8-22EDF;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-12.woff2) format('woff2');
+  unicode-range: U+22EE0-232C7;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-13.woff2) format('woff2');
+  unicode-range: U+232C8-236AF;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-14.woff2) format('woff2');
+  unicode-range: U+236B0-23A97;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-15.woff2) format('woff2');
+  unicode-range: U+23A98-23E7F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-16.woff2) format('woff2');
+  unicode-range: U+23E80-24267;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-17.woff2) format('woff2');
+  unicode-range: U+24268-2464F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-18.woff2) format('woff2');
+  unicode-range: U+24650-24A37;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-19.woff2) format('woff2');
+  unicode-range: U+24A38-24E1F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-20.woff2) format('woff2');
+  unicode-range: U+24E20-25207;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-21.woff2) format('woff2');
+  unicode-range: U+25208-255EF;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-22.woff2) format('woff2');
+  unicode-range: U+255F0-259D7;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-23.woff2) format('woff2');
+  unicode-range: U+259D8-25DBF;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-24.woff2) format('woff2');
+  unicode-range: U+25DC0-261A7;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-25.woff2) format('woff2');
+  unicode-range: U+261A8-2658F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-26.woff2) format('woff2');
+  unicode-range: U+26590-26977;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-27.woff2) format('woff2');
+  unicode-range: U+26978-26D5F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-28.woff2) format('woff2');
+  unicode-range: U+26D60-27147;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-29.woff2) format('woff2');
+  unicode-range: U+27148-2752F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-30.woff2) format('woff2');
+  unicode-range: U+27530-27917;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-31.woff2) format('woff2');
+  unicode-range: U+27918-27CFF;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-32.woff2) format('woff2');
+  unicode-range: U+27D00-280E7;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-33.woff2) format('woff2');
+  unicode-range: U+280E8-284CF;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-34.woff2) format('woff2');
+  unicode-range: U+284D0-288B7;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-35.woff2) format('woff2');
+  unicode-range: U+288B8-28C9F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-36.woff2) format('woff2');
+  unicode-range: U+28CA0-29087;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-37.woff2) format('woff2');
+  unicode-range: U+29088-2946F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-38.woff2) format('woff2');
+  unicode-range: U+29470-29857;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-39.woff2) format('woff2');
+  unicode-range: U+29858-29C3F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-40.woff2) format('woff2');
+  unicode-range: U+29C40-2A027;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-41.woff2) format('woff2');
+  unicode-range: U+2A028-2A40F;
+}
+/* Jigmo2 (CC0) */
+@font-face {
+  font-family: 'Liturgy Extra';
+  font-display: swap;
+  src: url(./extb-42.woff2) format('woff2');
+  unicode-range: U+2A410-2A6DF;
+}
+/* Ext-B (Jigmo2) end */
