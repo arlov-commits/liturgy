@@ -78,9 +78,3 @@
 .mantra .roman { font-family: var(--pinyin-font); font-size: calc(var(--pinyin-size) * 1.25); }
 .mantra .mzh { font-family: var(--chinese-font); font-size: calc(var(--chinese-size) * 0.8); letter-spacing: 0.08em; }
 .mantra .repeat { font-size: var(--english-size); }
-
-/* On screen only: flag lines whose pinyin count doesn't match */
-@media screen {
-  .mismatch { outline: 1.5px solid #d33; }
-  .mismatch::after { content: attr(data-problem); display: block; color: #d33; font: 9px sans-serif; }
-}

@@ -16,6 +16,9 @@
     .embedded #status { display: none; }
     .pagedjs_pages { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
     .pagedjs_page { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+    /* flag lines whose pinyin count doesn't match (kept here: Paged.js drops screen-only rules from book.css) */
+    .mismatch { outline: 1.5px solid #d33; }
+    .mismatch::after { content: attr(data-problem); display: block; color: #d33; font: 9px sans-serif; }
   }
 </style>
 </head>

@@ -11,7 +11,8 @@
 
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  function chineseLine(han, pinyin, lineNo) {
+  // problems: list to add { line, severity, message } to (line numbers start at 1)
+  function chineseLine(han, pinyin, lineNo, problems) {
     const chars = Array.from(han.trim());
     const syl = pinyin.trim() ? pinyin.trim().split(/\s+/) : [];
     const need = chars.filter((c) => IDEOGRAPH.test(c)).length;
@@ -28,10 +29,13 @@
       })
       .join("");
     const flag = ok ? "" : ` data-problem="line ${lineNo}: ${need} characters, ${syl.length} pinyin"`;
+    if (!ok) problems.push({ line: lineNo, severity: "error",
+      message: syl.length ? `${need} characters but ${syl.length} pinyin syllables — each character needs one syllable` : "No pinyin line under this Chinese line" });
+    if (syl.includes("_")) problems.push({ line: lineNo + 1, severity: "warning", message: "Missing pinyin: fill in each _" });
     return `<div class="zh${ok ? "" : " mismatch"}"${flag}>${cells}</div>`;
   }
 
-  function parse(text, name) {
+  function parse(text, name, problems = []) {
     const lines = text.replace(/\r\n?/g, "\n").split("\n");
     const out = [];
     let block = null;
@@ -67,7 +71,7 @@
       } else if (HAS_CJK.test(line)) {
         const next = (lines[n + 1] || "").trim();
         const hasPinyin = next && !HAS_CJK.test(next) && !next.startsWith("#") && next !== "---" && !REPEAT.test(next);
-        block.html.push(chineseLine(line, hasPinyin ? next : "", n + 1));
+        block.html.push(chineseLine(line, hasPinyin ? next : "", n + 1, problems));
         if (hasPinyin) n++;
       } else {
         const m = line.match(/^(#{1,2})\s*(.*)$/);
@@ -79,7 +83,14 @@
     return `<section class="sec" data-file="${esc(name || "")}">${out.join("\n")}</section>`;
   }
 
-  const api = { parse };
+  // Just the problems of a text file, for the editor
+  function check(text) {
+    const problems = [];
+    parse(text, "", problems);
+    return problems;
+  }
+
+  const api = { parse, check };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.LiturgyParse = api;
 })(typeof window !== "undefined" ? window : globalThis);
