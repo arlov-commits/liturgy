@@ -7,7 +7,7 @@
   const q = new URLSearchParams(location.search);
   const $ = (sel) => document.querySelector(sel);
 
-  const state = { source: null, bookName: q.get("book") || "test", book: null, settings: { groups: [], changes: {} } };
+  const state = { source: null, bookName: q.get("book") || "test", book: null, saved: {}, settings: { groups: [], changes: {} } };
   let frame = null;     // the preview on show
   let pending = null;   // the preview being rendered
   let timer = null;
@@ -59,7 +59,7 @@
     form.querySelector(".owner").textContent = owner;
     form.querySelector(".repo").textContent = name;
     form.querySelector(".make-key").href = "https://github.com/settings/personal-access-tokens/new?" +
-      new URLSearchParams({ name: "Liturgy booklet", description: `Read ${repo} for the booklet editor`, target_name: owner, contents: "read" });
+      new URLSearchParams({ name: "Liturgy booklet", description: `Read and save ${repo} from the booklet editor`, target_name: owner, contents: "write" });
     form.onsubmit = (ev) => {
       ev.preventDefault();
       LiturgySource.key.set(form.elements.key.value.trim());
@@ -81,12 +81,61 @@
   async function startSettings() {
     const css = await (await fetch("css/settings.css", { cache: "no-cache" })).text();
     state.settings.groups = LiturgySettings.parse(css);
+    const known = new Set(state.settings.groups.flatMap((g) => g.items.map((i) => i.name)));
+    state.settings.changes = Object.fromEntries(Object.entries(LiturgySettings.values(state.book.css)).filter(([k]) => known.has(k)));
+    state.book.css = LiturgySettings.toCss(state.settings.changes, state.settings.groups);
     LiturgySettings.build($("#tab-settings"), state.settings.groups, () => state.settings.changes, (changes) => {
       state.settings.changes = changes;
       state.book.css = LiturgySettings.toCss(changes, state.settings.groups);
+      changed();
       refresh(300);
     });
   }
+
+  // ---- saving ----
+  // Every file the editor can change, as it is now in memory
+  function currentFiles() {
+    const files = { [LiturgySource.SETTINGS_FILE]: state.book.css };
+    for (const s of state.book.sections) files["text/" + s.name] = s.text;
+    return files;
+  }
+  const unsaved = () => { const f = currentFiles(); return Object.keys(f).filter((p) => f[p] !== state.saved[p]); };
+  function changed() {
+    const n = unsaved().length;
+    $("#save").disabled = !n;
+    $("#save").textContent = n ? `Save (${n} file${n > 1 ? "s" : ""})` : "Saved";
+  }
+  function commitMessage(path) {
+    return path === LiturgySource.SETTINGS_FILE ? "Change booklet settings (from the editor)" : `Edit ${path.replace(/^text\//, "")} (from the editor)`;
+  }
+  function download(path, text) {
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: path.split("/").pop() });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  async function save() {
+    const files = currentFiles();
+    const paths = unsaved();
+    $("#save").disabled = true;
+    try {
+      for (const path of paths) {
+        if (state.source.canSave) {
+          $("#save").textContent = "Saving…";
+          await state.source.put(path, files[path], commitMessage(path));
+        } else {
+          // Working from a local folder: hand the file over to put in the folder by hand
+          download(path, files[path]);
+        }
+        state.saved[path] = files[path];
+      }
+      setStatus(state.source.canSave ? "Saved to GitHub" : `Downloaded ${paths.map((p) => p.split("/").pop()).join(", ")} — put ${paths.length > 1 ? "them" : "it"} in ${state.source.where}`);
+    } catch (e) {
+      setStatus("Not saved: " + e.message, true);
+    }
+    changed();
+  }
+  $("#save").onclick = save;
+  window.addEventListener("beforeunload", (ev) => { if (state.book && unsaved().length) { ev.preventDefault(); ev.returnValue = ""; } });
 
   $("#forget").onclick = (ev) => { ev.preventDefault(); LiturgySource.key.forget(); location.reload(); };
   $("#print").onclick = () => frame && frame.contentWindow.print();
@@ -101,6 +150,8 @@
     $("#forget").hidden = !state.source.usesKey;
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
     await startSettings();
+    state.saved = currentFiles();
+    changed();
     $("#app").hidden = false;
     render();
   }

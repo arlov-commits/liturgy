@@ -12,6 +12,7 @@
   <b>Liturgy booklet</b>
   <span id="status">Loading…</span>
   <span class="grow"></span>
+  <button id="save" disabled>Saved</button>
   <button id="print" disabled title="Print the pages exactly as shown (choose “Save as PDF” to make a PDF)">Print…</button>
   <a id="forget" href="#" hidden>Forget key</a>
 </header>
@@ -20,12 +21,12 @@
   <h2>Connect to the liturgy text</h2>
   <p class="why"></p>
   <p>The words of the booklets are kept in a private GitHub repository. To show them, this page needs
-     a GitHub <b>key</b> that can read that one repository. You do this once on each computer/browser.</p>
+     a GitHub <b>key</b> for that one repository. You do this once on each computer/browser.</p>
   <ol>
     <li><a class="make-key" target="_blank" rel="noopener">Open GitHub's “new key” page</a> (sign in to GitHub if it asks).</li>
     <li><b>Token name</b>: anything, e.g. “Liturgy booklet”. <b>Expiration</b>: how long the key should work — after that you make a new one.</li>
     <li><b>Resource owner</b>: <b class="owner"></b>. <b>Repository access</b>: “Only select repositories” → <b class="repo"></b>.</li>
-    <li><b>Permissions</b>: add <b>Contents</b> and set it to <b>Read-only</b>.</li>
+    <li><b>Permissions</b>: add <b>Contents</b> and set it to <b>Read and write</b> (so Save works).</li>
     <li>Click <b>Generate token</b>, copy the key (it starts with <code>github_pat_</code>) and paste it here:</li>
   </ol>
   <input name="key" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>

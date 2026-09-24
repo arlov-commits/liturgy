@@ -38,8 +38,11 @@ Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.j
 - Printing = printing the preview frame (Print button), so the printed pages are exactly the previewed pages.
 
 ## Formatting lives in CSS, not in the text
-- `css/settings.css` — the only file the editor should need for looks: named variables with
-  plain-English comments (margins, sizes, fonts, spacing). Add new knobs here, never hard-code.
+- `css/settings.css` — the list of knobs and their defaults: named variables with plain-English comments
+  (margins, sizes, fonts, spacing). The Settings tab builds its controls from this file (group headers
+  `/* ---- Name ---- */`, a trailing `/* hint */` per line), so add new knobs here, never hard-code.
+- `settings.css` **in liturgy-text** — the editor's saved changes (only the values that differ), loaded after
+  the app's defaults. Saving goes to the text repo so one key (Contents: read and write, that repo only) covers everything.
 - `css/book.css` — layout rules that read those variables.
 - `FORMAT.md` — the text-file format. `js/parse.js` must match it exactly; update both together.
 
