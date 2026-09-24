@@ -61,3 +61,6 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #signin li { margin-bottom: 6px; }
 #signin input { width: 100%; box-sizing: border-box; font: 15px monospace; padding: 6px; margin: 8px 0; }
 #signin .small { font-size: 13px; color: #555; }
+#signin .or { border-top: 1px solid #ddd; margin-top: 16px; padding-top: 8px; }
+#refolder { max-width: 36em; margin: 24px auto; padding: 16px 24px; background: #fff; border: 1px solid #ccc; }
+#refolder a { margin-left: 12px; color: #555; }

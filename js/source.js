@@ -1,6 +1,7 @@
 // source.js — where the liturgy text is read from.
 // 1. ?text=<folder>, or a liturgy-text folder cloned next to this app (the dev setup).
-// 2. Otherwise the private GitHub repo (?repo=owner/name), read (and saved to) with a key the editor pastes in once.
+// 2. A folder on this computer picked in the editor (Chrome/Edge folder access) — read and saved to directly.
+// 3. Otherwise the private GitHub repo (?repo=owner/name), read (and saved to) with a key the editor pastes in once.
 (function (root) {
   "use strict";
 
@@ -16,7 +17,61 @@
   };
 
   class SourceError extends Error {
-    constructor(message, needKey) { super(message); this.needKey = needKey; }
+    constructor(message, needKey, needFolder) { super(message); this.needKey = needKey; this.needFolder = needFolder; }
+  }
+
+  // A folder picked on this computer, remembered between visits (the browser asks again before reuse)
+  const FOLDER_KEY = "liturgy.folder";
+  const pickedFolder = {
+    available: () => typeof window.showDirectoryPicker === "function" && typeof idbKeyval !== "undefined",
+    async get() { try { return (await idbKeyval.get(FOLDER_KEY)) || null; } catch { return null; } },
+    async pick() {
+      const handle = await window.showDirectoryPicker({ id: "liturgy-text", mode: "readwrite" });
+      try { await handle.getDirectoryHandle("books"); } catch {
+        throw new SourceError(`The folder “${handle.name}” has no “books” folder inside. Pick your liturgy-text folder (the one with “books” and “text” in it).`);
+      }
+      await idbKeyval.set(FOLDER_KEY, handle);
+      return handle;
+    },
+    async forget() { try { await idbKeyval.del(FOLDER_KEY); } catch {} },
+  };
+
+  function directory(handle) {
+    // "text/a.txt" → [folder handle of "text", "a.txt"]
+    const walk = async (path, create) => {
+      const parts = path.split("/").filter(Boolean);
+      let dir = handle;
+      for (const p of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(p, { create });
+      return [dir, parts[parts.length - 1]];
+    };
+    return {
+      where: `the folder “${handle.name}”`, usesKey: false, canSave: true, isPickedFolder: true,
+      async get(path, optional) {
+        try {
+          const [dir, name] = await walk(path, false);
+          return await (await (await dir.getFileHandle(name)).getFile()).text();
+        } catch (e) {
+          if (e.name !== "NotFoundError" && e.name !== "TypeMismatchError") throw e;
+          if (optional) return null;
+          throw new SourceError(`${path} is not in the folder ${handle.name}`);
+        }
+      },
+      async list(path) {
+        const names = [];
+        try {
+          const [dir, name] = await walk(path + "/x", false);
+          void name;
+          for await (const [n, h] of dir.entries()) if (h.kind === "file") names.push(n);
+        } catch {}
+        return names;
+      },
+      async put(path, text) {
+        const [dir, name] = await walk(path, true);
+        const w = await (await dir.getFileHandle(name, { create: true })).createWritable();
+        await w.write(text);
+        await w.close();
+      },
+    };
   }
 
   const b64decode = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, "")), (c) => c.charCodeAt(0)));
@@ -86,8 +141,8 @@
         if (shas[path]) body.sha = shas[path];
         const r = await call(contents(path), { method: "PUT", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
         if (r.status === 409 || r.status === 422) throw new SourceError(`${path} was changed on GitHub by someone else since you opened it. Copy your changes somewhere, reload the page, and make them again.`);
-        if (r.status === 403 || r.status === 404) throw new SourceError("Your key can only read. Make a new key with Contents set to “Read and write”, click “Forget key”, and connect with the new one.");
-        if (r.status === 401) throw new SourceError("GitHub did not accept the key — it may have expired. Click “Forget key” and connect with a new one.");
+        if (r.status === 403 || r.status === 404) throw new SourceError("Your key can only read. Make a new key with Contents set to “Read and write”, click “Disconnect” at the top, and connect with the new one.");
+        if (r.status === 401) throw new SourceError("GitHub did not accept the key — it may have expired. Click “Disconnect” at the top and connect with a new one.");
         if (!r.ok) throw new SourceError(`GitHub said ${r.status} while saving ${path}`);
         shas[path] = (await r.json()).content.sha;
       },
@@ -100,6 +155,14 @@
     const local = folder("../liturgy-text/");
     const probe = await fetch(local.where + `books/${bookName}.txt`, { method: "HEAD", cache: "no-cache" }).catch(() => null);
     if (probe && probe.ok) return local;
+
+    if (pickedFolder.available()) {
+      const handle = await pickedFolder.get();
+      if (handle) {
+        if ((await handle.queryPermission({ mode: "readwrite" })) === "granted") return directory(handle);
+        throw new SourceError("", false, handle);   // the browser must ask again, after a click
+      }
+    }
 
     const repo = q.get("repo") || DEFAULT_REPO;
     const token = key.get();
@@ -119,5 +182,5 @@
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, listNames, key, DEFAULT_REPO, SETTINGS_FILE };
+  root.LiturgySource = { open, loadBook, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE };
 })(window);

@@ -68,6 +68,20 @@
       location.reload();
     };
     form.hidden = false;
+    $("#folder-choice").hidden = !LiturgySource.pickedFolder.available();
+    $("#use-folder").onclick = async () => {
+      try { await LiturgySource.pickedFolder.pick(); location.reload(); }
+      catch (e) { if (e.name !== "AbortError") form.querySelector(".why").textContent = e.message; }
+    };
+    setStatus("Not connected");
+  }
+  // a folder picked earlier: the browser asks again for permission, which needs a click
+  function askForFolderAgain(handle) {
+    const box = $("#refolder");
+    box.querySelector(".name").textContent = handle.name;
+    $("#refolder-ok").onclick = async () => { if ((await handle.requestPermission({ mode: "readwrite" })) === "granted") location.reload(); };
+    $("#refolder-no").onclick = async (ev) => { ev.preventDefault(); await LiturgySource.pickedFolder.forget(); location.reload(); };
+    box.hidden = false;
     setStatus("Not connected");
   }
 
@@ -279,7 +293,7 @@
         }
         state.saved[path] = files[path];
       }
-      setStatus(state.source.canSave ? "Saved to GitHub" : `Downloaded ${paths.map((p) => p.split("/").pop()).join(", ")} — put ${paths.length > 1 ? "them" : "it"} in ${state.source.where}`);
+      setStatus(state.source.canSave ? `Saved to ${state.source.usesKey ? "GitHub" : state.source.where}` : `Downloaded ${paths.map((p) => p.split("/").pop()).join(", ")} — put ${paths.length > 1 ? "them" : "it"} in ${state.source.where}`);
     } catch (e) {
       setStatus("Not saved: " + e.message, true);
     }
@@ -288,17 +302,23 @@
   $("#save").onclick = save;
   window.addEventListener("beforeunload", (ev) => { if (state.book && unsaved().length) { ev.preventDefault(); ev.returnValue = ""; } });
 
-  $("#forget").onclick = (ev) => { ev.preventDefault(); LiturgySource.key.forget(); location.reload(); };
+  $("#forget").onclick = async (ev) => {
+    ev.preventDefault();
+    LiturgySource.key.forget();
+    await LiturgySource.pickedFolder.forget();
+    location.reload();
+  };
   $("#print").onclick = () => frame && frame.contentWindow.print();
 
   async function start() {
     try {
       state.source = await LiturgySource.open(q, state.bookName);
     } catch (e) {
+      if (e.needFolder) return askForFolderAgain(e.needFolder);
       if (!e.needKey) throw e;
       return askForKey(q.get("repo") || LiturgySource.DEFAULT_REPO, e.message);
     }
-    $("#forget").hidden = !state.source.usesKey;
+    $("#forget").hidden = !state.source.usesKey && !state.source.isPickedFolder;
     startBookPicker();
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
     await startSettings();

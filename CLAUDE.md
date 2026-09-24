@@ -26,6 +26,7 @@ Current choices:
 | Pinyin checking (later) | **pinyin-pro** | suggestions only — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate |
 | Letter-sheet imposition | **pdf-lib** (vendored, `vendor/pdf-lib.min.js`) | Bookbinder JS is a web app, not a package, so pdf-lib it is. `js/impose.js`: 2×2 on letter, duplex (long edge), cut-and-stack. |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | |
+| Remembering a picked folder | **idb-keyval** (vendored) | stores the folder handle in IndexedDB |
 
 Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
 `js/editor.js` (the editor page), `js/texttab.js` / `js/settings.js` (its two tabs) and wiring.
@@ -88,7 +89,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 ## Roadmap
 1. ✅ Text format + converter (2 sections: Amitabha Sutra, Rebirth Mantra)
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
-3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "open local folder" (File System Access API) as backup
+3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "use a folder on this computer" ✅ (File System Access API, Chrome/Edge);
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, edit the list ✅, new booklet / new section ✅)
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell ✅
 6. Convert the remaining 33 sheets

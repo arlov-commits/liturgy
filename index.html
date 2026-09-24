@@ -19,7 +19,7 @@
   <span class="grow"></span>
   <button id="save" disabled>Saved</button>
   <button id="print" disabled title="Print the pages exactly as shown (choose “Save as PDF” to make a PDF)">Print…</button>
-  <a id="forget" href="#" hidden>Forget key</a>
+  <a id="forget" href="#" hidden title="Forget the GitHub key or the folder on this computer, and connect again">Disconnect</a>
 </header>
 
 <form id="signin" hidden>
@@ -36,8 +36,18 @@
   </ol>
   <input name="key" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>
   <button>Connect</button>
-  <p class="small">The key is kept in this browser only. “Forget key” in the top bar removes it.</p>
+  <p class="small">The key is kept in this browser only. “Disconnect” in the top bar removes it.</p>
+  <div class="or" id="folder-choice" hidden>
+    <p><b>Or work without GitHub:</b> <button type="button" id="use-folder">Use a folder on this computer…</button></p>
+    <p class="small">Pick your copy of the <b>liturgy-text</b> folder (the one with “books” and “text” in it). The editor reads it
+      and Save writes straight into it. Chrome or Edge on a computer only.</p>
+  </div>
 </form>
+<div id="refolder" hidden>
+  <p>The editor was working from <b class="name"></b> on this computer. The browser needs your OK to open it again.</p>
+  <button type="button" id="refolder-ok">Open the folder again</button>
+  <a href="#" id="refolder-no">Connect another way</a>
+</div>
 
 <main id="app" hidden>
   <aside id="panel">
@@ -78,6 +88,7 @@
 <script src="js/parse.js"></script>
 <script src="vendor/pdf-lib.min.js"></script>
 <script src="js/impose.js"></script>
+<script src="vendor/idb-keyval.min.js"></script>
 <script src="js/source.js"></script>
 <script src="js/texttab.js"></script>
 <script src="js/settings.js"></script>
