@@ -93,6 +93,22 @@
     });
   }
 
+  // ---- booklets: books/<name>.txt ----
+  async function startBookPicker() {
+    const names = (await state.source.list("books")).filter((n) => n.endsWith(".txt")).map((n) => n.slice(0, -4));
+    if (!names.includes(state.bookName)) names.push(state.bookName);
+    const pick = $("#book");
+    for (const n of names.sort()) pick.append(Object.assign(document.createElement("option"), { value: n, textContent: n }));
+    pick.value = state.bookName;
+    pick.hidden = names.length < 2;
+    pick.onchange = () => {
+      const u = new URLSearchParams(location.search);
+      u.set("book", pick.value);
+      location.search = u;   // the unsaved-changes question comes from beforeunload
+      pick.value = state.bookName;
+    };
+  }
+
   // ---- text ----
   function startText() {
     state.text = LiturgyText.build($("#cm"), $("#section"), state.book.sections, () => { changed(); refresh(700); },
@@ -164,6 +180,7 @@
       return askForKey(q.get("repo") || LiturgySource.DEFAULT_REPO, e.message);
     }
     $("#forget").hidden = !state.source.usesKey;
+    startBookPicker();
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
     await startSettings();
     startText();

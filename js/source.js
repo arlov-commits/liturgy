@@ -27,7 +27,8 @@
     return btoa(bin);
   };
 
-  // A source reads files by path (e.g. "text/03-amitabha-sutra.txt"). get(path, true) returns null for a missing file.
+  // A source reads files by path (e.g. "text/03-amitabha-sutra.txt"). get(path, true) returns null for a missing file;
+// list(dir) gives the file names in a folder.
   function folder(base) {
     base = base.replace(/\/?$/, "/");
     return {
@@ -37,6 +38,13 @@
         if (r.status === 404 && optional) return null;
         if (!r.ok) throw new SourceError(`${path} not found (${r.status})`);
         return r.text();
+      },
+      // File names in a folder — reads the dev server's folder listing; [] when there isn't one
+      async list(dir) {
+        const r = await fetch(base + dir.replace(/\/?$/, "/"), { cache: "no-cache" }).catch(() => null);
+        if (!r || !r.ok) return [];
+        const doc = new DOMParser().parseFromString(await r.text(), "text/html");
+        return [...doc.querySelectorAll("a[href]")].map((a) => decodeURIComponent(a.getAttribute("href"))).filter((h) => !h.includes("/"));
       },
     };
   }
@@ -66,6 +74,11 @@
         const file = await r.json();
         shas[path] = file.sha;
         return b64decode(file.content);
+      },
+      async list(dir) {
+        const r = await call(contents(dir));
+        if (!r.ok) return [];
+        return (await r.json()).filter((f) => f.type === "file").map((f) => f.name);
       },
       // Saves one file as a commit on the repo's main branch
       async put(path, text, message) {

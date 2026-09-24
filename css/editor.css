@@ -8,6 +8,7 @@ body { display: flex; flex-direction: column; font: 14px/1.4 system-ui, sans-ser
 #bar #status { color: #555; }
 #bar #status.error { color: #b00; }
 #bar a { color: #555; }
+#bar select { font: inherit; padding: 2px 4px; }
 button { font: inherit; padding: 4px 14px; cursor: pointer; }
 
 #app { flex: 1; display: flex; min-height: 0; }
