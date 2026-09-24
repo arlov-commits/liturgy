@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<title>Liturgy booklet — pages</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="css/settings.css">
+<link rel="stylesheet" href="css/book.css">
+<style>
+  @media print { #status { display: none; } }
+  /* screen-only chrome for the preview; not part of the book */
+  @media screen {
+    body { background: #e8e6e1; margin: 0; }
+    #status { font: 13px system-ui, sans-serif; padding: 6px 10px; background: #fff; border-bottom: 1px solid #ccc; }
+    .embedded #status { display: none; }
+    .pagedjs_pages { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
+    .pagedjs_page { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  }
+</style>
+</head>
+<body>
+<div id="status">Loading…</div>
+<main id="book"></main>
+<script src="js/parse.js"></script>
+<script src="js/source.js"></script>
+<script>
+// The booklet pages. Inside the editor (index.html) it takes the book from the editor, so unsaved
+// changes show; opened on its own it reads the text itself:
+//   preview.html?text=<folder of liturgy-text> or ?repo=<owner/name>, &book=<name>&engine=paged|none
+(async function () {
+  const q = new URLSearchParams(location.search);
+  const engine = q.get("engine") || "paged";
+  const status = document.getElementById("status");
+  const editor = window.parent !== window && window.parent.Editor;
+  if (editor) document.documentElement.classList.add("embedded");
+
+  let book;   // { sections: [{ name, text }], css: extra settings (text of a stylesheet) }
+  if (editor) {
+    book = editor.bookForPreview();
+  } else {
+    const bookName = q.get("book") || "test";
+    const source = await LiturgySource.open(q, bookName);
+    book = await LiturgySource.loadBook(source, bookName);
+  }
+
+  const main = document.getElementById("book");
+  main.innerHTML = book.sections.map((s) => LiturgyParse.parse(s.text, s.name)).join("\n");
+  const problems = main.querySelectorAll(".mismatch").length;
+  const extra = document.createElement("style");
+  extra.textContent = book.css || "";
+  document.head.appendChild(extra);
+  await document.fonts.ready;
+
+  let pages = 0;
+  if (engine === "paged") {
+    const src = main.innerHTML; main.innerHTML = "";
+    // Paged.js can't read var(--x) inside @page rules, so fill in the values from the settings first
+    const rootStyle = getComputedStyle(document.documentElement);
+    const fill = (css) => css.replace(/var\((--[\w-]+)\)/g, (m, name) => rootStyle.getPropertyValue(name).trim() || m);
+    const sheets = [];
+    for (const l of document.querySelectorAll('link[rel=stylesheet]')) {
+      const css = await (await fetch(l.href)).text();
+      sheets.push({ [l.href]: l.href.includes("book.css") ? fill(css) : css });
+    }
+    sheets.push({ [location.href.replace(/[?#].*/, "") + "#settings"]: extra.textContent });
+    [...document.querySelectorAll('link[rel=stylesheet]')].forEach((l) => l.remove());
+    await new Promise((res) => { const s = document.createElement("script"); s.src = "vendor/paged.min.js"; s.onload = res; document.head.appendChild(s); });
+    pages = (await new PagedModule.Previewer().preview(src, sheets, main)).total;
+    status.textContent = `${book.sections.length} sections · ${pages} pages · ${problems} pinyin problem(s)`;
+  } else {
+    status.textContent = `${book.sections.length} sections · ${problems} pinyin problem(s) · press Ctrl+P to see pages`;
+  }
+  document.body.dataset.ready = "1";
+  if (editor) editor.previewDone(window, { pages, problems });
+})().catch((e) => {
+  document.getElementById("status").textContent = e.needKey ? "Not connected to GitHub — open the editor (index.html) to connect." : "Error: " + e.message;
+  document.body.dataset.ready = "err";
+  const editor = window.parent !== window && window.parent.Editor;
+  if (editor) editor.previewDone(window, { error: e.message });
+});
+</script>
+</body>
+</html>

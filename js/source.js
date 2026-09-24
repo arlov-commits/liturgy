@@ -64,5 +64,12 @@
     return { get, where: repo, usesKey: true };
   }
 
-  root.LiturgySource = { open, key, DEFAULT_REPO };
+  // A booklet = books/<name>.txt, a list of section files in order (// lines are comments)
+  async function loadBook(source, bookName) {
+    const list = (await source.get(`books/${bookName}.txt`)).split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
+    const sections = await Promise.all(list.map(async (name) => ({ name, text: await source.get("text/" + name) })));
+    return { sections, css: "" };
+  }
+
+  root.LiturgySource = { open, loadBook, key, DEFAULT_REPO };
 })(window);

@@ -2,31 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Liturgy booklet — preview</title>
-<link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="css/settings.css">
-<link rel="stylesheet" href="css/book.css">
-<style>
-  @media print { #status, #signin { display: none; } }
-  /* screen-only chrome for the preview; not part of the book */
-  @media screen {
-    body { background: #e8e6e1; margin: 0; }
-    #status { font: 13px system-ui, sans-serif; padding: 6px 10px; background: #fff; border-bottom: 1px solid #ccc; }
-    #status a { margin-left: 1em; color: #555; }
-    #signin { font: 15px/1.5 system-ui, sans-serif; max-width: 36em; margin: 24px auto; padding: 20px 24px; background: #fff; border: 1px solid #ccc; }
-    #signin h2 { margin-top: 0; font-size: 20px; }
-    #signin .why { color: #b00; }
-    #signin li { margin-bottom: 6px; }
-    #signin input { width: 100%; box-sizing: border-box; font: 15px monospace; padding: 6px; margin: 8px 0; }
-    #signin button { font: inherit; padding: 6px 18px; }
-    #signin .small { font-size: 13px; color: #555; }
-    .pagedjs_pages { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
-    .pagedjs_page { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
-  }
-</style>
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liturgy booklet</title>
+<link rel="stylesheet" href="css/editor.css">
 </head>
 <body>
-<div id="status">Loading…</div>
+<header id="bar">
+  <b>Liturgy booklet</b>
+  <span id="status">Loading…</span>
+  <span class="grow"></span>
+  <button id="print" disabled title="Print the pages exactly as shown (choose “Save as PDF” to make a PDF)">Print…</button>
+  <a id="forget" href="#" hidden>Forget key</a>
+</header>
+
 <form id="signin" hidden>
   <h2>Connect to the liturgy text</h2>
   <p class="why"></p>
@@ -43,83 +32,12 @@
   <button>Connect</button>
   <p class="small">The key is kept in this browser only. “Forget key” in the top bar removes it.</p>
 </form>
-<main id="book"></main>
-<script src="js/parse.js"></script>
+
+<main id="app" hidden>
+  <section id="preview" aria-label="Pages"></section>
+</main>
+
 <script src="js/source.js"></script>
-<script>
-// Prototype loader: ?text=<folder of liturgy-text> or ?repo=<owner/name>, &book=<name>&engine=paged|none
-(async function () {
-  const q = new URLSearchParams(location.search);
-  const bookName = q.get("book") || "test";
-  const engine = q.get("engine") || "paged";
-  const status = document.getElementById("status");
-
-  let source;
-  try {
-    source = await LiturgySource.open(q, bookName);
-  } catch (e) {
-    if (!e.needKey) throw e;
-    askForKey(q.get("repo") || LiturgySource.DEFAULT_REPO, e.message);
-    status.textContent = "Not connected";
-    document.body.dataset.ready = "signin";
-    return;
-  }
-  const get = source.get;
-
-  const list = (await get(`books/${bookName}.txt`)).split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
-  const html = [];
-  for (const f of list) html.push(LiturgyParse.parse(await get("text/" + f), f));
-  const main = document.getElementById("book");
-  main.innerHTML = html.join("\n");
-  const problems = main.querySelectorAll(".mismatch").length;
-  await document.fonts.ready;
-
-  if (engine === "paged") {
-    const src = main.innerHTML; main.innerHTML = "";
-    // Paged.js can't read var(--x) inside @page rules, so fill in the values from settings.css first
-    const rootStyle = getComputedStyle(document.documentElement);
-    const fill = (css) => css.replace(/var\((--[\w-]+)\)/g, (m, name) => rootStyle.getPropertyValue(name).trim() || m);
-    const sheets = [];
-    for (const l of document.querySelectorAll('link[rel=stylesheet]')) {
-      const css = await (await fetch(l.href)).text();
-      sheets.push({ [l.href]: l.href.includes("book.css") ? fill(css) : css });
-    }
-    [...document.querySelectorAll('link[rel=stylesheet]')].forEach((l) => l.remove());
-    await new Promise((res) => { const s = document.createElement("script"); s.src = "vendor/paged.min.js"; s.onload = res; document.head.appendChild(s); });
-    const flow = await new PagedModule.Previewer().preview(src, sheets, main);
-    status.textContent = `${list.length} sections · ${flow.total} pages · ${problems} pinyin problem(s)`;
-  } else {
-    status.textContent = `${list.length} sections · ${problems} pinyin problem(s) · press Ctrl+P to see pages`;
-  }
-  if (source.usesKey) addForgetLink();
-  document.body.dataset.ready = "1";
-})().catch((e) => {
-  document.getElementById("status").textContent = "Error: " + e.message;
-  if (LiturgySource.key.get()) addForgetLink();
-  document.body.dataset.ready = "err";
-});
-
-function askForKey(repo, why) {
-  const form = document.getElementById("signin");
-  const [owner, name] = repo.split("/");
-  form.querySelector(".why").textContent = why;
-  form.querySelector(".owner").textContent = owner;
-  form.querySelector(".repo").textContent = name;
-  form.querySelector(".make-key").href = "https://github.com/settings/personal-access-tokens/new?" +
-    new URLSearchParams({ name: "Liturgy booklet", description: `Read ${repo} for the booklet preview`, target_name: owner, contents: "read" });
-  form.onsubmit = (ev) => {
-    ev.preventDefault();
-    LiturgySource.key.set(form.elements.key.value.trim());
-    location.reload();
-  };
-  form.hidden = false;
-}
-
-function addForgetLink() {
-  const a = Object.assign(document.createElement("a"), { href: "#", textContent: "Forget key" });
-  a.onclick = (ev) => { ev.preventDefault(); LiturgySource.key.forget(); location.reload(); };
-  document.getElementById("status").append(a);
-}
-</script>
+<script src="js/editor.js"></script>
 </body>
 </html>

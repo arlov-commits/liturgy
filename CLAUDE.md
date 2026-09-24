@@ -27,7 +27,15 @@ Current choices:
 | Letter-sheet imposition (later) | try **Bookbinder JS** "Perfectbound" first; else **pdf-lib** | |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | |
 
-Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from) and wiring.
+Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
+`js/editor.js` (the editor page) and wiring.
+
+## Pages
+- `index.html` — the editor: top bar, panels, and the pages in a frame. The frame re-renders hidden and swaps in
+  when ready (no blank flash); scroll position is kept.
+- `preview.html` — the pages themselves (Paged.js). Inside the editor it takes the book from `window.parent.Editor`
+  so unsaved edits show; opened on its own it reads the text itself (used by `tools/render-test.mjs`).
+- Printing = printing the preview frame (Print button), so the printed pages are exactly the previewed pages.
 
 ## Formatting lives in CSS, not in the text
 - `css/settings.css` — the only file the editor should need for looks: named variables with
@@ -55,10 +63,10 @@ Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.j
 ## Dev loop
 ```
 npm install                                  # playwright (dev only)
-python3 -m http.server -d ..                 # then open /liturgy/index.html?book=test
+python3 -m http.server -d ..                 # then open /liturgy/index.html?book=test  (preview only: preview.html)
                                              # (no ../liturgy-text folder, e.g. on github.io → asks for a GitHub key
                                              #  and reads the private repo; ?repo=owner/name to point elsewhere)
-node tools/render-test.mjs native out        # PDF via Chrome print
+node tools/render-test.mjs native out        # PDF via Chrome print (CHROMIUM=<path> to use another Chromium)
 node tools/render-test.mjs paged out         # PDF via Paged.js preview
 ```
 Always look at rendered pages (PDF → PNG) before claiming a layout change works.
