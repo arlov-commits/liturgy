@@ -45,24 +45,35 @@
     return { from: line.from, to: line.to, severity: p.severity, message: p.message };
   }), { delay: 400 });
 
-  // `sections` = [{ name, text }]; `onChange(section)` after each edit. Returns { show(name), view }.
-  function build(box, select, sections, onChange, extensions = []) {
+  // `sections` = [{ name, text }]; `onChange(section)` after each edit; `onCursor(section, line)` when the
+  // cursor moves. Returns { show(name, line), view, current() }.
+  function build(box, select, sections, onChange, onCursor = () => {}) {
     const states = {};
     let current = null;
     const view = new EditorView({ parent: box });
     const stateFor = (s) => states[s.name] || (states[s.name] = EditorState.create({
       doc: s.text,
       extensions: [
-        basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, pinyinCheck, lintGutter(), ...extensions,
-        EditorView.updateListener.of((u) => { if (u.docChanged) { s.text = u.state.doc.toString(); onChange(s); } }),
+        basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, pinyinCheck, lintGutter(),
+        EditorView.updateListener.of((u) => {
+          if (u.docChanged) { s.text = u.state.doc.toString(); onChange(s); }
+          if (u.docChanged || u.selectionSet) onCursor(s, u.state.doc.lineAt(u.state.selection.main.head).number);
+        }),
       ],
     }));
-    function show(name) {
+    function show(name, line) {
       const s = sections.find((x) => x.name === name) || sections[0];
-      if (current) states[current.name] = view.state;
-      current = s;
-      view.setState(stateFor(s));
-      select.value = s.name;
+      if (s !== current) {
+        if (current) states[current.name] = view.state;
+        current = s;
+        view.setState(stateFor(s));
+        select.value = s.name;
+      }
+      if (line) {
+        const l = view.state.doc.line(Math.min(line, view.state.doc.lines));
+        view.dispatch({ selection: { anchor: l.from }, effects: EditorView.scrollIntoView(l.from, { y: "center" }) });
+        view.focus();
+      }
     }
     select.textContent = "";
     for (const s of sections) select.append(Object.assign(document.createElement("option"), { value: s.name, textContent: s.name.replace(/\.txt$/, "") }));

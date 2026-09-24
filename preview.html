@@ -18,6 +18,9 @@
     .pagedjs_page { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
     /* flag lines whose pinyin count doesn't match (kept here: Paged.js drops screen-only rules from book.css) */
     .mismatch { outline: 1.5px solid #d33; }
+    .embedded .block { cursor: pointer; }
+    .embedded .block:hover { background: rgba(255, 220, 120, .18); }
+    .block.here { background: rgba(255, 210, 90, .35); box-shadow: 0 0 0 3px rgba(255, 210, 90, .35); }
     .mismatch::after { content: attr(data-problem); display: block; color: #d33; font: 9px sans-serif; }
   }
 </style>
@@ -75,13 +78,31 @@
     status.textContent = `${book.sections.length} sections · ${problems} pinyin problem(s) · press Ctrl+P to see pages`;
   }
   document.body.dataset.ready = "1";
-  if (editor) editor.previewDone(window, { pages, problems });
+  if (editor) {
+    // click a verse → show its line in the editor
+    main.addEventListener("click", (ev) => {
+      const block = ev.target.closest("[data-line]"), sec = ev.target.closest("[data-file]");
+      if (block && sec) editor.jumpTo(sec.dataset.file, +block.dataset.line);
+    });
+    editor.previewDone(window, { pages, problems });
+  }
 })().catch((e) => {
   document.getElementById("status").textContent = e.needKey ? "Not connected to GitHub — open the editor (index.html) to connect." : "Error: " + e.message;
   document.body.dataset.ready = "err";
   const editor = window.parent !== window && window.parent.Editor;
   if (editor) editor.previewDone(window, { error: e.message });
 });
+// The editor calls this to bring the verse at a text line into view (a split verse: its first part)
+function showLine(file, line) {
+  const sec = [...document.querySelectorAll("[data-file]")].filter((s) => s.dataset.file === file);
+  let best = null;
+  for (const b of sec.flatMap((s) => [...s.querySelectorAll("[data-line]")])) if (+b.dataset.line <= line && (!best || +b.dataset.line > +best.dataset.line)) best = b;
+  document.querySelectorAll(".block.here").forEach((b) => b.classList.remove("here"));
+  if (!best) return;
+  document.querySelectorAll(`[data-file="${CSS.escape(file)}"] [data-line="${best.dataset.line}"]`).forEach((b) => b.classList.add("here"));
+  const r = best.getBoundingClientRect();
+  if (r.top < 0 || r.bottom > innerHeight) best.scrollIntoView({ block: "center" });
+}
 </script>
 </body>
 </html>

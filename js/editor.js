@@ -42,6 +42,7 @@
       old.remove();
     }
     frame.classList.remove("loading");
+    followCursor();
     $("#print").disabled = !!info.error;
     if (info.error) setStatus("Problem: " + info.error, true);
     else setStatus(`${state.book.sections.length} sections · ${info.pages} pages` +
@@ -94,7 +95,17 @@
 
   // ---- text ----
   function startText() {
-    state.text = LiturgyText.build($("#cm"), $("#section"), state.book.sections, () => { changed(); refresh(700); });
+    state.text = LiturgyText.build($("#cm"), $("#section"), state.book.sections, () => { changed(); refresh(700); },
+      (s, line) => { state.cursor = { file: s.name, line }; clearTimeout(state.cursorTimer); state.cursorTimer = setTimeout(followCursor, 250); });
+  }
+  // keep the verse being edited in view in the pages
+  function followCursor() {
+    if (frame && state.cursor && frame.contentWindow.showLine) frame.contentWindow.showLine(state.cursor.file, state.cursor.line);
+  }
+  // a click on a verse in the pages
+  function jumpTo(file, line) {
+    $('#tabs button[data-tab="text"]').click();
+    state.text.show(file, line);
   }
 
   // ---- saving ----
@@ -162,7 +173,7 @@
     render();
   }
 
-  window.Editor = { bookForPreview, previewDone, refresh, state };
+  window.Editor = { bookForPreview, previewDone, refresh, jumpTo, state };
   start().catch((e) => {
     setStatus("Problem: " + e.message, true);
     $("#forget").hidden = !LiturgySource.key.get();

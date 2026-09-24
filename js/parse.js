@@ -46,10 +46,10 @@
       if (block.level === 1) cls.push("title");
       if (block.level === 2) cls.push("subtitle");
       if (block.mantra) cls.push("mantra");
-      out.push(`<div class="${cls.join(" ")}">${block.html.join("")}</div>`);
+      out.push(`<div class="${cls.join(" ")}" data-line="${block.start}">${block.html.join("")}</div>`);
       block = null;
     };
-    const open = () => (block = block || { html: [], level: 0, mantra: false });
+    const open = (n) => (block = block || { html: [], level: 0, mantra: false, start: n + 1 });
 
     for (let n = 0; n < lines.length; n++) {
       const raw = lines[n];
@@ -57,7 +57,7 @@
       if (line.startsWith("//")) continue;
       if (!line) { close(); continue; }
       if (line === "---") { close(); out.push('<div class="page-break"></div>'); continue; }
-      open();
+      open(n);
       if (REPEAT.test(line)) {
         block.html.push(`<div class="repeat">${esc(line)}</div>`);
       } else if (line.includes("|") && HAS_CJK.test(line)) {
