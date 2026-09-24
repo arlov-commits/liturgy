@@ -1,0 +1,40 @@
+/* ===================================================================
+   BOOKLET SETTINGS — change the numbers here; everything else follows.
+   pt = points (1/72 inch), in = inches, em = "times the text size"
+   =================================================================== */
+:root {
+  /* ---- Page (quarter of a letter sheet) ---- */
+  --page-width: 4.25in;
+  --page-height: 5.5in;
+  --margin-binding: 0.45in;   /* edge that gets glued — keep generous */
+  --margin-outside: 0.25in;  /* edge you hold */
+  --margin-top: 0.3in;
+  --margin-bottom: 0.45in;
+
+  /* ---- Page numbers (outside bottom corner) ---- */
+  --page-number-font: "Lora", serif;
+  --page-number-size: 10pt;
+
+  /* ---- English ---- */
+  --english-font: "Lora", serif;
+  --english-size: 8.2pt;
+  --english-weight: 600;       /* 400 = regular, 600 = semibold (like the old Lucida Bright Demi) */
+
+  /* ---- Chinese ---- */
+  --chinese-font: "Noto Serif TC", "Noto Serif CJK TC", serif;
+  --chinese-size: 14.5pt;
+  --character-spacing: 1.72em; /* width of each character slot (like Excel's columns) */
+
+  /* ---- Pinyin ---- */
+  --pinyin-font: "Gentium Book Plus", serif;
+  --pinyin-size: 8.4pt;
+
+  /* ---- Spacing ---- */
+  --space-english-to-chinese: 1pt;  /* gap above the Chinese line */
+  --space-chinese-to-pinyin: -1pt;  /* gap between a character and its pinyin */
+  --space-between-verses: 6pt;
+
+  /* ---- Titles ---- */
+  --title-scale: 1.15;     /* titles are this much larger */
+  --subtitle-scale: 0.8;   /* small headings are this much smaller */
+}

@@ -1,0 +1,86 @@
+/* book.css — page layout. Reads every value from settings.css. */
+
+@page {
+  size: var(--page-width) var(--page-height);
+  margin-top: var(--margin-top);
+  margin-bottom: var(--margin-bottom);
+}
+/* Right-hand (odd) pages are bound on the left; left-hand (even) pages on the right. */
+@page :right {
+  margin-left: var(--margin-binding);
+  margin-right: var(--margin-outside);
+  @bottom-right { content: counter(page); font-family: var(--page-number-font); font-size: var(--page-number-size); }
+}
+@page :left {
+  margin-left: var(--margin-outside);
+  margin-right: var(--margin-binding);
+  @bottom-left { content: counter(page); font-family: var(--page-number-font); font-size: var(--page-number-size); }
+}
+
+.sec { break-before: page; }
+.sec:first-child { break-before: auto; }
+.page-break { break-after: page; height: 0; }
+
+.block {
+  break-inside: avoid;
+  margin: 0 0 var(--space-between-verses);
+}
+
+.en {
+  font-family: var(--english-font);
+  font-size: var(--english-size);
+  font-weight: var(--english-weight);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.zh {
+  font-family: var(--chinese-font);
+  font-size: var(--chinese-size);
+  line-height: 1;
+  margin-top: var(--space-english-to-chinese);
+  white-space: nowrap;
+}
+.zh .c {
+  display: inline-block;
+  min-width: var(--character-spacing);
+  text-align: center;
+}
+.zh .c.p { min-width: 0.9em; }
+.zh ruby { ruby-position: under; }
+.zh rt {
+  font-family: var(--pinyin-font);
+  font-size: var(--pinyin-size);
+  line-height: 1;
+  margin-top: var(--space-chinese-to-pinyin);
+}
+
+/* Titles and small headings: centred */
+.title, .subtitle { text-align: center; break-after: avoid; }   /* headings stay with what follows */
+.title .en { font-size: calc(var(--english-size) * var(--title-scale)); }
+.subtitle .zh { font-size: calc(var(--chinese-size) * var(--subtitle-scale)); }
+.subtitle .zh rt { font-size: calc(var(--pinyin-size) * var(--subtitle-scale)); }
+.subtitle .en { font-size: calc(var(--english-size) * 0.95); }
+
+.repeat {
+  font-family: var(--english-font);
+  font-size: var(--english-size);
+  text-align: right;
+}
+
+/* Mantra lines: romanization on the left, Chinese on the right */
+.mantra .mline {
+  display: grid;
+  grid-template-columns: 1fr auto 2.2em;
+  align-items: baseline;
+  column-gap: 0.8em;
+}
+.mantra .roman { font-family: var(--pinyin-font); font-size: calc(var(--pinyin-size) * 1.25); }
+.mantra .mzh { font-family: var(--chinese-font); font-size: calc(var(--chinese-size) * 0.8); letter-spacing: 0.08em; }
+.mantra .repeat { font-size: var(--english-size); }
+
+/* On screen only: flag lines whose pinyin count doesn't match */
+@media screen {
+  .mismatch { outline: 1.5px solid #d33; }
+  .mismatch::after { content: attr(data-problem); display: block; color: #d33; font: 9px sans-serif; }
+}
