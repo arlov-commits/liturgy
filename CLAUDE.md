@@ -35,8 +35,11 @@ In the UI a section file is a **chapter**; a booklet is built by adding existing
 The Text tab's colouring repeats `parse.js`'s line rules — keep them in step with FORMAT.md.
 
 ## Pages
-- `index.html` — the editor: top bar, panels, and the pages in a frame. The frame re-renders hidden and swaps in
-  when ready (no blank flash); scroll position is kept.
+- `index.html` — the editor: top bar, panels, and the pages in a frame. **Two** preview frames take turns: the next
+  version is laid out in the hidden one (`preview.html rerender()`, fonts stay loaded between layouts) and swapped
+  in as soon as the pages in view are done (`pagesInView` / `previewEarly`); the rest keeps coming below. A newer
+  edit stops an unfinished layout (`stopLayout`). Scroll position is kept. Edits re-render after 250 ms, settings 150 ms.
+  Measured: an edit shows in ~0.5 s (41-page booklet), ~1–2 s (135 pages); a full layout is ~35 ms a page.
 - `preview.html` — the pages themselves (Paged.js). Inside the editor it takes the book from `window.parent.Editor`
   so unsaved edits show; opened on its own it reads the text itself (used by `tools/render-test.mjs`).
 - `sw.js` + `manifest.webmanifest` — installable app. The service worker shows app files from its cache and
@@ -71,7 +74,8 @@ The Text tab's colouring repeats `parse.js`'s line rules — keep them in step w
   `break-before: left`, which makes Paged.js add a blank page). `editor.js improveLayout()` re-runs the layout
   hidden (≤4 passes) when a span took more pages than measured, or to move the blank page to the chapter end
   (setting `--blank-page: chapter-end`, done by starting that chapter on the other side).
-- Paged.js quirks (handled in `preview.html`): it drops `@media screen` rules from the sheets it paginates
+- Paged.js quirks (handled in `preview.html`): its task queue waits a screen frame before each page (and stops in a
+  background tab) — `chunker.q.tick` is replaced with a MessageChannel; it drops `@media screen` rules from the sheets it paginates
   (screen-only looks go in preview.html's own `<style>`), it paginates the whole page if given no content,
   and it can leave an invisible copy of a moved block in a page's overflow (`removeOverflow()`).
 - **Missing glyphs:** every font list in `book.css` ends with **"Liturgy Extra"** (`fonts/extra/`,

@@ -88,9 +88,11 @@
   line-height: 1;
   margin-top: var(--space-english-to-chinese);
   white-space: nowrap;
+  display: flex;             /* one character (with its pinyin) after another */
+  align-items: flex-start;
 }
 .zh .c {
-  display: inline-block;
+  flex: none;
   min-width: var(--character-spacing);
   text-align: center;
 }
@@ -105,6 +107,7 @@
 
 /* Titles and small headings: centred */
 .title, .subtitle { text-align: center; break-after: avoid; }   /* headings stay with what follows */
+.title .zh, .subtitle .zh { justify-content: center; }
 .title .en { font-size: calc(var(--english-size) * var(--title-scale)); }
 .subtitle .zh { font-size: calc(var(--chinese-size) * var(--subtitle-scale)); }
 .subtitle .zh rt { font-size: calc(var(--pinyin-size) * var(--subtitle-scale)); }

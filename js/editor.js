@@ -9,8 +9,10 @@
 
   const state = { source: null, bookName: q.get("book") || "test", book: null, saved: {}, settings: { groups: [], changes: {} },
     layout: { pages: {}, flip: {}, hard: [], passes: 0 } };
+  // Two preview frames take turns: one on show, the other lays the next version out hidden. Each keeps its
+  // fonts loaded between layouts (a fresh frame spends up to ~2 s loading them), so redraws are quicker.
   let frame = null;     // the preview on show
-  let pending = null;   // the preview being rendered
+  let pending = null;   // the frame laying out the next version
   let timer = null;
 
   function setStatus(text, isError) {
@@ -24,28 +26,55 @@
     clearTimeout(timer);
     timer = setTimeout(() => { state.layout = { pages: {}, flip: {}, hard: [], passes: 0 }; render(); }, delay);
   }
+  let early = null;     // a frame shown before its layout was finished (the rest still coming)
   function render() {
-    if (pending) pending.remove();
-    pending = document.createElement("iframe");
-    pending.className = "loading";
-    pending.title = "Booklet pages";
-    pending.src = "preview.html" + location.search;
-    $("#preview").append(pending);
+    if (early && early === frame.contentWindow && early.stopLayout) early.stopLayout();   // outdated now
+    early = null;
+    if (!pending) {
+      const spare = [...$("#preview").querySelectorAll("iframe")].find((f) => f !== frame);
+      if (spare && spare.contentWindow && spare.contentWindow.rerender) pending = spare;
+    }
+    if (pending && pending.contentWindow && pending.contentWindow.rerender) pending.contentWindow.rerender();
+    else {
+      if (pending) pending.remove();
+      pending = document.createElement("iframe");
+      pending.className = "loading";
+      pending.title = "Booklet pages";
+      pending.src = "preview.html" + location.search;
+      $("#preview").append(pending);
+    }
     setStatus("Updating pages…");
   }
-  // called by preview.html when its pages are laid out
-  function previewDone(win, info) {
-    if (!pending || win !== pending.contentWindow) return;
-    if (!info.error && improveLayout(info.spreads || [])) return void setTimeout(render);   // another pass, still hidden
+  // How many pages a new layout must have before it can be shown in place of the current one:
+  // those in view, and a couple more
+  function pagesNeeded() {
+    const w = frame && frame.contentWindow;
+    return w && w.pagesInView ? w.pagesInView() + 2 : Infinity;
+  }
+  function swapIn() {
     const old = frame;
     frame = pending;
     pending = null;
     if (old) {
       frame.contentWindow.scrollTo(old.contentWindow.scrollX, old.contentWindow.scrollY);
-      old.remove();
+      old.classList.add("loading");   // kept (hidden) for the next layout
     }
     frame.classList.remove("loading");
     followCursor();
+  }
+  // called by preview.html when the pages in view are laid out (the rest is still coming)
+  function previewEarly(win) {
+    if (!pending || win !== pending.contentWindow) return;
+    swapIn();
+    early = win;
+  }
+  // called by preview.html when its pages are laid out
+  function previewDone(win, info) {
+    const wasEarly = early && win === early && frame && win === frame.contentWindow;
+    if (!wasEarly && (!pending || win !== pending.contentWindow)) return;
+    early = null;
+    if (!info.error && improveLayout(info.spreads || [])) return void setTimeout(render);   // another pass, hidden
+    if (!wasEarly) swapIn();
     $("#print").disabled = !!info.error;
     if (info.error) setStatus("Problem: " + info.error, true);
     else setStatus(`${state.book.sections.length} chapter${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
@@ -129,7 +158,7 @@
       state.settings.changes = changes;
       state.book.css = LiturgySettings.toCss(changes, state.settings.groups);
       changed();
-      refresh(300);
+      refresh(150);
     });
   }
 
@@ -185,7 +214,7 @@
     state.known = {};   // every chapter loaded or made, by name — taking one out and back keeps its edits
     for (const s of state.book.sections) addKnown(s);
     state.contents = { text: state.book.listText };
-    state.text = LiturgyText.build($("#cm"), $("#section"), () => { changed(); refresh(700); }, (e, line) => {
+    state.text = LiturgyText.build($("#cm"), $("#section"), () => { changed(); refresh(250); }, (e, line) => {
       state.cursor = { file: e.name, line };
       clearTimeout(state.cursorTimer);
       state.cursorTimer = setTimeout(followCursor, 250);
@@ -417,7 +446,7 @@
     render();
   }
 
-  window.Editor = { bookForPreview, previewDone, refresh, jumpTo, state };
+  window.Editor = { bookForPreview, previewDone, previewEarly, pagesNeeded, refresh, jumpTo, state };
   start().catch((e) => {
     setStatus("Problem: " + e.message, true);
     $("#forget").hidden = !LiturgySource.key.get();

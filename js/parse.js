@@ -36,9 +36,9 @@
       .map((c) => {
         if (IDEOGRAPH.test(c)) {
           const p = syl[i++] || "?";
-          return `<span class="c"><ruby>${esc(c)}<rt>${esc(p)}</rt></ruby></span>`;
+          return `<ruby class="c">${esc(c)}<rt>${esc(p)}</rt></ruby>`;
         }
-        return `<span class="c p"><ruby>${esc(FULL_WIDTH[c] || c)}<rt>&#8203;</rt></ruby></span>`;
+        return `<ruby class="c p">${esc(FULL_WIDTH[c] || c)}<rt>&#8203;</rt></ruby>`;
       })
       .join("");
     const flag = ok ? "" : ` data-problem="line ${lineNo}: ${need} characters, ${syl.length} pinyin"`;
