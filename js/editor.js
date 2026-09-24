@@ -46,7 +46,8 @@
     $("#print").disabled = !!info.error;
     if (info.error) setStatus("Problem: " + info.error, true);
     else setStatus(`${state.book.sections.length} section${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
-      (info.problems ? ` · ${info.problems} pinyin problem(s) — marked in red` : ""));
+      (info.problems ? ` · ${info.problems} pinyin problem(s) — marked in red` : "") +
+      (info.tooLong ? ` · ${info.tooLong} [one page] group(s) too long to fit even when shrunk — dashed red` : ""));
   }
   function bookForPreview() {
     return { sections: state.book.sections.map((s) => ({ name: s.name, text: s.text })), css: state.book.css };

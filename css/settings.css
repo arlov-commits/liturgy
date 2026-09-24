@@ -34,6 +34,9 @@
   --space-chinese-to-pinyin: -1pt;  /* gap between a character and its pinyin */
   --space-between-verses: 6pt;
 
+  /* ---- [one page] groups ---- */
+  --fit-smallest: 0.7;     /* a [one page] group taller than a page is shrunk to fit, but never below this (0.7 = 70%) */
+
   /* ---- Titles ---- */
   --title-scale: 1.15;     /* titles are this much larger */
   --subtitle-scale: 0.8;   /* small headings are this much smaller */

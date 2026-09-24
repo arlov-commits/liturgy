@@ -62,6 +62,9 @@ The Text tab's colouring repeats `parse.js`'s line rules — keep them in step w
   Any new pinyin/English font must pass the tone-mark render check before adoption.
 - Excel page breaks are kept in the text only as `// ---` comments — the new page size flows
   differently. Real breaks are `---`.
+- Paged.js quirks (handled in `preview.html`): it drops `@media screen` rules from the sheets it paginates
+  (screen-only looks go in preview.html's own `<style>`), it paginates the whole page if given no content,
+  and it can leave an invisible copy of a moved block in a page's overflow (`removeOverflow()`).
 - Page 1 is a right-hand page: binding margin on the left for odd pages, right for even.
 
 ## Dev loop
@@ -81,7 +84,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 
 ## Roadmap
 1. ✅ Text format + converter (2 sections: Amitabha Sutra, Rebirth Mantra)
-2. ⏳ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit this block on one page" marker; TOC with automatic page numbers; automatic cross-references (replace "(Page 91)")
+2. ⏳ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers; automatic cross-references (replace "(Page 91)")
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "open local folder" (File System Access API) as backup
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, edit the list ✅, new booklet / new section ✅)
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order; PWA shell

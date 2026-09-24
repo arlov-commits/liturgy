@@ -35,6 +35,7 @@ qí shù jǐ gū dú yuán
 | `# ` | title line (centered, larger) |
 | `## ` | small heading (centered, smaller Chinese) |
 | `---` | page break |
+| `[one page]` … `[/one page]` | keep everything between on one page (each marker on its own line). If it's taller than a page it is shrunk to fit — but not below the “fit smallest” setting; then it runs over and is flagged. |
 | `//` | comment — never printed |
 
 ## Mantra lines (romanization beside the Chinese)
@@ -51,6 +52,5 @@ Suo Po He | 娑婆訶 | x3
 
 ## Open points (to settle while building the renderer)
 
-- A "fit" marker to shrink a block so it stays on one page.
 - Hard-coded page references such as "(Page 91)" should become automatic.
 - The workbook uses the ASCII comma `,` inside Chinese lines; the renderer could show it as `，`.

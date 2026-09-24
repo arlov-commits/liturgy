@@ -6,6 +6,7 @@
   const IDEOGRAPH = /[㐀-䶿一-鿿豈-﫿\u{20000}-\u{2ffff}]/u;
   const HAS_CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯\u{20000}-\u{2ffff}]/u;
   const REPEAT = /^x\d+$/i;
+  const KEEP_START = /^\[one page\]$/i, KEEP_END = /^\[\/one page\]$/i;
   // ASCII punctuation inside a Chinese line is shown as its full-width form
   const FULL_WIDTH = { ",": "，", ".": "。", "!": "！", "?": "？", ":": "：", ";": "；" };
 
@@ -51,10 +52,23 @@
     };
     const open = (n) => (block = block || { html: [], level: 0, mantra: false, start: n + 1 });
 
+    let keepFrom = 0;   // line of an open [one page]
     for (let n = 0; n < lines.length; n++) {
       const raw = lines[n];
       const line = raw.trim();
       if (line.startsWith("//")) continue;
+      if (KEEP_START.test(line)) {
+        close();
+        if (keepFrom) problems.push({ line: n + 1, severity: "error", message: "[one page] inside another [one page] — close the first with [/one page]" });
+        else { out.push('<div class="keep">'); keepFrom = n + 1; }
+        continue;
+      }
+      if (KEEP_END.test(line)) {
+        close();
+        if (!keepFrom) problems.push({ line: n + 1, severity: "error", message: "[/one page] without a [one page] above it" });
+        else { out.push("</div>"); keepFrom = 0; }
+        continue;
+      }
       if (!line) { close(); continue; }
       if (line === "---") { close(); out.push('<div class="page-break"></div>'); continue; }
       open(n);
@@ -80,6 +94,10 @@
       }
     }
     close();
+    if (keepFrom) {
+      problems.push({ line: keepFrom, severity: "warning", message: "This [one page] is never closed — add [/one page] after the last block" });
+      out.push("</div>");
+    }
     return `<section class="sec" data-file="${esc(name || "")}">${out.join("\n")}</section>`;
   }
 

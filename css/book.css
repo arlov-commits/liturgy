@@ -20,6 +20,9 @@
 .sec { break-before: page; }
 .sec:first-child { break-before: auto; }
 .page-break { break-after: page; height: 0; }
+/* [one page] … [/one page]: kept on one page (shrunk to fit by preview.html if taller than a page) */
+.keep { break-inside: avoid; }
+.keep.too-long { break-inside: auto; }
 
 .block {
   break-inside: avoid;
