@@ -48,8 +48,8 @@
   // Builds the tab. `get()` → current changes {name: value}; `set(changes)` is called on every edit.
   function build(box, groups, get, set) {
     box.textContent = "";
-    const intro = el("p", { className: "hint", textContent: "Changes show in the pages straight away. Use Save to keep them." });
-    const resetAll = el("button", { type: "button", textContent: "Undo all changes", onclick: () => { set({}); build(box, groups, get, set); } });
+    const intro = el("p", { className: "hint", textContent: "Changes show in the pages straight away. Use Save to keep them. Highlighted settings differ from the defaults; ↺ puts one back." });
+    const resetAll = el("button", { type: "button", textContent: "Set everything back to the defaults", title: "Every setting goes back to the app's default (Save to keep that)", onclick: () => { set({}); build(box, groups, get, set); } });
     box.append(intro, resetAll);
 
     for (const g of groups) {

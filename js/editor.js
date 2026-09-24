@@ -308,6 +308,13 @@
     changed();
   }
   $("#save").onclick = save;
+  // Ctrl+S / Cmd+S saves (instead of the browser saving the web page)
+  window.addEventListener("keydown", (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "s") {
+      ev.preventDefault();
+      if (!$("#save").disabled) save();
+    }
+  });
   window.addEventListener("beforeunload", (ev) => { if (state.book && unsaved().length) { ev.preventDefault(); ev.returnValue = ""; } });
 
   $("#forget").onclick = async (ev) => {

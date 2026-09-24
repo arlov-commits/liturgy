@@ -64,3 +64,11 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #signin .or { border-top: 1px solid #ddd; margin-top: 16px; padding-top: 8px; }
 #refolder { max-width: 36em; margin: 24px auto; padding: 16px 24px; background: #fff; border: 1px solid #ccc; }
 #refolder a { margin-left: 12px; color: #555; }
+
+/* Narrow screens: panel above the pages */
+@media (max-width: 900px) {
+  #app { flex-direction: column; }
+  #panel { width: auto; height: 55vh; border-right: 0; border-bottom: 1px solid #ccc; }
+  #preview { min-height: 45vh; }
+  #bar { flex-wrap: wrap; }
+}
