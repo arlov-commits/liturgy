@@ -7,7 +7,7 @@
   const q = new URLSearchParams(location.search);
   const $ = (sel) => document.querySelector(sel);
 
-  const state = { source: null, bookName: q.get("book") || "test", book: null };
+  const state = { source: null, bookName: q.get("book") || "test", book: null, settings: { groups: [], changes: {} } };
   let frame = null;     // the preview on show
   let pending = null;   // the preview being rendered
   let timer = null;
@@ -69,6 +69,25 @@
     setStatus("Not connected");
   }
 
+  // ---- tabs ----
+  for (const b of document.querySelectorAll("#tabs button")) {
+    b.onclick = () => {
+      document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
+      document.querySelectorAll("#panel .tab").forEach((t) => (t.hidden = t.id !== "tab-" + b.dataset.tab));
+    };
+  }
+
+  // ---- settings ----
+  async function startSettings() {
+    const css = await (await fetch("css/settings.css", { cache: "no-cache" })).text();
+    state.settings.groups = LiturgySettings.parse(css);
+    LiturgySettings.build($("#tab-settings"), state.settings.groups, () => state.settings.changes, (changes) => {
+      state.settings.changes = changes;
+      state.book.css = LiturgySettings.toCss(changes, state.settings.groups);
+      refresh(300);
+    });
+  }
+
   $("#forget").onclick = (ev) => { ev.preventDefault(); LiturgySource.key.forget(); location.reload(); };
   $("#print").onclick = () => frame && frame.contentWindow.print();
 
@@ -81,6 +100,7 @@
     }
     $("#forget").hidden = !state.source.usesKey;
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
+    await startSettings();
     $("#app").hidden = false;
     render();
   }

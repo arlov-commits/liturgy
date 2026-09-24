@@ -34,10 +34,17 @@
 </form>
 
 <main id="app" hidden>
+  <aside id="panel">
+    <nav id="tabs">
+      <button type="button" data-tab="settings" class="on">Settings</button>
+    </nav>
+    <div id="tab-settings" class="tab"></div>
+  </aside>
   <section id="preview" aria-label="Pages"></section>
 </main>
 
 <script src="js/source.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/editor.js"></script>
 </body>
 </html>
