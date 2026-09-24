@@ -220,6 +220,27 @@
     state.text.show(file, line);
   }
 
+  // ---- print: letter sheets ----
+  $("#impose-file").onchange = async (ev) => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const out = $("#impose-result");
+    out.textContent = "Making the sheets…";
+    try {
+      const r = await LiturgyImpose.impose(PDFLib, await file.arrayBuffer());
+      const name = file.name.replace(/\.pdf$/i, "") + " - letter sheets.pdf";
+      const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([r.bytes], { type: "application/pdf" })), download: name });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      const odd = Math.abs(r.pageSize[0] - 4.25) > 0.05 || Math.abs(r.pageSize[1] - 5.5) > 0.05;
+      out.textContent = `Done: “${name}” downloaded — ${r.pages} pages on ${r.sheets} sheet${r.sheets > 1 ? "s" : ""} (${r.sheets * 2} sides).` +
+        (odd ? ` Note: the PDF's pages are ${r.pageSize.map((x) => x.toFixed(2)).join(" × ")} in, not 4.25 × 5.5 — they were scaled to fit.` : "");
+    } catch (e) {
+      out.textContent = "That file couldn't be read as a PDF: " + e.message;
+    }
+    ev.target.value = "";
+  };
+
   // ---- saving ----
   // Every file the editor can change, as it is now in memory
   function currentFiles() {

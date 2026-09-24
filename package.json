@@ -1,7 +1,7 @@
 {
   "name": "liturgy",
   "private": true,
-  "description": "Liturgy booklet app \u2014 dev tools only; the app itself has no build step",
+  "description": "Liturgy booklet app — dev tools only; the app itself has no build step",
   "scripts": {
     "vendor": "esbuild tools/vendor/codemirror.mjs --bundle --minify --format=iife --global-name=CM --banner:js=\"/*! CodeMirror 6 (https://codemirror.net) | MIT, see vendor/LICENSE-codemirror.txt | built by: npm run vendor */\" --outfile=vendor/codemirror.min.js"
   },
@@ -13,6 +13,7 @@
     "@codemirror/view": "^6.43.13",
     "codemirror": "^6.0.2",
     "esbuild": "^0.28.2",
+    "pdf-lib": "^1.17.1",
     "playwright": "^1.56.0"
   }
 }

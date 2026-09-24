@@ -21,10 +21,10 @@ Current choices:
 |---|---|---|
 | Pagination / on-screen page preview | **Paged.js** (vendored, `vendor/paged.min.js`) | Chosen over Vivliostyle in Phase 2 (see below). Needs the small var-filling shim in `index.html` because it can't read `var()` inside `@page`. |
 | Pinyin under characters | native `<ruby>` + `ruby-position: under` | never position pinyin manually |
-| Final print | Chrome's own print (Chrome 131+ supports `@page :left/:right` margin boxes and `var()`) | |
+| Final print | Chrome's print of the Paged.js preview (Print button → Save as PDF), then the Print tab imposes it | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
 | Text editing | **CodeMirror 6** (vendored, `vendor/codemirror.min.js`) | never `contenteditable`. Bundle built from `tools/vendor/codemirror.mjs` by `npm run vendor` — add any new CodeMirror import there. |
 | Pinyin checking (later) | **pinyin-pro** | suggestions only — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate |
-| Letter-sheet imposition (later) | try **Bookbinder JS** "Perfectbound" first; else **pdf-lib** | |
+| Letter-sheet imposition | **pdf-lib** (vendored, `vendor/pdf-lib.min.js`) | Bookbinder JS is a web app, not a package, so pdf-lib it is. `js/impose.js`: 2×2 on letter, duplex (long edge), cut-and-stack. |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | |
 
 Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
@@ -87,5 +87,5 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "open local folder" (File System Access API) as backup
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, edit the list ✅, new booklet / new section ✅)
-5. Print: letter sheets, 4-up, duplex, cut-and-stack order; PWA shell
+5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell
 6. Convert the remaining 33 sheets

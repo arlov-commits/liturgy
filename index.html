@@ -41,6 +41,7 @@
     <nav id="tabs">
       <button type="button" data-tab="text" class="on">Text</button>
       <button type="button" data-tab="settings">Settings</button>
+      <button type="button" data-tab="print">Print</button>
     </nav>
     <div id="tab-text" class="tab">
       <div class="row"><label for="section">Section</label> <select id="section"></select>
@@ -50,12 +51,30 @@
         <b>//</b> note (not printed) · <a href="https://github.com/arlov-commits/liturgy/blob/main/FORMAT.md" target="_blank" rel="noopener">full guide</a></p>
     </div>
     <div id="tab-settings" class="tab" hidden></div>
+    <div id="tab-print" class="tab" hidden>
+      <h3>Print on letter paper, 4 pages a side</h3>
+      <ol class="steps">
+        <li><b>Save the booklet as a PDF.</b> Click <b>Print…</b> at the top, choose <b>Save as PDF</b> as the
+          destination, and save it. (The page size is set for you; leave margins on “Default”.)</li>
+        <li><b>Make the letter sheets.</b> Choose that PDF here:
+          <input type="file" id="impose-file" accept="application/pdf,.pdf">
+          <span id="impose-result" class="hint"></span></li>
+        <li><b>Print the sheets PDF</b> on letter paper, <b>both sides</b>, <b>flip on long edge</b>, at
+          <b>actual size / 100%</b> (not “fit to page”).</li>
+        <li><b>Cut</b> each sheet into four, across the middle both ways. Keep four piles — top-left, top-right,
+          bottom-left, bottom-right — each in the order the sheets came out of the printer, sheet 1 on top.</li>
+        <li><b>Stack</b> the piles: top-left on top of top-right, on top of bottom-left, on top of bottom-right.
+          The pages are now in order (check a few page numbers), ready to glue.</li>
+      </ol>
+    </div>
   </aside>
   <section id="preview" aria-label="Pages"></section>
 </main>
 
 <script src="vendor/codemirror.min.js"></script>
 <script src="js/parse.js"></script>
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="js/impose.js"></script>
 <script src="js/source.js"></script>
 <script src="js/texttab.js"></script>
 <script src="js/settings.js"></script>
