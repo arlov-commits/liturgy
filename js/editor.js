@@ -292,16 +292,18 @@
     await setChapters([...chapterNames(), name]);
     jumpTo(name, 3);
   }
-  // Keep together: wrap the selected lines in [keep together] … [/keep together]
-  $("#keep-together").onclick = () => {
+  // Keep together / Border: wrap the selected lines in [keep together] … [/keep together] or [border] … [/border]
+  function wrapSelection(mark, what) {
     const v = state.text && state.text.view;
     if (!v) return;
-    const sel = v.state.selection.main;
-    if (sel.empty) return setStatus("Select the lines to keep together first (drag over them in the text), then click Keep together.", true);
-    const first = v.state.doc.lineAt(sel.from), last = v.state.doc.lineAt(sel.to > sel.from && v.state.doc.lineAt(sel.to).from === sel.to ? sel.to - 1 : sel.to);
-    v.dispatch({ changes: [{ from: first.from, insert: "[keep together]\n" }, { from: last.to, insert: "\n[/keep together]" }] });
+    const sel = v.state.selection.main, doc = v.state.doc;
+    if (sel.empty) return setStatus(`Select the lines to ${what} first (drag over them in the text), then click again.`, true);
+    const first = doc.lineAt(sel.from), last = doc.lineAt(doc.lineAt(sel.to).from === sel.to && sel.to > sel.from ? sel.to - 1 : sel.to);
+    v.dispatch({ changes: [{ from: first.from, insert: `[${mark}]\n` }, { from: last.to, insert: `\n[/${mark}]` }] });
     v.focus();
-  };
+  }
+  $("#keep-together").onclick = () => wrapSelection("keep together", "keep together");
+  $("#add-border").onclick = () => wrapSelection("border", "put in a border");
 
   // pinyin suggestions: remembered per browser
   try { $("#suggest").checked = localStorage.getItem("liturgy.suggestPinyin") === "1"; } catch {}

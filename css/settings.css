@@ -44,6 +44,14 @@
   --fit-smallest: 0.7;     /* a [keep together] span a little too tall for a page is shrunk to fit, but never below this (0.7 = 70%); longer spans go on facing pages */
   --blank-page: before;    /* where a blank page goes when a kept-together span must start on a left-hand page */
 
+  /* ---- Borders ([border]) ---- */
+  --border-width: 0.75pt;   /* thickness of the line around a bordered section */
+  --border-style: solid;    /* kind of line */
+  --border-color: #000000;  /* colour of the line (#000000 = black) */
+  --border-padding: 5pt;    /* space between the line and the text inside */
+  --border-radius: 0pt;     /* rounded corners (0 = square) */
+  --border-space: 6pt;      /* space above and below the box */
+
   /* ---- Contents page ([contents]) ---- */
   --contents-size: 9pt;      /* size of the table of contents lines */
   --contents-spacing: 4pt;   /* gap between contents lines */

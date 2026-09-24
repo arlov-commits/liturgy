@@ -14,6 +14,7 @@
   // Settings that are a choice between named options (value → what the editor sees)
   const CHOICES = {
     "--chapter-start": { page: "on a new page", right: "on a new right-hand page", auto: "straight after the chapter before" },
+    "--border-style": { solid: "a single line", double: "a double line (needs thickness 2pt or more)", dashed: "dashes", dotted: "dots" },
     "--blank-page": { before: "just before the span", "chapter-end": "at the end of the chapter before" },
   };
   const STEP = { in: 0.05, pt: 0.1, em: 0.02, px: 1, mm: 1, cm: 0.1 };
@@ -91,6 +92,9 @@
         input = el("select", { id }, ...Object.entries(WEIGHTS).map(([w, n]) => el("option", { value: w, textContent: n })));
         input.value = current();
         input.onchange = () => update(input.value);
+      } else if (/-color$/.test(item.name)) {
+        input = el("input", { id, type: "color", value: current() });
+        input.oninput = () => update(input.value);
       } else if (num) {
         const unit = num[2], dflt = parseFloat(item.value.match(/^-?\d*\.?\d+/)?.[0] || num[1]);
         const step = STEP[unit] || 0.05;

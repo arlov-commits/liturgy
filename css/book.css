@@ -29,6 +29,18 @@
   @bottom-left { content: none; }
   @bottom-right { content: none; }
 }
+/* [border] … [/border]: a box around the lines (settings "Borders"); kept on one page unless taller than a page */
+.bordered {
+  border: var(--border-width) var(--border-style) var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--border-padding);
+  margin: var(--border-space) 0;
+  break-inside: avoid;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.bordered > .block:last-child { margin-bottom: 0; }
+
 /* [blank page]: a page left empty on purpose */
 .blank-page { break-before: page; break-after: page; height: 1px; }
 /* [one page] … [/one page]: kept on one page (shrunk to fit by preview.html if taller than a page) */

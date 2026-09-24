@@ -6,8 +6,10 @@
   const IDEOGRAPH = /[㐀-䶿一-鿿豈-﫿\u{20000}-\u{2ffff}]/u;
   const HAS_CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯\u{20000}-\u{2ffff}]/u;
   const REPEAT = /^x\d+$/i;
-  // [keep together] … [/keep together] ([one page] is the older name)
-  const KEEP_START = /^\[(keep together|one page)\]$/i, KEEP_END = /^\[\/(keep together|one page)\]$/i;
+  // Spans of lines: [keep together] … [/keep together] ([one page] is the older name), [border] … [/border].
+  // They may be put inside one another, but must be closed in the reverse order.
+  const SPANS = { "keep together": "keep", "one page": "keep", border: "bordered" };
+  const SPAN_MARK = /^\[(\/?)(keep together|one page|border)\]$/i;
   const BLANK_PAGE = /^\[blank page\]$/i;
   const CONTENTS = /^\[contents\]$/i, TOC_TITLE = /^\[toc:\s*(.*?)\s*\]$/i;
   // ASCII punctuation inside a Chinese line is shown as its full-width form
@@ -66,7 +68,7 @@
     const open = (n) => (block = block || { html: [], en: [], level: 0, mantra: false, start: n + 1 });
     let tocTitle = null;
 
-    let keepFrom = 0;   // line of an open [keep together]
+    const open_ = [];   // spans ([keep together], [border]) not closed yet
     for (let n = 0; n < lines.length; n++) {
       const raw = lines[n];
       const line = raw.trim();
@@ -74,16 +76,19 @@
       if (CONTENTS.test(line)) { close(); out.push('<nav class="toc"></nav>'); continue; }
       const toc = line.match(TOC_TITLE);
       if (toc) { tocTitle = toc[1]; continue; }
-      if (KEEP_START.test(line)) {
+      const mark = line.match(SPAN_MARK);
+      if (mark) {
         close();
-        if (keepFrom) problems.push({ line: n + 1, severity: "error", message: "[keep together] inside another one — close the first with [/keep together]" });
-        else { out.push(`<div class="keep" data-line="${n + 1}">`); keepFrom = n + 1; }
-        continue;
-      }
-      if (KEEP_END.test(line)) {
-        close();
-        if (!keepFrom) problems.push({ line: n + 1, severity: "error", message: "[/keep together] without a [keep together] above it" });
-        else { out.push("</div>"); keepFrom = 0; }
+        const name = mark[2].toLowerCase(), cls = SPANS[name], shown = name === "one page" ? "keep together" : name;
+        if (!mark[1]) {
+          if (open_.some((o) => o.cls === cls)) problems.push({ line: n + 1, severity: "error", message: `[${shown}] inside another one — close the first with [/${shown}]` });
+          else { out.push(`<div class="${cls}" data-line="${n + 1}">`); open_.push({ cls, shown, line: n + 1 }); }
+        } else if (!open_.length || open_[open_.length - 1].cls !== cls) {
+          const top = open_[open_.length - 1];
+          problems.push({ line: n + 1, severity: "error", message: top
+            ? `[/${shown}] here, but [${top.shown}] (line ${top.line}) must be closed first`
+            : `[/${shown}] without a [${shown}] above it` });
+        } else { out.push("</div>"); open_.pop(); }
         continue;
       }
       if (!line) { close(); continue; }
@@ -121,8 +126,8 @@
       }
     }
     close();
-    if (keepFrom) {
-      problems.push({ line: keepFrom, severity: "warning", message: "This [keep together] is never closed — add [/keep together] after the last line to keep" });
+    for (const o of open_.reverse()) {
+      problems.push({ line: o.line, severity: "warning", message: `This [${o.shown}] is never closed — add [/${o.shown}] after its last line` });
       out.push("</div>");
     }
     const tocAttr = tocTitle && tocTitle !== "-" ? ` data-toc="${esc(tocTitle)}"` : "";

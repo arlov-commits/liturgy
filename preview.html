@@ -222,10 +222,10 @@ function spreadReport() {
 function showLine(file, line) {
   const sec = [...document.querySelectorAll("[data-file]")].filter((s) => s.dataset.file === file);
   let best = null;
-  for (const b of sec.flatMap((s) => [...s.querySelectorAll("[data-line]")])) if (+b.dataset.line <= line && (!best || +b.dataset.line > +best.dataset.line)) best = b;
+  for (const b of sec.flatMap((s) => [...s.querySelectorAll(".block[data-line]")])) if (+b.dataset.line <= line && (!best || +b.dataset.line > +best.dataset.line)) best = b;
   document.querySelectorAll(".block.here").forEach((b) => b.classList.remove("here"));
   if (!best) return;
-  document.querySelectorAll(`[data-file="${CSS.escape(file)}"] [data-line="${best.dataset.line}"]`).forEach((b) => b.classList.add("here"));
+  document.querySelectorAll(`[data-file="${CSS.escape(file)}"] .block[data-line="${best.dataset.line}"]`).forEach((b) => b.classList.add("here"));
   const r = best.getBoundingClientRect();
   if (r.top < 0 || r.bottom > innerHeight) best.scrollIntoView({ block: "center" });
 }
