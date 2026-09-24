@@ -19,7 +19,7 @@ Current choices:
 
 | Job | Use | Notes |
 |---|---|---|
-| Pagination / on-screen page preview | **Vivliostyle** (`@vivliostyle/core`) or **Paged.js** (vendored, `vendor/paged.min.js`) | Both tested — identical output. Vivliostyle reads `var()` inside `@page` natively and is actively maintained; Paged.js needs the var-filling shim in `index.html`. Pick one in Phase 2 and delete the other. |
+| Pagination / on-screen page preview | **Paged.js** (vendored, `vendor/paged.min.js`) | Chosen over Vivliostyle in Phase 2 (see below). Needs the small var-filling shim in `index.html` because it can't read `var()` inside `@page`. |
 | Pinyin under characters | native `<ruby>` + `ruby-position: under` | never position pinyin manually |
 | Final print | Chrome's own print (Chrome 131+ supports `@page :left/:right` margin boxes and `var()`) | |
 | Text editing | **CodeMirror 6** | never `contenteditable` |
@@ -35,6 +35,15 @@ Our own code should stay small glue: `js/parse.js` (text → HTML) and wiring.
 - `css/book.css` — layout rules that read those variables.
 - `FORMAT.md` — the text-file format. `js/parse.js` must match it exactly; update both together.
 
+## Why Paged.js, not Vivliostyle (compared Sep 2026, test booklet = 41 pages)
+- Speed: Paged.js lays out the booklet in ~0.7 s after fonts load; Vivliostyle took ~5 s. Live preview in the editor needs speed.
+- Keep-together: Paged.js keeps a `break-inside: avoid` block (the Rebirth Mantra) whole; Vivliostyle split it across two pages.
+- Screen preview: Paged.js shows every page in a scrolling grid; Vivliostyle shows one page at a time, and
+  showing them all means overriding its internal viewer CSS (its zoom trick fights a wrapping grid).
+- License: Paged.js is MIT; Vivliostyle is AGPL-3.0.
+- Downside: Paged.js releases are slow (0.4.3 is still the latest stable). If it stalls on something we need,
+  Vivliostyle is the fallback — it read our `var()`s natively and paginated nearly the same.
+
 ## Known gotchas
 - **Font vetting:** Fontsource's Tinos and Noto Serif TC draw ō ū ā with a *detached* macron.
   Pinyin uses Gentium Book Plus (SIL) — verified correct for all tone marks incl. ǖ ǘ ǚ ǜ.
@@ -45,11 +54,10 @@ Our own code should stay small glue: `js/parse.js` (text → HTML) and wiring.
 
 ## Dev loop
 ```
-npm install                                  # playwright + vivliostyle cli (dev only)
+npm install                                  # playwright (dev only)
 python3 -m http.server -d ..                 # then open /liturgy/index.html?book=test
 node tools/render-test.mjs native out        # PDF via Chrome print
 node tools/render-test.mjs paged out         # PDF via Paged.js preview
-node tools/build-static.mjs ../liturgy-text test _book.html && npx vivliostyle build _book.html -o out/viv.pdf
 ```
 Always look at rendered pages (PDF → PNG) before claiming a layout change works.
 
@@ -58,7 +66,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 
 ## Roadmap
 1. ✅ Text format + converter (2 sections: Amitabha Sutra, Rebirth Mantra)
-2. ⏳ Renderer: pick engine; outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit this block on one page" marker; TOC with automatic page numbers; automatic cross-references (replace "(Page 91)")
+2. ⏳ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit this block on one page" marker; TOC with automatic page numbers; automatic cross-references (replace "(Page 91)")
 3. Editor: CodeMirror (text) + settings tab + live preview; save to private repo via GitHub token (entered once); "open local folder" (File System Access API) as backup
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order; PWA shell

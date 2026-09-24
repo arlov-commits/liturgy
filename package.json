@@ -1,9 +1,8 @@
 {
   "name": "liturgy",
   "private": true,
-  "description": "Liturgy booklet app — dev tools only; the app itself has no build step",
+  "description": "Liturgy booklet app \u2014 dev tools only; the app itself has no build step",
   "devDependencies": {
-    "@vivliostyle/cli": "^11.3.3",
     "playwright": "^1.56.0"
   }
 }
