@@ -45,7 +45,7 @@
     followCursor();
     $("#print").disabled = !!info.error;
     if (info.error) setStatus("Problem: " + info.error, true);
-    else setStatus(`${state.book.sections.length} sections · ${info.pages} pages` +
+    else setStatus(`${state.book.sections.length} section${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
       (info.problems ? ` · ${info.problems} pinyin problem(s) — marked in red` : ""));
   }
   function bookForPreview() {
@@ -99,9 +99,11 @@
     if (!names.includes(state.bookName)) names.push(state.bookName);
     const pick = $("#book");
     for (const n of names.sort()) pick.append(Object.assign(document.createElement("option"), { value: n, textContent: n }));
+    pick.append(Object.assign(document.createElement("option"), { value: "@new", textContent: "New booklet…" }));
     pick.value = state.bookName;
-    pick.hidden = names.length < 2;
+    pick.hidden = false;
     pick.onchange = () => {
+      if (pick.value === "@new") { pick.value = state.bookName; return newBook(names).catch((e) => setStatus("Problem: " + e.message, true)); }
       const u = new URLSearchParams(location.search);
       u.set("book", pick.value);
       location.search = u;   // the unsaved-changes question comes from beforeunload
@@ -109,11 +111,88 @@
     };
   }
 
-  // ---- text ----
-  function startText() {
-    state.text = LiturgyText.build($("#cm"), $("#section"), state.book.sections, () => { changed(); refresh(700); },
-      (s, line) => { state.cursor = { file: s.name, line }; clearTimeout(state.cursorTimer); state.cursorTimer = setTimeout(followCursor, 250); });
+  async function newBook(existing) {
+    const title = (prompt("Name of the new booklet (for example: Evening Ceremony)") || "").trim();
+    if (!title) return;
+    const name = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "booklet";
+    if (existing.includes(name)) return alert(`There is already a booklet called “${name}”.`);
+    const path = `books/${name}.txt`;
+    const text = `// ${title} — the section files of this booklet, in order, one per line\n`;
+    if (!state.source.canSave) {
+      download(path, text);
+      return setStatus(`Downloaded ${name}.txt — put it in ${state.source.where}books/, then reload`);
+    }
+    await state.source.put(path, text, `Add booklet ${name} (from the editor)`);
+    const u = new URLSearchParams(location.search);
+    u.set("book", name);
+    location.search = u;
   }
+
+  // ---- text ----
+  // The Text tab edits the booklet's sections plus its contents list (books/<name>.txt).
+  const CONTENTS = "@contents";
+  const labelOf = (name) => name.replace(/\.txt$/, "");
+  async function startText() {
+    state.textFiles = await state.source.list("text");   // [] when the source can't list folders
+    state.known = {};   // every section loaded or made, by name — taking one out of the list and back keeps its edits
+    for (const s of state.book.sections) { s.label = labelOf(s.name); state.known[s.name] = s; }
+    state.contents = { name: CONTENTS, label: "☰ Booklet contents (list of sections)", text: state.book.listText, check: checkList };
+    state.text = LiturgyText.build($("#cm"), $("#section"), (e) => {
+      changed();
+      if (e === state.contents) { clearTimeout(state.listTimer); state.listTimer = setTimeout(updateSections, 600); }
+      else refresh(700);
+    }, (e, line) => {
+      if (e === state.contents) return;
+      state.cursor = { file: e.name, line };
+      clearTimeout(state.cursorTimer);
+      state.cursorTimer = setTimeout(followCursor, 250);
+    });
+    state.text.setEntries([...state.book.sections, state.contents]);
+  }
+  // Problems in the contents list: names with no section file behind them
+  function checkList(text) {
+    const problems = [], seen = new Set();
+    text.split("\n").forEach((raw, i) => {
+      const name = raw.trim();
+      if (!name || name.startsWith("//")) return;
+      if (seen.has(name)) problems.push({ line: i + 1, severity: "warning", message: "This section is listed twice" });
+      seen.add(name);
+      if (!state.known[name] && state.textFiles.length && !state.textFiles.includes(name))
+        problems.push({ line: i + 1, severity: "error", message: `There is no section file called “${name}”. Check the spelling, or use New section to make it.` });
+    });
+    return problems;
+  }
+  // The contents list changed: load any newly listed sections, then show the new set
+  async function updateSections() {
+    const sections = [];
+    for (const name of LiturgySource.listNames(state.contents.text)) {
+      if (!state.known[name]) {
+        const text = await state.source.get("text/" + name, true).catch(() => null);
+        if (text === null) continue;
+        state.known[name] = { name, label: labelOf(name), text };
+        state.saved["text/" + name] = text;
+        if (!state.textFiles.includes(name)) state.textFiles.push(name);
+      }
+      if (!sections.includes(state.known[name])) sections.push(state.known[name]);
+    }
+    state.book.sections = sections;
+    state.text.setEntries([...sections, state.contents]);
+    changed();
+    refresh();
+  }
+  async function newSection() {
+    const title = (prompt("Name of the new section (for example: Meng Shan Offering)") || "").trim();
+    if (!title) return;
+    const base = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "section";
+    const name = base + ".txt";
+    if (state.known[name] || state.textFiles.includes(name)) return alert(`There is already a section called “${base}”. Pick another name, or add “${name}” to the booklet contents.`);
+    state.known[name] = { name, label: base, text: `# ${title.toUpperCase()}\n\n` };
+    state.text.setText(CONTENTS, state.contents.text.replace(/\n*$/, "\n") + name + "\n");
+    clearTimeout(state.listTimer);
+    await updateSections();
+    state.text.show(name, 3);
+  }
+  $("#new-section").onclick = () => newSection().catch((e) => setStatus("Problem: " + e.message, true));
   // keep the verse being edited in view in the pages
   function followCursor() {
     if (frame && state.cursor && frame.contentWindow.showLine) frame.contentWindow.showLine(state.cursor.file, state.cursor.line);
@@ -127,7 +206,7 @@
   // ---- saving ----
   // Every file the editor can change, as it is now in memory
   function currentFiles() {
-    const files = { [LiturgySource.SETTINGS_FILE]: state.book.css };
+    const files = { [LiturgySource.SETTINGS_FILE]: state.book.css, [`books/${state.bookName}.txt`]: state.contents.text };
     for (const s of state.book.sections) files["text/" + s.name] = s.text;
     return files;
   }
@@ -138,7 +217,9 @@
     $("#save").textContent = n ? `Save (${n} file${n > 1 ? "s" : ""})` : "Saved";
   }
   function commitMessage(path) {
-    return path === LiturgySource.SETTINGS_FILE ? "Change booklet settings (from the editor)" : `Edit ${path.replace(/^text\//, "")} (from the editor)`;
+    if (path === LiturgySource.SETTINGS_FILE) return "Change booklet settings (from the editor)";
+    if (path.startsWith("books/")) return `Change the sections of booklet ${state.bookName} (from the editor)`;
+    return `${path in state.saved ? "Edit" : "Add"} ${path.replace(/^text\//, "")} (from the editor)`;
   }
   function download(path, text) {
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: path.split("/").pop() });
@@ -183,7 +264,7 @@
     startBookPicker();
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
     await startSettings();
-    startText();
+    await startText();
     state.saved = currentFiles();
     changed();
     $("#app").hidden = false;

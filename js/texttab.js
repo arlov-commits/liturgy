@@ -39,35 +39,37 @@
     ".cm-scroller": { fontFamily: '"Gentium Book Plus", "Noto Serif TC", serif', lineHeight: "1.55" },
   });
 
-  // Pinyin checks from parse.js, shown as underlines + gutter marks
-  const pinyinCheck = linter((view) => LiturgyParse.check(view.state.doc.toString()).map((p) => {
+  // Problems (pinyin checks from parse.js, or whatever `check` gives) as underlines + gutter marks
+  const problems = (check) => linter((view) => check(view.state.doc.toString()).map((p) => {
     const line = view.state.doc.line(Math.min(p.line, view.state.doc.lines));
     return { from: line.from, to: line.to, severity: p.severity, message: p.message };
   }), { delay: 400 });
 
-  // `sections` = [{ name, text }]; `onChange(section)` after each edit; `onCursor(section, line)` when the
-  // cursor moves. Returns { show(name, line), view, current() }.
-  function build(box, select, sections, onChange, onCursor = () => {}) {
+  // One editor for several files. An entry = { name, label, text, check?(text) → problems }; the editor
+  // writes edits back into entry.text. `onChange(entry)` after each edit; `onCursor(entry, line)` when the
+  // cursor moves. Returns { setEntries(entries), show(name, line), setText(name, text), view, current() }.
+  function build(box, select, onChange, onCursor = () => {}) {
     const states = {};
+    let entries = [];
     let current = null;
     const view = new EditorView({ parent: box });
-    const stateFor = (s) => states[s.name] || (states[s.name] = EditorState.create({
-      doc: s.text,
+    const stateFor = (e) => states[e.name] || (states[e.name] = EditorState.create({
+      doc: e.text,
       extensions: [
-        basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, pinyinCheck, lintGutter(),
+        basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, problems(e.check || LiturgyParse.check), lintGutter(),
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) { s.text = u.state.doc.toString(); onChange(s); }
-          if (u.docChanged || u.selectionSet) onCursor(s, u.state.doc.lineAt(u.state.selection.main.head).number);
+          if (u.docChanged) { e.text = u.state.doc.toString(); onChange(e); }
+          if (u.docChanged || u.selectionSet) onCursor(e, u.state.doc.lineAt(u.state.selection.main.head).number);
         }),
       ],
     }));
     function show(name, line) {
-      const s = sections.find((x) => x.name === name) || sections[0];
-      if (s !== current) {
+      const e = entries.find((x) => x.name === name) || entries[0];
+      if (e !== current) {
         if (current) states[current.name] = view.state;
-        current = s;
-        view.setState(stateFor(s));
-        select.value = s.name;
+        current = e;
+        view.setState(stateFor(e));
+        select.value = e.name;
       }
       if (line) {
         const l = view.state.doc.line(Math.min(line, view.state.doc.lines));
@@ -75,11 +77,24 @@
         view.focus();
       }
     }
-    select.textContent = "";
-    for (const s of sections) select.append(Object.assign(document.createElement("option"), { value: s.name, textContent: s.name.replace(/\.txt$/, "") }));
+    // Replace a file's whole text as one edit (so it can be undone)
+    function setText(name, text) {
+      const e = entries.find((x) => x.name === name);
+      if (e === current) return view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+      const st = stateFor(e);
+      states[e.name] = st.update({ changes: { from: 0, to: st.doc.length, insert: text } }).state;
+      e.text = text;
+      onChange(e);
+    }
+    function setEntries(list) {
+      entries = list;
+      select.textContent = "";
+      for (const e of entries) select.append(Object.assign(document.createElement("option"), { value: e.name, textContent: e.label || e.name }));
+      if (current && entries.includes(current)) select.value = current.name;
+      else if (entries.length) show(entries[0].name);
+    }
     select.onchange = () => show(select.value);
-    if (sections.length) show(sections[0].name);
-    return { show, view, current: () => current };
+    return { setEntries, show, setText, view, current: () => current };
   }
 
   root.LiturgyText = { build };

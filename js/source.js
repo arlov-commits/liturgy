@@ -110,13 +110,14 @@
   }
 
   // A booklet = books/<name>.txt, a list of section files in order (// lines are comments)
+  const listNames = (listText) => listText.split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
   async function loadBook(source, bookName) {
-    const list = (await source.get(`books/${bookName}.txt`)).split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
-    const sections = await Promise.all(list.map(async (name) => ({ name, text: await source.get("text/" + name) })));
+    const listText = await source.get(`books/${bookName}.txt`);
+    const sections = await Promise.all(listNames(listText).map(async (name) => ({ name, text: await source.get("text/" + name) })));
     // settings.css in the text repo = the settings saved from the editor (only the changed ones)
     const css = (await source.get(SETTINGS_FILE, true)) || "";
-    return { sections, css };
+    return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, key, DEFAULT_REPO, SETTINGS_FILE };
+  root.LiturgySource = { open, loadBook, listNames, key, DEFAULT_REPO, SETTINGS_FILE };
 })(window);

@@ -18,6 +18,7 @@
     .pagedjs_page { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
     /* flag lines whose pinyin count doesn't match (kept here: Paged.js drops screen-only rules from book.css) */
     .mismatch { outline: 1.5px solid #d33; }
+    .empty { font: 15px system-ui, sans-serif; max-width: 30em; margin: 40px auto; color: #555; }
     .embedded .block { cursor: pointer; }
     .embedded .block:hover { background: rgba(255, 220, 120, .18); }
     .block.here { background: rgba(255, 210, 90, .35); box-shadow: 0 0 0 3px rgba(255, 210, 90, .35); }
@@ -59,7 +60,11 @@
   await document.fonts.ready;
 
   let pages = 0;
-  if (engine === "paged") {
+  if (!book.sections.length) {
+    // (Paged.js would lay out the whole page instead)
+    main.innerHTML = '<p class="empty">This booklet has no sections yet. In the Text tab, open “Booklet contents” and list the section files, or use New section.</p>';
+    status.textContent = "No sections";
+  } else if (engine === "paged") {
     const src = main.innerHTML; main.innerHTML = "";
     // Paged.js can't read var(--x) inside @page rules, so fill in the values from the settings first
     const rootStyle = getComputedStyle(document.documentElement);

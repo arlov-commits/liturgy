@@ -4,6 +4,11 @@ Each section of the liturgy is one plain-text file (UTF-8), e.g. `text/03-amitab
 The files hold **words only**. Fonts, sizes, spacing, margins and page numbers live in the
 stylesheet, never in these files.
 
+## Booklets
+
+A booklet is a list in `books/<name>.txt`: the section file names, in order, one per line
+(`//` lines are comments). In the editor it's the “Booklet contents” entry of the Text tab.
+
 ## Blocks
 
 A **blank line** separates blocks. A normal block is:
