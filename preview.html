@@ -140,6 +140,7 @@ async function render(id) {
     const rootStyle = getComputedStyle(document.documentElement);
     const fill = (css) => css.replace(/var\((--[\w-]+)\)/g, (m, name) => rootStyle.getPropertyValue(name).trim() || m);
     const sheets = bookCss.map((c) => ({ [c.href]: c.href.includes("book.css") ? fill(c.text) : c.text }));
+    sheets.push({ [location.href.replace(/[?#].*/, "") + "#page-numbers"]: fill(pageNumberCss(rootStyle)) });
     sheets.push({ [location.href.replace(/[?#].*/, "") + "#settings"]: extra.textContent });
     raw.forEach((st) => st.remove());
     if (typeof PagedModule === "undefined") {
@@ -170,6 +171,20 @@ async function render(id) {
   document.body.dataset.ready = "1";
   if (editor) editor.previewDone(window, { pages, problems, spreads: engine === "paged" && pages ? spreadReport() : [],
     blanks: document.querySelectorAll(".pagedjs_blank_page").length });
+}
+
+// Page numbers where the settings say: outside / inside corner or centred, at the top or bottom.
+// Right-hand (odd) pages are bound on the left, so their outside is the right; left-hand pages the opposite.
+function pageNumberCss(rootStyle) {
+  const where = rootStyle.getPropertyValue("--page-number-position").trim() || "outside";
+  const edge = rootStyle.getPropertyValue("--page-number-edge").trim() === "top" ? "top" : "bottom";
+  const look = 'font-family: var(--page-number-font), "Liturgy Extra", serif; font-size: var(--page-number-size);';
+  const boxes = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"];
+  const side = (page) => where === "center" ? "center" : (where === "outside") === (page === "right") ? "right" : "left";
+  const rules = ["right", "left"].map((page) => `@page :${page} {\n` + boxes.map((b) =>
+    `  @${b} { ${b === `${edge}-${side(page)}` ? `content: counter(page); ${look}` : "content: none;"} }`).join("\n") + "\n}");
+  rules.push("@page :blank {\n" + boxes.map((b) => `  @${b} { content: none; }`).join("\n") + "\n}");
+  return rules.join("\n");
 }
 
 // The editor stops a layout that's no longer wanted (a newer version is on its way)

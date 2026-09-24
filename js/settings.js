@@ -15,6 +15,8 @@
   const WEIGHTS = { 400: "regular", 600: "semibold" };
   // Settings that are a choice between named options (value → what the editor sees)
   const CHOICES = {
+    "--page-number-position": { outside: "outside corner (away from the binding)", inside: "inside corner (by the binding)", center: "centred" },
+    "--page-number-edge": { bottom: "at the bottom", top: "at the top" },
     "--verse-order": { "en-zh-py": "English, Chinese, pinyin", "zh-py-en": "Chinese, pinyin, English",
       "py-zh-en": "pinyin, Chinese, English", "en-py-zh": "English, pinyin, Chinese" },
     "--chapter-start": { page: "on a new page", right: "on a new right-hand page", auto: "straight after the chapter before" },

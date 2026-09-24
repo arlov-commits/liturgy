@@ -14,7 +14,9 @@
   --margin-top: 0.3in;
   --margin-bottom: 0.45in;
 
-  /* ---- Page numbers (outside bottom corner) ---- */
+  /* ---- Page numbers ---- */
+  --page-number-position: outside;   /* which corner of the page (the binding is the inside) */
+  --page-number-edge: bottom;        /* at the top or the bottom of the page */
   --page-number-font: "Lora";
   --page-number-size: 10pt;
 

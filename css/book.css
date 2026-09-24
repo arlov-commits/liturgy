@@ -6,7 +6,9 @@
   margin-top: var(--margin-top);
   margin-bottom: var(--margin-bottom);
 }
-/* Right-hand (odd) pages are bound on the left; left-hand (even) pages on the right. */
+/* Right-hand (odd) pages are bound on the left; left-hand (even) pages on the right.
+   Page numbers here are outside bottom; preview.html replaces them according to the settings
+   "page number position" / "page number edge" (pageNumberCss). */
 @page :right {
   margin-left: var(--margin-binding);
   margin-right: var(--margin-outside);
