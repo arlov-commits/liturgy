@@ -19,7 +19,7 @@
   <span id="status">Loading…</span>
   <span class="grow"></span>
   <button id="save" disabled title="Save your changes (Ctrl+S)">Saved</button>
-  <button id="print" disabled title="Print the pages exactly as shown (choose “Save as PDF” to make a PDF)">Print…</button>
+  <button id="print" disabled title="Print on letter paper, 4 pages a side (more options in the Print tab)">Print…</button>
   <a id="forget" href="#" hidden title="Forget the GitHub key or the folder on this computer, and connect again">Disconnect</a>
 </header>
 
@@ -84,20 +84,21 @@
     </div>
     <div id="tab-settings" class="tab" hidden></div>
     <div id="tab-print" class="tab" hidden>
-      <h3>Print on letter paper, 4 pages a side</h3>
+      <h3>Print the booklet on letter paper</h3>
+      <p><button type="button" id="print-sheets" class="primary">Print on letter paper…</button></p>
+      <p class="hint">4 booklet pages on each side of a letter sheet. The same as “Print…” at the top.</p>
       <ol class="steps">
-        <li><b>Save the booklet as a PDF.</b> Click <b>Print…</b> at the top, choose <b>Save as PDF</b> as the
-          destination, and save it. (The page size is set for you; leave margins on “Default”.)</li>
-        <li><b>Make the letter sheets.</b> Choose that PDF here:
-          <input type="file" id="impose-file" accept="application/pdf,.pdf">
-          <span id="impose-result" class="hint"></span></li>
-        <li><b>Print the sheets PDF</b> on letter paper, <b>both sides</b>, <b>flip on long edge</b>, at
-          <b>actual size / 100%</b> (not “fit to page”).</li>
-        <li><b>Cut</b> each sheet into four, across the middle both ways. Keep four piles — top-left, top-right,
-          bottom-left, bottom-right — each in the order the sheets came out of the printer, sheet 1 on top.</li>
-        <li><b>Stack</b> the piles: top-left on top of top-right, on top of bottom-left, on top of bottom-right.
-          The pages are now in order (check a few page numbers), ready to glue.</li>
+        <li>In the print window: choose your printer (or <b>Save as PDF</b>), paper <b>Letter</b>,
+          <b>print on both sides</b> → <b>flip on long edge</b>, scale <b>100%</b> / “Default” (not “fit”).</li>
+        <li><b>Cut</b> each sheet into four: across the middle, then down the middle.</li>
+        <li><b>Stack</b> the pieces in page order — each piece has an odd page on one side and the next even
+          page on the other: 1–2, 3–4, 5–6, 7–8, then the next sheet's 9–10 … Ready to glue.</li>
       </ol>
+      <p class="hint">Page order on each sheet — front: 2 3 / 6 7, back: 4 1 / 8 5 (then 9–16 on the next sheet).
+        The front of each half is a pair of facing pages. Blank pages fill up the last sheet.</p>
+      <h3>For checking</h3>
+      <p><button type="button" id="print-pages">Print just the pages…</button>
+        <span class="hint">one booklet page per sheet of paper, in order</span></p>
     </div>
   </aside>
   <section id="preview" aria-label="Pages"></section>
@@ -105,8 +106,6 @@
 
 <script src="vendor/codemirror.min.js"></script>
 <script src="js/parse.js"></script>
-<script src="vendor/pdf-lib.min.js"></script>
-<script src="js/impose.js"></script>
 <script src="vendor/idb-keyval.min.js"></script>
 <script src="js/source.js"></script>
 <script src="js/texttab.js"></script>

@@ -21,16 +21,21 @@ symlinkSync(app, path.join(tmp, 'site', 'liturgy'));   // like github.io: no lit
 let failed = 0;
 const check = (ok, what, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${what}${detail ? '  — ' + detail : ''}`); if (!ok) failed++; };
 
-// layout(): cut-and-stack order puts the pages back in order
+// layout(): every piece (one quarter of a sheet) has an odd page with the next even page behind it, and the
+// pieces stacked in page order give every page once; each front half is a facing pair (even | odd)
 {
+  const { BACK_OF } = require('../js/impose.js');
   let ok = true;
   for (const n of [1, 2, 7, 8, 9, 41, 64, 101]) {
-    const sheets = layout(n), order = [];
-    for (let q = 0; q < 4; q++) for (const sh of sheets) order.push(sh.front[q], sh.back[[1, 0, 3, 2][q]]);
-    const pages = order.filter(Boolean);
-    ok = ok && pages.length === n && pages.every((p, i) => p === i + 1);
+    const sheets = layout(n), pieces = [];
+    for (const sh of sheets) for (let q = 0; q < 4; q++) pieces.push([sh.front[q], sh.back[BACK_OF[q]]]);
+    const pages = pieces.map((pc) => pc.filter(Boolean).sort((x, y) => x - y)).filter((pc) => pc.length).sort((x, y) => x[0] - y[0]).flat();
+    ok = ok && pieces.every(([a, b]) => !a || !b || Math.abs(a - b) === 1 && Math.max(a, b) % 2 === 0)
+      && pages.length === n && pages.every((p, i) => p === i + 1)
+      && sheets.every((sh) => [[0, 1], [2, 3]].every(([l, r]) => !sh.front[l] || (sh.front[l] % 2 === 0 && (!sh.front[r] || sh.front[r] === sh.front[l] + 1))));
   }
-  check(ok, 'letter sheets: cut-and-stack gives pages 1…N in order');
+  const s1 = layout(8)[0];
+  check(ok && s1.front.join() === '2,3,6,7' && s1.back.join() === '4,1,8,5', 'letter sheets: front 2 3 / 6 7, back 4 1 / 8 5; pieces stack in page order');
 }
 
 const servers = [spawn('python3', ['-m', 'http.server', '8791', '-d', path.join(tmp, 'site')], { stdio: 'ignore' })];

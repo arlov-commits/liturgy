@@ -21,10 +21,10 @@ Current choices:
 |---|---|---|
 | Pagination / on-screen page preview | **Paged.js** (vendored, `vendor/paged.min.js`) | Chosen over Vivliostyle in Phase 2 (see below). Needs the small var-filling shim in `index.html` because it can't read `var()` inside `@page`. |
 | Pinyin under characters | native `<ruby>` + `ruby-position: under` | never position pinyin manually |
-| Final print | Chrome's print of the Paged.js preview (Print button → Save as PDF), then the Print tab imposes it | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
+| Final print | Chrome's print of the Paged.js preview: **Print…** = letter sheets, 4 pages a side (`preview.html printSheets`); Print tab → “just the pages” for checking | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
 | Text editing | **CodeMirror 6** (vendored, `vendor/codemirror.min.js`) | never `contenteditable`. Bundle built from `tools/vendor/codemirror.mjs` by `npm run vendor` — add any new CodeMirror import there. |
 | Pinyin checking | **pinyin-pro** (vendored, loaded only when “Suggest pinyin readings” is ticked) | suggestions only (blue dotted, opt-in) — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate. `toneSandhi: false` so 一/不 aren't flagged. |
-| Letter-sheet imposition | **pdf-lib** (vendored, `vendor/pdf-lib.min.js`) | Bookbinder JS is a web app, not a package, so pdf-lib it is. `js/impose.js`: 2×2 on letter, duplex (long edge), cut-and-stack. |
+| Letter-sheet imposition | none needed: the Paged.js pages are copied into a 2 × 2 letter-sheet grid and printed with `@page { size: letter }` | Order in `js/impose.js`, per sheet of 8 pages: front 2 3 / 6 7, back 4 1 / 8 5 (duplex, flip on long edge); cut in four, stack in page order. Each copy gets `counter-reset: page n−1` so page numbers stay right. (Replaced the earlier save-PDF-then-upload step with pdf-lib.) |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | |
 | Remembering a picked folder | **idb-keyval** (vendored) | stores the folder handle in IndexedDB |
 
@@ -106,6 +106,6 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "keep together" ✅ (`[keep together]`…, one page or facing pages, blank pages placed by setting); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "use a folder on this computer" ✅ (File System Access API, Chrome/Edge);
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, Booklet tab: add existing chapters / reorder / remove ✅, new booklet / new chapter ✅)
-5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell ✅
+5. Print: letter sheets, 4-up, duplex ✅ (Print… prints them directly; per-sheet order 2 3 / 6 7 — 4 1 / 8 5); PWA shell ✅
 6. ✅ Convert the remaining sheets (done with the converter in liturgy-text/tools)
 7. ✅ Bundle an Ext-B font for 𤙖 (Jigmo2)

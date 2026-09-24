@@ -10,6 +10,16 @@
 <link rel="stylesheet" href="css/book.css">
 <style>
   @media print { #status { display: none; } }
+  /* Letter sheets (printSheets): the pages copied 2 × 2 onto letter paper, in the order of js/impose.js.
+     The #sheets rules outrank Paged.js's own print rules, which assume one booklet page per sheet. */
+  #sheets { display: none; }
+  html.print-sheets .pagedjs_pages { display: none !important; }
+  html.print-sheets #sheets { display: block; }
+  #sheets .sheet { width: 8.5in; height: 11in; display: grid; grid-template: 5.5in 5.5in / 4.25in 4.25in; overflow: hidden; break-after: page; }
+  #sheets .slot { position: relative; overflow: hidden; }
+  #sheets .pagedjs_page { margin: 0 !important; box-shadow: none !important; border: 0 !important; transform-origin: top left;
+    height: var(--pagedjs-height) !important; min-height: 0 !important; max-height: none !important; break-after: auto !important; }
+  #sheets .pagedjs_sheet { height: var(--pagedjs-height) !important; min-height: 0 !important; max-height: none !important; }
   /* screen-only chrome for the preview; not part of the book */
   @media screen {
     body { background: #e8e6e1; margin: 0; }
@@ -40,6 +50,7 @@
 <main id="book"></main>
 <script src="js/parse.js"></script>
 <script src="js/source.js"></script>
+<script src="js/impose.js"></script>
 <script>
 // The booklet pages. Inside the editor (index.html) it takes the book from the editor, so unsaved
 // changes show; opened on its own it reads the text itself:
@@ -216,6 +227,43 @@ function spreadReport() {
     });
   }
   return out;
+}
+
+// Print on letter sheets, 4 pages a side (see js/impose.js for the order). Each copied page keeps its own
+// page number (Paged.js counts pages in the order they appear, so it's set on each copy).
+function buildSheets() {
+  document.getElementById("sheets")?.remove();
+  const pages = [...document.querySelectorAll(".pagedjs_pages > .pagedjs_page")];
+  const box = Object.assign(document.createElement("div"), { id: "sheets" });
+  const inch = 96, first = pages[0] && pages[0].getBoundingClientRect();
+  const scale = first ? Math.min(1, (4.25 * inch) / first.width, (5.5 * inch) / first.height) : 1;   // other page sizes: shrink to fit
+  for (const sheet of LiturgyImpose.layout(pages.length)) {
+    for (const side of [sheet.front, sheet.back]) {
+      const el = Object.assign(document.createElement("div"), { className: "sheet" });
+      for (const n of side) {
+        const slot = Object.assign(document.createElement("div"), { className: "slot" });
+        if (n) {
+          const copy = pages[n - 1].cloneNode(true);
+          copy.removeAttribute("id");
+          copy.style.counterReset = `page ${n - 1}`;
+          if (scale < 1) copy.style.transform = `scale(${scale})`;
+          slot.append(copy);
+        }
+        el.append(slot);
+      }
+      box.append(el);
+    }
+  }
+  document.body.append(box);
+  return LiturgyImpose.layout(pages.length).length;
+}
+function printSheets() {
+  buildSheets();
+  const size = Object.assign(document.createElement("style"), { textContent: "@page { size: 8.5in 11in; margin: 0; }" });
+  document.head.append(size);
+  document.documentElement.classList.add("print-sheets");
+  addEventListener("afterprint", () => { size.remove(); document.documentElement.classList.remove("print-sheets"); }, { once: true });
+  print();
 }
 
 // The editor calls this to bring the verse at a text line into view (a split verse: its first part)
