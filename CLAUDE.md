@@ -80,7 +80,9 @@ python3 -m http.server -d ..                 # then open /liturgy/index.html?boo
                                              #  and reads the private repo; ?repo=owner/name to point elsewhere)
 node tools/render-test.mjs native out        # PDF via Chrome print (CHROMIUM=<path> to use another Chromium)
 node tools/render-test.mjs paged out         # PDF via Paged.js preview
+node tools/editor-test.mjs                   # end-to-end editor checks against a fake GitHub (temp copy of ../liturgy-text)
 ```
+Run `tools/editor-test.mjs` before pushing editor changes.
 Always look at rendered pages (PDF → PNG) before claiming a layout change works.
 
 ## Working style
