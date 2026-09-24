@@ -2,9 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<link rel="icon" href="data:,">
+<link rel="icon" href="icons/icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Liturgy booklet</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#8a5a00">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="css/editor.css">
 </head>
@@ -79,5 +82,9 @@
 <script src="js/texttab.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/editor.js"></script>
+<script>
+  // Installable app + quick start (not on a dev server, where a cached copy would hide your changes)
+  if ("serviceWorker" in navigator && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) navigator.serviceWorker.register("sw.js");
+</script>
 </body>
 </html>

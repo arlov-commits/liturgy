@@ -1,0 +1,14 @@
+{
+  "name": "Liturgy booklet",
+  "short_name": "Liturgy",
+  "description": "Edit the liturgy booklets and print them",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e8e6e1",
+  "theme_color": "#8a5a00",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

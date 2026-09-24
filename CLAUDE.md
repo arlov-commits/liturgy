@@ -36,6 +36,9 @@ The Text tab's colouring repeats `parse.js`'s line rules — keep them in step w
   when ready (no blank flash); scroll position is kept.
 - `preview.html` — the pages themselves (Paged.js). Inside the editor it takes the book from `window.parent.Editor`
   so unsaved edits show; opened on its own it reads the text itself (used by `tools/render-test.mjs`).
+- `sw.js` + `manifest.webmanifest` — installable app. The service worker shows app files from its cache and
+  refreshes them in the background, so after a deploy the first visit shows the previous version and the next
+  one the new. It never caches the text (GitHub API) and isn't registered on localhost.
 - Printing = printing the preview frame (Print button), so the printed pages are exactly the previewed pages.
 
 ## Formatting lives in CSS, not in the text
@@ -87,5 +90,5 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "open local folder" (File System Access API) as backup
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, edit the list ✅, new booklet / new section ✅)
-5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell
+5. Print: letter sheets, 4-up, duplex, cut-and-stack order ✅ (Print tab); PWA shell ✅
 6. Convert the remaining 33 sheets
