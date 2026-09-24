@@ -6,24 +6,30 @@
   // Same line rules as js/parse.js (see FORMAT.md)
   const HAS_CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯]|[\u{20000}-\u{2ffff}]/u;
   const REPEAT = /^x\d+$/i;
+  const PAGE_REF = /\[page of [^\]]+\]/i, PAGE_REF_AT = /^\[page of [^\]]+\]/i;
+  function lineKind(line, state) {
+    const afterChinese = state.afterChinese;
+    state.afterChinese = false;
+    if (line.startsWith("//")) return "comment";
+    if (line === "---" || /^\[\/?one page\]$/i.test(line)) return "pageBreak";
+    if (REPEAT.test(line)) return "repeat";
+    if (line.includes("|") && HAS_CJK.test(line)) return "mantra";
+    if (HAS_CJK.test(line)) { state.afterChinese = true; return "chinese"; }
+    if (/^#{1,2}(\s|$)/.test(line)) return "heading";
+    return afterChinese ? "pinyin" : null;
+  }
   const liturgy = StreamLanguage.define({
     name: "liturgy",
-    startState: () => ({ afterChinese: false }),
+    startState: () => ({ afterChinese: false, kind: null }),
     blankLine: (state) => { state.afterChinese = false; },
     token(stream, state) {
-      const line = stream.string.trim();
-      const afterChinese = state.afterChinese;
-      state.afterChinese = false;
-      stream.skipToEnd();
-      if (line.startsWith("//")) return "comment";
-      if (line === "---" || /^\[\/?one page\]$/i.test(line)) return "pageBreak";
-      if (REPEAT.test(line)) return "repeat";
-      if (line.includes("|") && HAS_CJK.test(line)) return "mantra";
-      if (HAS_CJK.test(line)) { state.afterChinese = true; return "chinese"; }
-      if (/^#{1,2}(\s|$)/.test(line)) return "heading";
-      return afterChinese ? "pinyin" : null;
+      if (stream.sol()) state.kind = lineKind(stream.string.trim(), state);
+      if (state.kind !== "comment" && stream.match(PAGE_REF_AT)) return "pageRef";
+      const next = stream.string.slice(stream.pos).search(PAGE_REF);
+      if (next > 0 && state.kind !== "comment") stream.pos += next; else stream.skipToEnd();
+      return state.kind;
     },
-    tokenTable: { pageBreak: tags.processingInstruction, repeat: tags.keyword, mantra: tags.special(tags.string), chinese: tags.string, pinyin: tags.atom },
+    tokenTable: { pageRef: tags.link, pageBreak: tags.processingInstruction, repeat: tags.keyword, mantra: tags.special(tags.string), chinese: tags.string, pinyin: tags.atom },
   });
   const colours = HighlightStyle.define([
     { tag: tags.comment, color: "#8a8a8a", fontStyle: "italic" },
@@ -33,6 +39,7 @@
     { tag: tags.string, color: "#222" },
     { tag: tags.special(tags.string), color: "#6a3d9a" },
     { tag: tags.atom, color: "#2a7a3a" },
+    { tag: tags.link, color: "#0a6b8a", textDecoration: "underline" },
   ]);
   const theme = EditorView.theme({
     "&": { height: "100%", fontSize: "15px", backgroundColor: "#fff" },

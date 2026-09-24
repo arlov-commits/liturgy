@@ -20,6 +20,7 @@
     .mismatch { outline: 1.5px solid #d33; }
     .empty { font: 15px system-ui, sans-serif; max-width: 30em; margin: 40px auto; color: #555; }
     .keep.too-long { outline: 1.5px dashed #d33; }
+    .pageref-missing { outline: 1.5px solid #d33; }
     .embedded .block { cursor: pointer; }
     .embedded .block:hover { background: rgba(255, 220, 120, .18); }
     .block.here { background: rgba(255, 210, 90, .35); box-shadow: 0 0 0 3px rgba(255, 210, 90, .35); }
@@ -54,7 +55,13 @@
 
   const main = document.getElementById("book");
   main.innerHTML = book.sections.map((s) => LiturgyParse.parse(s.text, s.name)).join("\n");
-  const problems = main.querySelectorAll(".mismatch").length;
+  // page references to sections that aren't in this booklet can't be numbered: show "?" and flag them
+  for (const a of main.querySelectorAll("a.pageref")) {
+    if (!document.getElementById(a.getAttribute("href").slice(1))) {
+      a.replaceWith(Object.assign(document.createElement("span"), { className: "pageref-missing", textContent: "?" }));
+    }
+  }
+  const problems = main.querySelectorAll(".mismatch").length + main.querySelectorAll(".pageref-missing").length;
   const extra = document.createElement("style");
   extra.textContent = book.css || "";
   document.head.appendChild(extra);
@@ -82,9 +89,9 @@
     await new Promise((res) => { const s = document.createElement("script"); s.src = "vendor/paged.min.js"; s.onload = res; document.head.appendChild(s); });
     pages = (await new PagedModule.Previewer().preview(src, sheets, main)).total;
     removeOverflow();
-    status.textContent = `${book.sections.length} sections · ${pages} pages · ${problems} pinyin problem(s)`;
+    status.textContent = `${book.sections.length} sections · ${pages} pages · ${problems} problem(s)`;
   } else {
-    status.textContent = `${book.sections.length} sections · ${problems} pinyin problem(s) · press Ctrl+P to see pages`;
+    status.textContent = `${book.sections.length} sections · ${problems} problem(s) · press Ctrl+P to see pages`;
   }
   document.body.dataset.ready = "1";
   if (editor) {

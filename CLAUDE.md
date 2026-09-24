@@ -84,7 +84,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 
 ## Roadmap
 1. ✅ Text format + converter (2 sections: Amitabha Sutra, Rebirth Mantra)
-2. ⏳ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers; automatic cross-references (replace "(Page 91)")
+2. ⏳ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "fit on one page" marker ✅ (`[one page]`…`[/one page]`); TOC with automatic page numbers; automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "open local folder" (File System Access API) as backup
 4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, edit the list ✅, new booklet / new section ✅)
 5. Print: letter sheets, 4-up, duplex, cut-and-stack order; PWA shell

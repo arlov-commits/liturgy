@@ -24,6 +24,10 @@
 .keep { break-inside: avoid; }
 .keep.too-long { break-inside: auto; }
 
+/* [page of <section>] → that section's first page number */
+.pageref { color: inherit; text-decoration: none; }
+.pageref::after { content: target-counter(attr(href), page); }
+
 .block {
   break-inside: avoid;
   margin: 0 0 var(--space-between-verses);

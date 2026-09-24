@@ -38,6 +38,13 @@ qí shù jǐ gū dú yuán
 | `[one page]` … `[/one page]` | keep everything between on one page (each marker on its own line). If it's taller than a page it is shrunk to fit — but not below the “fit smallest” setting; then it runs over and is flagged. |
 | `//` | comment — never printed |
 
+## Page references
+
+`[page of <section>]` anywhere in an English or title line prints the page that section starts on, e.g.
+`~~~ Proceed to Meng Shan Offering (Page [page of 05-meng-shan-offering]) ~~~`. The section is named by its
+file name without `.txt` (as in the editor's Section list) and must be in the same booklet — otherwise it
+prints `?` and is flagged.
+
 ## Mantra lines (romanization beside the Chinese)
 
 ```
@@ -52,5 +59,6 @@ Suo Po He | 娑婆訶 | x3
 
 ## Open points (to settle while building the renderer)
 
-- Hard-coded page references such as "(Page 91)" should become automatic.
+- Hard-coded page references such as "(Page 91)" should be replaced with `[page of …]` (by hand, once the
+  referenced section is converted).
 - The workbook uses the ASCII comma `,` inside Chinese lines; the renderer could show it as `，`.

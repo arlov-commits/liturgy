@@ -46,7 +46,7 @@
     $("#print").disabled = !!info.error;
     if (info.error) setStatus("Problem: " + info.error, true);
     else setStatus(`${state.book.sections.length} section${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
-      (info.problems ? ` · ${info.problems} pinyin problem(s) — marked in red` : "") +
+      (info.problems ? ` · ${info.problems} problem(s) — marked in red, and underlined in the text` : "") +
       (info.tooLong ? ` · ${info.tooLong} [one page] group(s) too long to fit even when shrunk — dashed red` : ""));
   }
   function bookForPreview() {
@@ -136,7 +136,7 @@
   async function startText() {
     state.textFiles = await state.source.list("text");   // [] when the source can't list folders
     state.known = {};   // every section loaded or made, by name — taking one out of the list and back keeps its edits
-    for (const s of state.book.sections) { s.label = labelOf(s.name); state.known[s.name] = s; }
+    for (const s of state.book.sections) addKnown(s);
     state.contents = { name: CONTENTS, label: "☰ Booklet contents (list of sections)", text: state.book.listText, check: checkList };
     state.text = LiturgyText.build($("#cm"), $("#section"), (e) => {
       changed();
@@ -149,6 +149,22 @@
       state.cursorTimer = setTimeout(followCursor, 250);
     });
     state.text.setEntries([...state.book.sections, state.contents]);
+  }
+  function addKnown(s) {
+    s.label = labelOf(s.name);
+    s.check = checkSection;
+    state.known[s.name] = s;
+  }
+  // A section's problems: parse.js's pinyin checks + page references to sections not in this booklet
+  function checkSection(text) {
+    const here = new Set(state.book.sections.map((s) => labelOf(s.name)));
+    const problems = LiturgyParse.check(text);
+    text.split("\n").forEach((line, i) => {
+      for (const ref of LiturgyParse.pageRefs(line)) {
+        if (!here.has(ref)) problems.push({ line: i + 1, severity: "error", message: `“${ref}” is not a section of this booklet, so its page can't be found. Use a name from the Section list.` });
+      }
+    });
+    return problems;
   }
   // Problems in the contents list: names with no section file behind them
   function checkList(text) {
@@ -170,7 +186,7 @@
       if (!state.known[name]) {
         const text = await state.source.get("text/" + name, true).catch(() => null);
         if (text === null) continue;
-        state.known[name] = { name, label: labelOf(name), text };
+        addKnown({ name, text });
         state.saved["text/" + name] = text;
         if (!state.textFiles.includes(name)) state.textFiles.push(name);
       }
@@ -187,7 +203,7 @@
     const base = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "section";
     const name = base + ".txt";
     if (state.known[name] || state.textFiles.includes(name)) return alert(`There is already a section called “${base}”. Pick another name, or add “${name}” to the booklet contents.`);
-    state.known[name] = { name, label: base, text: `# ${title.toUpperCase()}\n\n` };
+    addKnown({ name, text: `# ${title.toUpperCase()}\n\n` });
     state.text.setText(CONTENTS, state.contents.text.replace(/\n*$/, "\n") + name + "\n");
     clearTimeout(state.listTimer);
     await updateSections();

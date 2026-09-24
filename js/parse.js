@@ -10,6 +10,13 @@
   // ASCII punctuation inside a Chinese line is shown as its full-width form
   const FULL_WIDTH = { ",": "，", ".": "。", "!": "！", "?": "？", ":": "：", ";": "；" };
 
+  // A section's anchor, from its file name: "05-meng-shan.txt" → "s-05-meng-shan"
+  const anchor = (name) => "s-" + String(name).replace(/\.txt$/i, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+  // [page of <section>] inside a line → the page that section starts on (filled in by the page engine)
+  const PAGE_REF = /\[page of ([^\]]+)\]/gi;
+  const inline = (html) => html.replace(PAGE_REF, (m, name) => `<a class="pageref" href="#${anchor(name.trim())}"></a>`);
+  const pageRefs = (text) => [...text.matchAll(PAGE_REF)].map((m) => m[1].trim().replace(/\.txt$/i, ""));
+
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   // problems: list to add { line, severity, message } to (line numbers start at 1)
@@ -90,7 +97,7 @@
       } else {
         const m = line.match(/^(#{1,2})\s*(.*)$/);
         if (m) block.level = block.level ? Math.min(block.level, m[1].length) : m[1].length;
-        block.html.push(`<p class="en">${esc(m ? m[2] : line)}</p>`);
+        block.html.push(`<p class="en">${inline(esc(m ? m[2] : line))}</p>`);
       }
     }
     close();
@@ -98,7 +105,7 @@
       problems.push({ line: keepFrom, severity: "warning", message: "This [one page] is never closed — add [/one page] after the last block" });
       out.push("</div>");
     }
-    return `<section class="sec" data-file="${esc(name || "")}">${out.join("\n")}</section>`;
+    return `<section class="sec" id="${anchor(name || "")}" data-file="${esc(name || "")}">${out.join("\n")}</section>`;
   }
 
   // Just the problems of a text file, for the editor
@@ -108,7 +115,7 @@
     return problems;
   }
 
-  const api = { parse, check };
+  const api = { parse, check, anchor, pageRefs };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.LiturgyParse = api;
 })(typeof window !== "undefined" ? window : globalThis);
