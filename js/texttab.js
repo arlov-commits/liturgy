@@ -11,7 +11,7 @@
     const afterChinese = state.afterChinese;
     state.afterChinese = false;
     if (line.startsWith("//")) return "comment";
-    if (line === "---" || /^\[\/?one page\]$/i.test(line)) return "pageBreak";
+    if (line === "---" || /^\[(\/?one page|contents|toc:.*)\]$/i.test(line)) return "pageBreak";
     if (REPEAT.test(line)) return "repeat";
     if (line.includes("|") && HAS_CJK.test(line)) return "mantra";
     if (HAS_CJK.test(line)) { state.afterChinese = true; return "chinese"; }

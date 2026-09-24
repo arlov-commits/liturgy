@@ -45,6 +45,13 @@ qí shù jǐ gū dú yuán
 file name without `.txt` (as in the editor's Section list) and must be in the same booklet — otherwise it
 prints `?` and is flagged.
 
+## Table of contents
+
+- `[contents]` on its own line prints a table of contents there: one line per section of the booklet
+  (except the section it's in), with the page each starts on — filled in automatically.
+- A section is listed under its first `#` title. To list it under another name, put `[toc: Name]` on a line
+  of its own anywhere in the section; `[toc: -]` leaves the section out.
+
 ## Mantra lines (romanization beside the Chinese)
 
 ```

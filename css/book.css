@@ -24,6 +24,13 @@
 .keep { break-inside: avoid; }
 .keep.too-long { break-inside: auto; }
 
+/* [contents] → table of contents: title ..... page */
+.toc { font-family: var(--english-font); font-size: var(--contents-size); font-weight: var(--english-weight); margin: 0 0 var(--space-between-verses); }
+.toc-entry { display: flex; align-items: baseline; gap: 0.3em; margin-bottom: var(--contents-spacing); break-inside: avoid; }
+.toc-dots { flex: 1; min-width: 1em; border-bottom: 1px dotted currentColor; }
+.toc-page { color: inherit; text-decoration: none; }
+.toc-page::after { content: target-counter(attr(href), page); }
+
 /* [page of <section>] → that section's first page number */
 .pageref { color: inherit; text-decoration: none; }
 .pageref::after { content: target-counter(attr(href), page); }

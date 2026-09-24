@@ -55,6 +55,7 @@
 
   const main = document.getElementById("book");
   main.innerHTML = book.sections.map((s) => LiturgyParse.parse(s.text, s.name)).join("\n");
+  fillContents(main);
   // page references to sections that aren't in this booklet can't be numbered: show "?" and flag them
   for (const a of main.querySelectorAll("a.pageref")) {
     if (!document.getElementById(a.getAttribute("href").slice(1))) {
@@ -108,6 +109,22 @@
   const editor = window.parent !== window && window.parent.Editor;
   if (editor) editor.previewDone(window, { error: e.message });
 });
+// [contents] → one line per section of the booklet (except the one holding the list): name ..... page
+function fillContents(main) {
+  for (const nav of main.querySelectorAll("nav.toc")) {
+    const own = nav.closest("section");
+    for (const sec of main.querySelectorAll("section[data-toc]")) {
+      if (sec === own) continue;
+      const row = document.createElement("div");
+      row.className = "toc-entry";
+      row.append(Object.assign(document.createElement("span"), { className: "toc-title", textContent: sec.dataset.toc }),
+        Object.assign(document.createElement("span"), { className: "toc-dots" }),
+        Object.assign(document.createElement("a"), { className: "toc-page", href: "#" + sec.id }));
+      nav.append(row);
+    }
+  }
+}
+
 // Paged.js can leave an invisible copy of a moved block in a page's overflow (off to the side of the page).
 // Take those out so clicks and "show this line" only ever find the copy you can see.
 function removeOverflow() {

@@ -7,6 +7,7 @@
   const HAS_CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯\u{20000}-\u{2ffff}]/u;
   const REPEAT = /^x\d+$/i;
   const KEEP_START = /^\[one page\]$/i, KEEP_END = /^\[\/one page\]$/i;
+  const CONTENTS = /^\[contents\]$/i, TOC_TITLE = /^\[toc:\s*(.*?)\s*\]$/i;
   // ASCII punctuation inside a Chinese line is shown as its full-width form
   const FULL_WIDTH = { ",": "，", ".": "。", "!": "！", "?": "？", ":": "：", ";": "；" };
 
@@ -55,15 +56,21 @@
       if (block.level === 2) cls.push("subtitle");
       if (block.mantra) cls.push("mantra");
       out.push(`<div class="${cls.join(" ")}" data-line="${block.start}">${block.html.join("")}</div>`);
+      // the section's name in a table of contents: its first title, unless [toc: …] says otherwise
+      if (block.level === 1 && tocTitle === null && block.en.length) tocTitle = block.en.join(" ").replace(/[~\[\]]+/g, " ").replace(/\s+/g, " ").trim();
       block = null;
     };
-    const open = (n) => (block = block || { html: [], level: 0, mantra: false, start: n + 1 });
+    const open = (n) => (block = block || { html: [], en: [], level: 0, mantra: false, start: n + 1 });
+    let tocTitle = null;
 
     let keepFrom = 0;   // line of an open [one page]
     for (let n = 0; n < lines.length; n++) {
       const raw = lines[n];
       const line = raw.trim();
       if (line.startsWith("//")) continue;
+      if (CONTENTS.test(line)) { close(); out.push('<nav class="toc"></nav>'); continue; }
+      const toc = line.match(TOC_TITLE);
+      if (toc) { tocTitle = toc[1]; continue; }
       if (KEEP_START.test(line)) {
         close();
         if (keepFrom) problems.push({ line: n + 1, severity: "error", message: "[one page] inside another [one page] — close the first with [/one page]" });
@@ -98,6 +105,7 @@
         const m = line.match(/^(#{1,2})\s*(.*)$/);
         if (m) block.level = block.level ? Math.min(block.level, m[1].length) : m[1].length;
         block.html.push(`<p class="en">${inline(esc(m ? m[2] : line))}</p>`);
+        block.en.push((m ? m[2] : line).replace(PAGE_REF, ""));
       }
     }
     close();
@@ -105,7 +113,8 @@
       problems.push({ line: keepFrom, severity: "warning", message: "This [one page] is never closed — add [/one page] after the last block" });
       out.push("</div>");
     }
-    return `<section class="sec" id="${anchor(name || "")}" data-file="${esc(name || "")}">${out.join("\n")}</section>`;
+    const tocAttr = tocTitle && tocTitle !== "-" ? ` data-toc="${esc(tocTitle)}"` : "";
+    return `<section class="sec" id="${anchor(name || "")}" data-file="${esc(name || "")}"${tocAttr}>${out.join("\n")}</section>`;
   }
 
   // Just the problems of a text file, for the editor
