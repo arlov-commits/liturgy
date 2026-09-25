@@ -73,10 +73,16 @@
     let tocTitle = null, pendingEntry = null, blocks = 0;
 
     const open_ = [];   // spans ([keep together], [border]) not closed yet
+    let blankRun = 0, mostBlank = 0;   // blank lines in a row just before this one; the longest such row since the last text
     for (let n = 0; n < lines.length; n++) {
       const raw = lines[n];
       const line = raw.trim();
-      if (line.startsWith("//")) continue;
+      // a blank line ends a block; each blank line more in a row adds a line of space (only between things, not at
+      // the end; a // comment line in between breaks the row: blank, comment, blank is just a block break)
+      if (line.startsWith("//")) { blankRun = 0; continue; }
+      if (!line) { close(); blankRun++; mostBlank = Math.max(mostBlank, blankRun); continue; }
+      if (mostBlank > 1 && out.length) for (let k = 1; k < mostBlank; k++) out.push('<div class="blank-line"></div>');
+      blankRun = mostBlank = 0;
       if (CONTENTS.test(line)) { close(); out.push('<nav class="toc"></nav>'); continue; }
       const toc = line.match(TOC_TITLE);
       if (toc) {
@@ -101,7 +107,6 @@
         } else { out.push("</div>"); open_.pop(); }
         continue;
       }
-      if (!line) { close(); continue; }
       if (BLANK_PAGE.test(line)) { close(); out.push('<div class="blank-page"></div>'); continue; }
       if (line === "---") {
         // page breaks are automatic now

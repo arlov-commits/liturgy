@@ -14,7 +14,8 @@ A booklet is a list in `books/<name>.txt`: the chapter file names, in order, one
 
 ## Blocks
 
-A **blank line** separates blocks. A normal block is:
+A **blank line** separates blocks; each further blank line in a row adds one line of empty space on the page
+(two blank lines = a block break plus one empty line, and so on). A normal block is:
 
 ```
 IN THE JETA GROVE, IN THE GARDEN OF THE

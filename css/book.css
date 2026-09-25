@@ -76,6 +76,8 @@
   margin: 0 0 var(--space-between-verses);
 }
 
+/* each extra blank line in the text: one English line of space */
+.blank-line { height: calc(var(--english-size) * 1.25); }
 .en {
   font-family: var(--english-font), "Liturgy Extra", serif;
   font-size: var(--english-size);

@@ -162,6 +162,13 @@ try {
   await page.click('#undo');
   check(steps.length === 3 && /Your change again/.test(steps[0]) && /Back to the original/.test(steps[1]) && /Typing “extra”/.test(steps[2]) && t4 === was && t5 === was + ' extra' && await dots() === '',
     'Undo ▾ lists the steps (pick one to undo up to it); Redo; Undo', steps.join(' | '));
+  // extra blank lines: space in the pages
+  await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, m = Editor.state.docMap[0];
+    for (let i = m.first + 1; i < m.last; i++) if (!d.line(i).text.trim() && /^[A-Za-z]/.test(d.line(i - 1).text)) { v.dispatch({ changes: { from: d.line(i).from, insert: '\n\n' } }); return; } });
+  await afterEdit();
+  const blanks = await (await shownPreview()).evaluate(() => document.querySelectorAll('.pagedjs_page .blank-line').length);
+  await page.click('#undo'); await afterEdit();
+  check(blanks === 2, 'three blank lines in a row: a block break and two empty lines in the pages', `${blanks} empty lines`);
   // the header lines can't be edited away
   const before = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
   await page.evaluate(() => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: 'gone' } }); });
