@@ -79,6 +79,8 @@ await ctx.route('https://api.github.com/**', async (route) => {
   const buf = readFileSync(file);
   return json(200, { sha: sha(buf), content: buf.toString('base64'), encoding: 'base64' });
 });
+// autosave off for these checks (each one saves when it means to); it is checked on its own below
+await ctx.addInitScript(() => localStorage.setItem('liturgy.autosave', '0'));
 const page = await ctx.newPage();
 page.on('pageerror', (e) => check(false, 'no script errors', e.message));
 const status = () => page.textContent('#status');
@@ -259,6 +261,12 @@ try {
   const tocFile = path.join(repo, 'books', 'contents', 'test-booklet.txt');
   check(tocDoc === '[contents]' && tocShown && existsSync(tocFile) && readFileSync(tocFile, 'utf8').startsWith('# OUR CONTENTS') && readFileSync(path.join(repo, 'books', 'test-booklet.txt'), 'utf8').includes('[contents]'),
     'table of contents: shown and edited in the text, saved with the booklet');
+  // autosave: switched on in the Save ▾ menu, it saves a few seconds after the last change
+  await page.click('#save-more'); await page.check('#autosave'); await page.keyboard.press('Escape');
+  await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0]; v.dispatch({ changes: { from: v.state.doc.line(m.first).from, insert: '> autosaved note\n' } }); });
+  await page.waitForFunction(() => document.querySelector('#save').textContent === 'Saved', null, { timeout: 15000 }).catch(() => {});
+  check(readFileSync(tocFile, 'utf8').startsWith('> autosaved note') && await page.textContent('#save-more') === 'auto ▾', 'autosave: saves by itself a few seconds after a change');
+  await page.click('#save-more'); await page.uncheck('#autosave'); await page.keyboard.press('Escape');
   await (await shownPreview()).evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
   await page.locator('#toc-nav a.nav-l0').first().click(); await page.waitForTimeout(300);
   const tocTop = await (await shownPreview()).evaluate(() => Math.round(document.querySelector('.pagedjs_page').getBoundingClientRect().top));

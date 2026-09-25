@@ -100,6 +100,11 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 .menu .item:hover:not(:disabled) { background: #fff0c2; }
 .menu .item .hint { display: block; font-weight: 400; }
 .split-btn[hidden] { display: none; }
+.split-btn > button.chip { font-size: 12px; color: #555; }
+.split-btn > button.chip.on { color: #2a7a3a; font-weight: 600; }
+.menu label.item.check { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: baseline; cursor: pointer; }
+.menu label.item.check .hint { grid-column: 2; }
+.menu #autosave-note { margin: 4px 10px; }
 .menu .menu-head { padding: 4px 10px 6px; color: #666; font-size: 12.5px; }
 .steps-menu .item.step { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .menu h3 { margin: 12px 10px 4px; font-size: 14px; }

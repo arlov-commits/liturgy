@@ -563,11 +563,34 @@
     return files;
   }
   const unsaved = () => { const f = currentFiles(); return Object.keys(f).filter((p) => f[p] !== state.saved[p]); };
-  function changed() {
+  // edited: true when the change is yours (an edit, a setting, the chapter list) — that also lets autosave try
+  // again after a save that failed
+  function changed(edited = true) {
     const n = unsaved().length;
-    $("#save").disabled = !n;
-    $("#save").textContent = n ? `Save (${n} file${n > 1 ? "s" : ""})` : "Saved";
+    $("#save").disabled = !n || saving;
+    if (!saving) $("#save").textContent = n ? `Save (${n} file${n > 1 ? "s" : ""})` : "Saved";
+    if (edited) autosavePaused = false;
+    clearTimeout(autosaveTimer);
+    if (n && autosaveOn() && !autosavePaused) autosaveTimer = setTimeout(() => save(true), AUTOSAVE_AFTER);
   }
+  // ---- autosave: on unless switched off (per browser); only where Save writes straight to the text ----
+  const AUTOSAVE_AFTER = 4000;
+  let autosaveTimer = null, autosavePaused = false, saving = false;
+  const autosaveOn = () => { try { return localStorage.getItem("liturgy.autosave") !== "0"; } catch { return true; } } ;
+  function showAutosave() {
+    const can = !state.source || state.source.canSave, on = autosaveOn() && can;
+    $("#autosave").checked = on;
+    $("#autosave").disabled = !can;
+    $("#save-more").textContent = on ? "auto ▾" : "▾";
+    $("#save-more").classList.toggle("on", on);
+    $("#autosave-note").hidden = can;
+    $("#autosave-note").textContent = can ? "" : `Working from ${state.source.where}: Save hands you the files to put there yourself, so it can't save automatically.`;
+  }
+  $("#autosave").onchange = () => {
+    try { localStorage.setItem("liturgy.autosave", $("#autosave").checked ? "1" : "0"); } catch {}
+    showAutosave();
+    changed(false);
+  };
   function commitMessage(path) {
     if (path === LiturgySource.SETTINGS_FILE) return "Change booklet settings (from the editor)";
     if (path === LiturgySource.contentsFile(state.bookName))
@@ -583,9 +606,14 @@
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
-  async function save() {
+  async function save(auto = false) {
+    if (saving) return;
+    if (auto && (!autosaveOn() || !state.source.canSave)) return;
+    clearTimeout(autosaveTimer);
     const files = currentFiles();
     const paths = unsaved();
+    if (!paths.length) return;
+    saving = true;
     $("#save").disabled = true;
     try {
       for (const path of paths) {
@@ -601,13 +629,16 @@
         }
         state.saved[path] = files[path];
       }
-      setStatus(state.source.canSave ? `Saved to ${state.source.usesKey ? "GitHub" : state.source.where}` : `Downloaded ${paths.map((p) => p.split("/").pop()).join(", ")} — put ${paths.length > 1 ? "them" : "it"} in ${state.source.where}`);
+      // (an automatic save just shows "Saved" on the button, and leaves the status line to the pages)
+      if (!auto) setStatus(state.source.canSave ? `Saved to ${state.source.usesKey ? "GitHub" : state.source.where}` : `Downloaded ${paths.map((p) => p.split("/").pop()).join(", ")} — put ${paths.length > 1 ? "them" : "it"} in ${state.source.where}`);
     } catch (e) {
       setStatus("Not saved: " + e.message, true);
+      autosavePaused = true;   // (until you change something: no retrying every few seconds)
     }
-    changed();
+    saving = false;
+    changed(false);
   }
-  $("#save").onclick = save;
+  $("#save").onclick = () => save();
   // Ctrl+S / Cmd+S saves (instead of the browser saving the web page)
   window.addEventListener("keydown", (ev) => {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "s") {
@@ -657,7 +688,8 @@
     await startText();
     if (!state.book.sections.length) $('#tabs button[data-tab="book"]').click();
     state.saved = currentFiles();
-    changed();
+    showAutosave();
+    changed(false);
     $("#app").hidden = false;
     $("#settings-btn").hidden = false;
     $("#undo-group").hidden = $("#redo-group").hidden = false;

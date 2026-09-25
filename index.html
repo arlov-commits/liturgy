@@ -28,7 +28,9 @@
   <span class="split-btn">
     <button type="button" id="print" disabled title="Print on letter paper, 4 pages a side">Print…</button><button type="button" class="more" id="print-more" popovertarget="print-menu" title="Other ways to print, and how to cut and stack the sheets" aria-label="Print options">▾</button>
   </span>
-  <button id="save" disabled title="Save your changes (Ctrl+S)">Saved</button>
+  <span class="split-btn">
+    <button id="save" disabled title="Save your changes (Ctrl+S)">Saved</button><button type="button" class="more chip" id="save-more" popovertarget="save-menu" title="Save automatically, or only when you click Save">auto ▾</button>
+  </span>
   <a id="forget" href="#" hidden title="Forget the GitHub key or the folder on this computer, and connect again">Disconnect</a>
 </header>
 
@@ -105,6 +107,11 @@
 </main>
 <div id="undo-menu" class="menu steps-menu" popover></div>
 <div id="redo-menu" class="menu steps-menu" popover></div>
+<div id="save-menu" class="menu" popover>
+  <label class="item check"><input type="checkbox" id="autosave"> <b>Save automatically</b>
+    <span class="hint">a few seconds after you stop typing or changing a setting. Off: nothing is saved until you click Save (or press Ctrl+S).</span></label>
+  <p class="hint" id="autosave-note" hidden></p>
+</div>
 <div id="print-menu" class="menu" popover>
   <button type="button" id="print-sheets" class="item"><b>Print on letter paper…</b><span class="hint">4 booklet pages on each side of a letter sheet (the same as “Print…”)</span></button>
   <button type="button" id="print-pages" class="item"><b>Print just the pages…</b><span class="hint">one booklet page per sheet of paper, in order — for checking</span></button>

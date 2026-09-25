@@ -54,6 +54,8 @@ spaces. Visible lines only (~1 ms a keystroke). Off by default; switch: Settings
 Undo/Redo in the top bar use CodeMirror's history; `texttab.js track()` keeps a description of each step in step with
 it (`undoDepth`/`redoDepth`) for the ▾ lists; programmatic edits pass a `label` annotation. Adding, removing or
 moving chapters rebuilds the editor, which starts a fresh history.
+Autosave (Save ▾, on by default, per browser): `save(true)` 4 s after the last change, only where the source can save;
+a failed save pauses it until the next change.
 The pages swap in early only once the new layout reaches the place the current pages are scrolled to (`previewEarly`).
 
 ## Pages
