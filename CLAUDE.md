@@ -94,8 +94,9 @@ The pages swap in early only once the new layout reaches the place the current p
 - `css/settings.css` — the list of knobs and their defaults: named variables with plain-English comments
   (margins, sizes, fonts, spacing). The Settings drawer (top bar) builds its controls from this file (group headers
   `/* ---- Name ---- */`, a trailing `/* hint */` per line), so add new knobs here, never hard-code.
-- `settings.css` **in liturgy-text** — the editor's saved changes (only the values that differ), loaded after
-  the app's defaults. Saving goes to the text repo so one key (Contents: read and write, that repo only) covers everything.
+- `books/settings/<booklet>.css` **in liturgy-text** — each booklet's saved changes (only the values that differ), loaded
+  after the app's defaults; a booklet without one starts from the shared `settings.css` there (`source.js loadSettings`).
+  Settings → “Copy all settings from another booklet” replaces them (after a warning). Saving goes to the text repo so one key (Contents: read and write, that repo only) covers everything.
 - `css/book.css` — layout rules that read those variables.
 - `FORMAT.md` — the text-file format. `js/parse.js` must match it exactly; update both together.
 

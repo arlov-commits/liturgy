@@ -223,14 +223,18 @@
     if (original === null && edited === null) throw new SourceError(`There is no chapter called ${name}`);
     return { name, text: edited ?? original, original, edited: edited !== null };
   }
+  // Each booklet's settings (only the ones changed from the app's defaults) are kept in books/settings/<booklet>.css.
+  // A booklet without its own starts from the shared settings.css (where all booklets' settings used to be kept).
+  const settingsFile = (bookName) => `books/settings/${bookName}.css`;
+  const loadSettings = async (source, bookName) => (await source.get(settingsFile(bookName), true)) ?? (await source.get(SETTINGS_FILE, true)) ?? "";
   async function loadBook(source, bookName) {
     const listText = await source.get(`books/${bookName}.txt`);
     const sections = await Promise.all(listNames(listText).map((name) =>
       name === CONTENTS_ENTRY ? loadContents(source, bookName) : loadChapter(source, name)));
     // settings.css in the text repo = the settings saved from the editor (only the changed ones)
-    const css = (await source.get(SETTINGS_FILE, true)) || "";
+    const css = await loadSettings(source, bookName);
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile };
+  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile, settingsFile, loadSettings };
 })(window);

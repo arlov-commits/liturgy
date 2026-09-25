@@ -17,7 +17,7 @@ const repo = path.join(tmp, 'repo');                  // the fake GitHub repo
 cpSync(path.resolve('../liturgy-text'), repo, { recursive: true, filter: (p) => !p.includes('/.git') });
 // start from a known state, whatever is in the text repo now: a two-chapter test booklet, the app's default settings,
 // no edited chapters, no tables of contents or booklet order
-for (const p of ['edits', 'books/contents', 'settings.css', 'booklets.txt']) rmSync(path.join(repo, p), { recursive: true, force: true });
+for (const p of ['edits', 'books/contents', 'books/settings', 'settings.css', 'booklets.txt']) rmSync(path.join(repo, p), { recursive: true, force: true });
 writeFileSync(path.join(repo, 'books', 'test.txt'), '// Test booklet (made by editor-test)\n03-amitabha-sutra.txt\n04-rebirth-mantra.txt\n');
 mkdirSync(path.join(tmp, 'site'));
 symlinkSync(app, path.join(tmp, 'site', 'liturgy'));   // like github.io: no liturgy-text next to the app
@@ -355,7 +355,7 @@ try {
   await page.keyboard.press('Control+s'); await saveDone();
   check(await page.evaluate(() => Math.round(document.querySelector('#print').getBoundingClientRect().left)) === printX, 'the top-bar buttons stay put when the Save label changes');
   check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'edits', first), 'utf8').startsWith('// test edit') && !readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// test edit') &&
-    readFileSync(path.join(repo, 'settings.css'), 'utf8').includes('--english-size: 12pt'), 'Ctrl+S saves text (as an edition — the original untouched) and settings');
+    readFileSync(path.join(repo, 'books', 'settings', 'test.css'), 'utf8').includes('--english-size: 12pt') && !existsSync(path.join(repo, 'settings.css')), 'Ctrl+S saves text (as an edition — the original untouched) and settings');
 
   const line = await page.evaluate(() => { const d = Editor.state.text.view.state.doc; for (let i = 1; i < d.lines; i++) if (/[一-鿿]/.test(d.line(i).text) && !/[一-鿿]/.test(d.line(i + 1).text) && d.line(i + 1).text.trim()) return i + 1; });
   await page.evaluate((n) => { const v = Editor.state.text.view; const l = v.state.doc.line(n); const cut = l.text.lastIndexOf(' '); v.dispatch({ changes: { from: l.from + cut, to: l.to } }); }, line);
@@ -408,6 +408,14 @@ try {
   check(list.join() === [...libraryNames].reverse().join() && (await status()).startsWith('Saved'),
     'new booklet: add existing chapters, reorder, save', list.join(' '));
 
+  // settings are the booklet's own: the new booklet starts from the defaults; copy them from another booklet (after a warning)
+  const ownBefore = await page.evaluate(() => JSON.stringify(Editor.state.settings.changes));
+  page.once('dialog', (d) => d.accept());
+  await openSettings(); await page.selectOption('#copy-from', 'test'); await closeSettings(); await afterEdit();
+  const copiedSize = await page.evaluate(() => Editor.state.settings.changes['--english-size']);
+  await page.keyboard.press('Control+s'); await saveDone();
+  check(ownBefore === '{}' && copiedSize === '12pt' && readFileSync(path.join(repo, 'books', 'settings', 'test-booklet.css'), 'utf8').includes('--english-size: 12pt'),
+    'settings per booklet: a new booklet has its own; copy all settings from another booklet', `${ownBefore} → ${copiedSize}`);
   // table of contents: in the text like a chapter, editable, saved with the booklet; its entry in the contents list shows its page
   // a chapter made in the editor: no dots (nothing to compare with)
   const onNew = (d) => (d.type() === 'prompt' ? d.accept('Brand new') : d.accept());

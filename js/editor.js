@@ -157,20 +157,42 @@
   }
 
   // ---- settings ----
+  // a settings file → the changes it makes that the app knows (the older single "binding" setting read as the new ones:
+  // pages in order → regular letter size; signatures → folio signatures)
+  function readSettings(css) {
+    const known = new Set(state.settings.groups.flatMap((g) => g.items.map((i) => i.name)));
+    const c = Object.fromEntries(Object.entries(LiturgySettings.values(css)).filter(([k]) => known.has(k)));
+    if (c["--binding"] === "in-order") { c["--format"] = "letter"; delete c["--binding"]; }
+    else if (c["--binding"] === "signatures" && !c["--format"]) c["--format"] = "folio";
+    return c;
+  }
   async function startSettings() {
     const css = await (await fetch("css/settings.css", { cache: "no-cache" })).text();
     state.settings.groups = LiturgySettings.parse(css);
-    const known = new Set(state.settings.groups.flatMap((g) => g.items.map((i) => i.name)));
-    state.settings.changes = Object.fromEntries(Object.entries(LiturgySettings.values(state.book.css)).filter(([k]) => known.has(k)));
-    // (the older single "binding" setting: pages in order → regular letter size; signatures → folio signatures)
-    const c = state.settings.changes;
-    if (c["--binding"] === "in-order") { c["--format"] = "letter"; delete c["--binding"]; }
-    else if (c["--binding"] === "signatures" && !c["--format"]) c["--format"] = "folio";
+    state.settings.changes = readSettings(state.book.css);
     state.book.css = LiturgySettings.toCss(state.settings.changes, state.settings.groups);
     startSettings.rebuild = () => LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, applySettings);
     startSettings.rebuild();
+    fillCopyFrom().catch(() => {});
   }
 
+  // Copy all settings from another booklet (replacing this one's, after a warning)
+  async function copySettings() {
+    const pick = $("#copy-from"), from = pick.value;
+    if (!from) return;
+    if (!confirm(`Replace ALL the settings of the booklet “${state.bookName}” with those of “${from}”?\n\nThe settings it has now are overwritten (Undo won't bring them back; not saving and reloading the page does).`)) { pick.value = ""; return; }
+    const css = await LiturgySource.loadSettings(state.source, from);
+    applySettings(readSettings(css));
+    startSettings.rebuild();
+    setStatus(`Settings copied from “${from}”`);
+  }
+  async function fillCopyFrom() {
+    const pick = $("#copy-from");
+    pick.textContent = "";
+    pick.append(Object.assign(document.createElement("option"), { value: "", textContent: "— choose a booklet —" }));
+    for (const n of (await bookNames()).filter((n) => n !== state.bookName)) pick.append(Object.assign(document.createElement("option"), { value: n, textContent: n }));
+    pick.onchange = () => copySettings().catch((e) => setStatus("Problem: " + e.message, true));
+  }
   function applySettings(changes) {
     state.settings.changes = changes;
     state.book.css = LiturgySettings.toCss(changes, state.settings.groups);
@@ -255,8 +277,10 @@
       act(async () => {
         const msg = `Rename booklet ${old} to ${name} (from the editor)`;
         await state.source.put(`books/${name}.txt`, await state.source.get(`books/${old}.txt`), msg);
-        const toc = await state.source.get(LiturgySource.contentsFile(old), true);
-        if (toc !== null) { await state.source.put(LiturgySource.contentsFile(name), toc, msg); await state.source.remove(LiturgySource.contentsFile(old), msg); }
+        for (const file of [LiturgySource.contentsFile, LiturgySource.settingsFile]) {   // its table of contents and settings go along
+          const text = await state.source.get(file(old), true);
+          if (text !== null) { await state.source.put(file(name), text, msg); await state.source.remove(file(old), msg); }
+        }
         await state.source.remove(`books/${old}.txt`, msg);
         const i = names.indexOf(old);
         if (await state.source.get(ORDER_FILE, true) !== null) { names[i] = name; await saveOrder(names); }
@@ -272,6 +296,7 @@
         const msg = `Delete booklet ${name} (from the editor)`;
         await state.source.remove(`books/${name}.txt`, msg);
         await state.source.remove(LiturgySource.contentsFile(name), msg);
+        await state.source.remove(LiturgySource.settingsFile(name), msg);
         if (await state.source.get(ORDER_FILE, true) !== null) await saveOrder(names.filter((n) => n !== name));
         if (name === state.bookName) moved = names.find((n) => n !== name);
         setStatus(`Booklet “${name}” deleted`);
@@ -842,7 +867,7 @@
   // ---- saving ----
   // Every file the editor can change, as it is now in memory
   function currentFiles() {
-    const files = { [LiturgySource.SETTINGS_FILE]: state.book.css, [`books/${state.bookName}.txt`]: state.contents.text };
+    const files = { [LiturgySource.settingsFile(state.bookName)]: state.book.css, [`books/${state.bookName}.txt`]: state.contents.text };
     // chapters: the edition file holds the text when it differs from the original; null = no edition file
     for (const s of state.book.sections) files[s.virtual ? LiturgySource.contentsFile(state.bookName) : LiturgySource.EDITION + s.name] = isEdited(s) ? s.text : null;
     return files;
@@ -877,7 +902,7 @@
     changed(false);
   };
   function commitMessage(path) {
-    if (path === LiturgySource.SETTINGS_FILE) return "Change booklet settings (from the editor)";
+    if (path === LiturgySource.settingsFile(state.bookName)) return `Change the settings of booklet ${state.bookName} (from the editor)`;
     if (path === LiturgySource.contentsFile(state.bookName))
       return currentFiles()[path] === null ? `Back to the automatic table of contents of booklet ${state.bookName} (from the editor)` : `Edit the table of contents of booklet ${state.bookName} (from the editor)`;
     if (path.startsWith("books/")) return `Change the chapters of booklet ${state.bookName} (from the editor)`;
