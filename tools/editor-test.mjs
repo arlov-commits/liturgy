@@ -149,6 +149,14 @@ try {
   });
   check(sides.length > 4 && sides.every((x) => x === 'ok'), 'letter sheets: page numbers in the outside corner (right-hand pages on the right)', sides.join(' '));
 
+  // zoom: the pages get bigger or smaller, the layout (page count) stays the same, and a new layout keeps the zoom
+  await page.click('#zoom-in'); await page.click('#zoom-in');
+  const zoomed = [await page.textContent('#zoom-reset'), await page.evaluate(() => Math.round(document.querySelector('#preview iframe:not(.loading)').getBoundingClientRect().width / document.querySelector('#preview').clientWidth * 100))];
+  await page.evaluate(() => Editor.refresh()); await afterEdit();
+  const zoomPages = +((await status()).match(/(\d+) pages/) || [])[1];
+  await page.click('#zoom-reset');
+  check(zoomed[0] === '150%' && zoomed[1] === 100 && zoomPages === pages && await page.textContent('#zoom-reset') === '100%', 'zoom the pages in and out (the layout doesn\'t change)', zoomed.join(' / '));
+
   // the contents list and the panel can be dragged wider
   const widths = () => page.evaluate(() => ['#toc-nav', '#panel'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().width)));
   const [navW, panelW] = await widths();

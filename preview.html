@@ -401,6 +401,17 @@ function showLine(file, line) {
   if (r.top < 0 || r.bottom > innerHeight) { quietUntil = Date.now() + 800; best.scrollIntoView({ block: "center" }); }
 }
 
+// For the editor's zoom: the page at the top of the view, and showing it there again after the zoom changed
+function pageAtTop() {
+  const pages = [...document.querySelectorAll(".pagedjs_pages > .pagedjs_page")];
+  const i = pages.findIndex((p) => p.getBoundingClientRect().bottom > 40);
+  return i + 1;
+}
+function showPage(n) {
+  const p = document.querySelectorAll(".pagedjs_pages > .pagedjs_page")[n - 1];
+  if (p) { quietUntil = Date.now() + 800; p.scrollIntoView({ block: "start" }); }
+}
+
 // The editor's contents list: show the page a chapter starts on, at the top. A chapter not laid out yet (the
 // pages are still coming): show a spinner and go there as soon as it is.
 let wanted = null;

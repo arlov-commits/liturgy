@@ -686,6 +686,25 @@
       menu.style.right = Math.max(8, innerWidth - r.right) + "px";
     });
   }
+  // ---- zoom of the pages (per browser): the frames are scaled from outside, and the page at the top stays in view ----
+  const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
+  let zoom = 1;
+  try { zoom = ZOOMS.includes(+localStorage.getItem("liturgy.zoom")) ? +localStorage.getItem("liturgy.zoom") : 1; } catch {}
+  function setZoom(z) {
+    const w = frame && frame.contentWindow, top = w && w.pageAtTop ? w.pageAtTop() : 0;
+    zoom = z;
+    $("#preview").style.setProperty("--zoom", z);
+    $("#zoom-reset").textContent = Math.round(z * 100) + "%";
+    $("#zoom-out").disabled = z === ZOOMS[0];
+    $("#zoom-in").disabled = z === ZOOMS[ZOOMS.length - 1];
+    try { localStorage.setItem("liturgy.zoom", z); } catch {}
+    if (top && w.showPage) requestAnimationFrame(() => w.showPage(top));
+  }
+  $("#zoom-in").onclick = () => setZoom(ZOOMS.find((z) => z > zoom) ?? zoom);
+  $("#zoom-out").onclick = () => setZoom([...ZOOMS].reverse().find((z) => z < zoom) ?? zoom);
+  $("#zoom-reset").onclick = () => setZoom(1);
+  setZoom(zoom);
+
   // ---- Undo / Redo (top bar), each with a list of the next steps: pick one to undo (redo) up to there ----
   function showHistory() {
     if (!state.text) return;

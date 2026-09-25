@@ -67,6 +67,8 @@ it (`undoDepth`/`redoDepth`) for the ▾ lists; programmatic edits pass a `label
 moving chapters rebuilds the editor, which starts a fresh history.
 Autosave (Save ▾, on by default, per browser): `save(true)` 4 s after the last change, only where the source can save;
 a failed save pauses it until the next change.
+Zoom (magnifier buttons over the pages, per browser): the preview iframes are scaled from outside (`transform` + size ÷ zoom), so
+Paged.js always lays out at 100% and zoom can't change page breaks; `preview.html pageAtTop/showPage` keep the place.
 The pages swap in early only once the new layout reaches the place the current pages are scrolled to (`previewEarly`).
 
 ## Pages

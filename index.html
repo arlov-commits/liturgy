@@ -97,7 +97,13 @@
         <b>//</b> comment (not printed) · pages break by themselves · <a href="https://github.com/arlov-commits/liturgy/blob/main/FORMAT.md" target="_blank" rel="noopener">full guide</a></p>
     </div>
   </aside>
-  <section id="preview" aria-label="Pages"></section>
+  <section id="preview" aria-label="Pages">
+    <div id="zoom" role="group" aria-label="Zoom the pages">
+      <button type="button" id="zoom-out" title="Smaller (zoom out)" aria-label="Zoom out"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l6 6M7 10h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button type="button" id="zoom-reset" title="Back to 100%">100%</button>
+      <button type="button" id="zoom-in" title="Bigger (zoom in)" aria-label="Zoom in"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l6 6M7 10h6M10 7v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+  </section>
   <aside id="settings" class="drawer" hidden aria-label="Settings">
     <div class="drawer-head"><b>Settings</b> <button type="button" id="settings-close" class="drawer-close" title="Close (Esc)">✕</button></div>
     <div id="settings-book"></div>
