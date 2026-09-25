@@ -48,7 +48,29 @@
     return out;
   }
 
-  const api = { layout, BACK_OF, signaturePlan, signatures, MAX_SHEETS };
+  // ---- Format and binding (Settings): what gets printed on how many letter sheets ----
+  //   letter: pages 8.5 × 11, in order, one page a side
+  //   folio:  letter sheets folded in half (pages 5.5 × 8.5) — perfect: each sheet folded on its own and glued
+  //           (= signatures of one sheet); signatures: sheets nested, `sheets` per signature
+  //   quarto: letter sheets cut into quarters (pages 4.25 × 5.5) — perfect: 4 a side, layout() above
+  const FORMATS = { letter: ["8.5in", "11in"], folio: ["5.5in", "8.5in"], quarto: ["4.25in", "5.5in"] };
+  // settings → { format, binding, sheets } (also reads the older single setting: in-order, signatures)
+  function mode({ format, binding, sheets }) {
+    if (binding === "in-order") return { format: "letter", binding: "perfect", sheets: sheets || "auto" };
+    if (!FORMATS[format]) format = binding === "signatures" ? "folio" : "quarto";
+    if (binding !== "signatures" || format === "quarto") binding = "perfect";   // (quarto signatures: not yet)
+    return { format, binding, sheets: sheets || "auto" };
+  }
+  // { pagesPrinted (booklet pages incl. blanks), blanks, sheets (letter sheets, both sides), signatures (0 = none), plan }
+  function plan(m, pageCount) {
+    pageCount = Math.max(1, pageCount || 0);
+    if (m.format === "letter") { const sheets = Math.ceil(pageCount / 2); return { pagesPrinted: pageCount, blanks: sheets * 2 - pageCount, sheets, signatures: 0, plan: [] }; }
+    if (m.format === "quarto") { const sheets = Math.ceil(pageCount / 8); return { pagesPrinted: sheets * 8, blanks: sheets * 8 - pageCount, sheets, signatures: 0, plan: [] }; }
+    const sigs = signaturePlan(pageCount, m.binding === "signatures" ? m.sheets : "1"), sheets = sigs.reduce((a, b) => a + b, 0);
+    return { pagesPrinted: sheets * 4, blanks: sheets * 4 - pageCount, sheets, signatures: m.binding === "signatures" ? sigs.length : 0, plan: sigs };
+  }
+
+  const api = { layout, BACK_OF, signaturePlan, signatures, MAX_SHEETS, FORMATS, mode, plan };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.LiturgyImpose = api;
 })(typeof window !== "undefined" ? window : globalThis);

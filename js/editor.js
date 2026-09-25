@@ -88,7 +88,7 @@
     else setStatus(`${state.book.sections.length} chapter${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
       (info.problems ? ` · ${info.problems} problem(s) — marked in red, and underlined in the text` : "") +
       (info.blanks ? ` · ${info.blanks} blank page(s) added for facing pages` : "") +
-      (!$("#signature-warning").hidden ? " · one signature is too thick to fold — see Print" : ""));
+      (state.bindingWarning ? " · a signature is too thick to fold — see Settings → Format and binding" : ""));
   }
   function bookForPreview() {
     return { sections: state.book.sections.map((s) => ({ name: s.name, text: s.text })), css: state.book.css, plan: state.layout };
@@ -162,6 +162,10 @@
     state.settings.groups = LiturgySettings.parse(css);
     const known = new Set(state.settings.groups.flatMap((g) => g.items.map((i) => i.name)));
     state.settings.changes = Object.fromEntries(Object.entries(LiturgySettings.values(state.book.css)).filter(([k]) => known.has(k)));
+    // (the older single "binding" setting: pages in order → regular letter size; signatures → folio signatures)
+    const c = state.settings.changes;
+    if (c["--binding"] === "in-order") { c["--format"] = "letter"; delete c["--binding"]; }
+    else if (c["--binding"] === "signatures" && !c["--format"]) c["--format"] = "folio";
     state.book.css = LiturgySettings.toCss(state.settings.changes, state.settings.groups);
     startSettings.rebuild = () => LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, applySettings);
     startSettings.rebuild();
@@ -753,41 +757,50 @@
   window.addEventListener("resize", fitDrawers);
   window.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && openDrawer()) showDrawer(null); });
 
-  // ---- how the booklet is bound (Settings → Binding): the Print panel shows the steps, and for folded signatures
-  // how the sheets are split into signatures (js/impose.js) ----
+  // ---- format and binding (Settings): the numbers under the choice, and the Print panel's steps (js/impose.js) ----
   const setting = (name) => state.settings.changes[name] ?? defaultSetting(name);
+  const bindingMode = () => LiturgyImpose.mode({ format: setting("--format"), binding: setting("--binding"), sheets: setting("--signature-sheets") });
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   function showBinding() {
-    const binding = setting("--binding"), folded = binding === "signatures";
-    $("#print-perfect").hidden = binding !== "perfect";
-    $("#print-inorder").hidden = binding !== "in-order";
-    $("#print-folded").hidden = !folded;
-    $("#print-sheets").textContent = binding === "in-order" ? "Print the pages…" : "Print on letter paper…";
-    if (!folded || !state.pageCount) return;
-    const perSig = setting("--signature-sheets") || "auto", pages = state.pageCount;
-    const plan = LiturgyImpose.signaturePlan(pages, perSig), sheets = plan.reduce((a, b) => a + b, 0), blanks = sheets * 4 - pages;
-    const list = (xs) => (xs.length > 1 ? xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1] : String(xs[0]));
-    $("#signature-plan").textContent = `${pages} pages → ${plan.length === 1 ? "one signature" : plan.length + " signatures"} of ` +
-      `${list(plan)} sheet${sheets === 1 ? "" : "s"} (${list(plan.map((n) => n * 4))} pages)` +
-      (blanks ? ` · ${blanks} blank page${blanks === 1 ? "" : "s"} at the end` : "") + ".";
-    const thick = Math.max(...plan) > LiturgyImpose.MAX_SHEETS;
-    $("#signature-warning").hidden = !thick;
-    $("#signature-warning").textContent = thick ? `One signature of ${Math.max(...plan)} sheets (${Math.max(...plan) * 4} pages) is too thick to fold neatly. ` +
-      `Split it into several: Settings → Binding → Signature sheets → automatic.` : "";
-    const [w, h] = [setting("--page-width"), setting("--page-height")];
-    $("#page-size-note").hidden = w === "5.5in" && h === "8.5in";
-    $("#page-size-note span").textContent = `The pages are ${w.replace("in", "")} × ${h.replace("in", "")} in; half a letter sheet is 5.5 × 8.5 in (they are placed against the fold). `;
+    const m = bindingMode();
+    $("#print-inorder").hidden = m.format !== "letter";
+    $("#print-folded").hidden = m.format !== "folio";
+    $("#print-perfect").hidden = m.format !== "quarto";
+    $("#folded-perfect-steps").hidden = m.binding !== "perfect";
+    $("#folded-signature-steps").hidden = m.binding !== "signatures";
+    $("#print-sheets").textContent = m.format === "letter" ? "Print the pages…" : "Print on letter paper…";
+    // page size different from the format's: say so, with a button to set it
+    const [w, h] = [setting("--page-width"), setting("--page-height")], [fw, fh] = LiturgyImpose.FORMATS[m.format];
+    $("#page-size-note").hidden = w === fw && h === fh;
+    $("#page-size-note span").textContent = `The pages are ${w.replace("in", "")} × ${h.replace("in", "")} in; this format's are ${fw.replace("in", "")} × ${fh.replace("in", "")} in. `;
+    $("#use-format-size").textContent = `Make the pages ${fw.replace("in", "")} × ${fh.replace("in", "")} in`;
+    if (!state.pageCount) return;
+    const p = LiturgyImpose.plan(m, state.pageCount);
+    const thick = p.signatures > 0 && Math.max(...p.plan) > LiturgyImpose.MAX_SHEETS;
+    // the three numbers: pages printed, sheets, signatures (one can be stapled; several are sewn and glued)
+    const parts = [`Pages printed: <b>${p.pagesPrinted}</b>` + (p.blanks && m.format !== "letter" ? ` (${state.pageCount} + ${plural(p.blanks, "blank")})` : ""),
+      `Sheets (letter, both sides): <b>${p.sheets}</b>`];
+    if (m.binding === "signatures") {
+      const list = (xs) => (xs.length > 1 ? xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1] : String(xs[0]));
+      parts.push(`Signatures: <b>${p.signatures}</b> — ${p.signatures === 1 ? "can be stapled" : `${list(p.plan)} sheets; sew and glue them`}`);
+    } else if (m.format === "folio") parts.push(`${plural(p.sheets, "folded sheet")}, glued at the fold`);
+    const html = parts.join("<br>") + (thick ? `<div class="warning">A signature of ${Math.max(...p.plan)} sheets (${Math.max(...p.plan) * 4} pages) is too thick to fold neatly — choose “automatic” to split it into several.</div>` : "");
+    for (const box of document.querySelectorAll("#binding-metrics, #signature-plan")) box.innerHTML = html;
+    $("#signature-warning").hidden = true;
+    $("#signature-warning").textContent = thick ? "too thick" : "";
+    state.bindingWarning = thick;
   }
-  $("#use-half-letter").onclick = () => {
-    const changes = { ...state.settings.changes, "--page-width": "5.5in", "--page-height": "8.5in" };
+  $("#use-format-size").onclick = () => {
+    const [w, h] = LiturgyImpose.FORMATS[bindingMode().format];
+    const changes = { ...state.settings.changes, "--page-width": w, "--page-height": h };
     for (const k of ["--page-width", "--page-height"]) if (changes[k] === defaultSetting(k)) delete changes[k];
     applySettings(changes);
     startSettings.rebuild();
   };
 
   // ---- print ----
-  // Letter sheets, 4 pages a side (preview.html printSheets), or just the pages as shown
-  // pages in order: just the pages as laid out; otherwise the letter sheets (4 a side, or folded signatures)
-  const printSheets = () => frame && (setting("--binding") === "in-order" ? frame.contentWindow.print() : frame.contentWindow.printSheets());
+  // regular letter size: the pages as laid out, in order; folio and quarto: the letter sheets (preview.html printSheets)
+  const printSheets = () => frame && (bindingMode().format === "letter" ? frame.contentWindow.print() : frame.contentWindow.printSheets());
   $("#print-sheets").onclick = printSheets;
   $("#print-pages").onclick = () => frame && frame.contentWindow.print();
 

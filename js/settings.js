@@ -13,6 +13,18 @@
       '"Noto Serif"', '"Source Serif 4"', '"Noto Sans"', '"Source Sans 3"'],
   };
   const WEIGHTS = { 400: "regular", 600: "semibold" };
+  // Format and binding: shown as one nested choice (formatControl)
+  const BINDING_PARTS = ["--format", "--binding", "--signature-sheets"];
+  const FORMAT_TEXT = {
+    letter: ["Regular letter size", "pages 8.5 × 11 in, printed in order, both sides"],
+    folio: ["Folio", "letter sheets folded in half, no cutting — pages 5.5 × 8.5 in"],
+    quarto: ["Quarto", "letter sheets cut into quarters — pages 4.25 × 5.5 in"],
+  };
+  const BINDING_TEXT = {
+    folio: { perfect: ["Perfect bound", "each sheet folded on its own, stacked, glued at the fold"],
+      signatures: ["Signatures", "sheets folded together and nested; one signature can be stapled, several are sewn and glued"] },
+    quarto: { perfect: ["Perfect bound", "4 pages each side, cut into quarters, stacked and glued"], signatures: ["Signatures", "coming soon", true] },
+  };
   // Settings that are a choice between named options (value → what the editor sees)
   const CHOICES = {
     "--page-number-position": { outside: "outside corner (away from the binding)", inside: "inside corner (by the binding)", center: "centred" },
@@ -21,9 +33,6 @@
       "py-zh-en": "pinyin, Chinese, English", "en-py-zh": "English, pinyin, Chinese" },
     "--chapter-start": { page: "on a new page", right: "on a new right-hand page", auto: "straight after the chapter before" },
     "--border-style": { solid: "a single line", double: "a double line (needs thickness 2pt or more)", dashed: "dashes", dotted: "dots" },
-    "--binding": { perfect: "perfect bound, from letter sheets: 4 pages a side, cut into quarters, glued",
-      "in-order": "perfect bound, pages in order: one page per sheet (e.g. a print shop), cut and glued",
-      signatures: "signatures: letter sheets folded in half, nested, sewn or stapled" },
     "--signature-sheets": { auto: "automatic — split evenly, at most 8 sheets (32 pages) each", all: "one signature (all sheets folded together)",
       2: "2 sheets (8 pages)", 3: "3 sheets (12 pages)", 4: "4 sheets (16 pages)", 5: "5 sheets (20 pages)", 6: "6 sheets (24 pages)", 7: "7 sheets (28 pages)", 8: "8 sheets (32 pages)" },
     "--blank-page": { before: "just before the span", "chapter-end": "at the end of the chapter before" },
@@ -72,8 +81,47 @@
 
     for (const g of groups) {
       const fs = el("fieldset", {}, el("legend", { textContent: g.title }));
-      for (const item of g.items) fs.append(control(item));
+      for (const item of g.items) {
+        if (item.name === "--format") fs.append(formatControl(g.items));
+        else if (!BINDING_PARTS.includes(item.name)) fs.append(control(item));
+      }
       box.append(fs);
+    }
+
+    // Format and binding: one nested choice (format → binding → sheets per signature). Picking a format also sets
+    // the page size. The numbers below it (pages printed, sheets, signatures) are filled in by the editor.
+    function formatControl(items) {
+      const dflt = Object.fromEntries(items.map((i) => [i.name, i.value]));
+      const now = () => LiturgyImpose.mode({ format: get()["--format"] ?? dflt["--format"], binding: get()["--binding"] ?? dflt["--binding"], sheets: get()["--signature-sheets"] ?? dflt["--signature-sheets"] });
+      const pageDefaults = Object.fromEntries(groups.flatMap((g) => g.items).filter((i) => /^--page-(width|height)$/.test(i.name)).map((i) => [i.name, i.value]));
+      const apply = (m, sizeToo) => {
+        const c = { ...get(), "--format": m.format, "--binding": m.binding, "--signature-sheets": m.sheets };
+        if (sizeToo) [c["--page-width"], c["--page-height"]] = LiturgyImpose.FORMATS[m.format];
+        for (const k of Object.keys(c)) if ((dflt[k] ?? pageDefaults[k]) === c[k] && (k in dflt || k in pageDefaults)) delete c[k];
+        set(c);
+        build(box, groups, get, set);   // (the page size controls below show the new size)
+      };
+      const m = now(), wrap = el("div", { className: "format-choice" });
+      const radio = (name, value, checked, title, hint, onpick, disabled) => el("label", { className: "choice" + (disabled ? " disabled" : "") },
+        el("input", { type: "radio", name, value, checked, disabled, onchange: onpick }), el("b", { textContent: title }), el("span", { className: "hint", textContent: " — " + hint }));
+      for (const [format, [title, hint]] of Object.entries(FORMAT_TEXT)) {
+        const on = m.format === format;
+        wrap.append(radio("format", format, on, title, hint, () => apply({ ...m, format, binding: "perfect" }, true)));
+        if (!on || !BINDING_TEXT[format]) continue;
+        const sub = el("div", { className: "sub" });
+        for (const [binding, [t, h, soon]] of Object.entries(BINDING_TEXT[format])) {
+          sub.append(radio("binding", binding, m.binding === binding, t, h, () => apply({ ...m, binding }), soon));
+          if (binding === "signatures" && m.binding === "signatures") {
+            const pick = el("select", { id: "set--signature-sheets" }, ...Object.entries(CHOICES["--signature-sheets"]).map(([v, n]) => el("option", { value: v, textContent: n })));
+            pick.value = m.sheets;
+            pick.onchange = () => apply({ ...m, sheets: pick.value });
+            sub.append(el("label", { className: "sub sheets" }, el("span", { textContent: "Sheets per signature " }), pick));
+          }
+        }
+        wrap.append(sub);
+      }
+      wrap.append(el("div", { id: "binding-metrics", className: "metrics" }));
+      return wrap;
     }
 
     function control(item) {

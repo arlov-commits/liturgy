@@ -344,9 +344,11 @@ function spreadReport() {
 // Print on letter sheets, 4 pages a side (see js/impose.js for the order). Each copied page keeps its own
 // page number (Paged.js counts pages in the order they appear, so it's set on each copy).
 // The binding setting: "perfect" (cut into quarters, glued) or "signatures" (folded letter sheets)
+// Format and binding (Settings): folio = folded letter sheets (signatures of `sheets`; perfect bound = one sheet each)
 const binding = () => {
-  const st = getComputedStyle(document.documentElement);
-  return { folded: st.getPropertyValue("--binding").trim() === "signatures", sheets: st.getPropertyValue("--signature-sheets").trim() || "auto" };
+  const st = getComputedStyle(document.documentElement), v = (n) => st.getPropertyValue(n).trim();
+  const m = LiturgyImpose.mode({ format: v("--format"), binding: v("--binding"), sheets: v("--signature-sheets") });
+  return { folded: m.format === "folio", sheets: m.binding === "signatures" ? m.sheets : "1", letter: m.format === "letter" };
 };
 function buildSheets() {
   document.getElementById("sheets")?.remove();

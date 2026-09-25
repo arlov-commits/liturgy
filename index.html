@@ -120,8 +120,10 @@
   <aside id="print-panel" class="drawer" hidden aria-label="Print">
     <div class="drawer-head"><b>Print</b> <button type="button" class="drawer-close" title="Close (Esc)">✕</button></div>
     <p><button type="button" id="print-sheets" class="primary">Print on letter paper…</button></p>
+    <p id="page-size-note" class="hint" hidden><span></span>
+      <button type="button" id="use-format-size">Make the pages the format's size</button></p>
     <div id="print-perfect">
-      <p class="hint">Perfect bound (Settings → Binding): 4 booklet pages on each side of a letter sheet.</p>
+      <p class="hint">Quarto, perfect bound (Settings → Format and binding): 4 booklet pages on each side of a letter sheet.</p>
       <h3>Printing on letter paper</h3>
       <ol class="steps">
         <li>In the print window: choose your printer (or <b>Save as PDF</b>), paper <b>Letter</b>,
@@ -134,30 +136,34 @@
         The front of each half is a pair of facing pages. Blank pages fill up the last sheet.</p>
     </div>
     <div id="print-inorder" hidden>
-      <p class="hint">Perfect bound, pages in order (Settings → Binding): each booklet page on its own sheet of paper,
+      <p class="hint">Regular letter size (Settings → Format and binding): each booklet page on its own letter sheet,
         in reading order — nothing is rearranged.</p>
       <h3>Printing</h3>
       <ol class="steps">
-        <li>In the print window: paper the size of the pages (or <b>Save as PDF</b> for a print shop),
-          <b>print on both sides</b> → <b>flip on long edge</b>, scale <b>100%</b> / “Default” (not “fit”).</li>
-        <li>Each sheet then has an odd page on the front and the next even page on the back. Trim if needed,
-          stack in order and glue at the spine.</li>
+        <li>In the print window: paper <b>Letter</b>, <b>print on both sides</b> → <b>flip on long edge</b>,
+          scale <b>100%</b> / “Default” (not “fit”).</li>
+        <li>Each sheet has an odd page on the front and the next even page on the back. Stack in order, then glue,
+          staple or bind at the left edge.</li>
       </ol>
     </div>
     <div id="print-folded" hidden>
-      <p class="hint">Signatures (Settings → Binding): letter sheets printed sideways, two pages a side, folded in half.</p>
-      <p id="signature-plan"></p>
+      <p class="hint">Folio (Settings → Format and binding): letter sheets printed sideways, two pages a side, folded in half.</p>
+      <p id="signature-plan" class="metrics"></p>
       <p id="signature-warning" class="warning" hidden></p>
-      <p id="page-size-note" class="hint" hidden><span></span>
-        <button type="button" id="use-half-letter">Make the pages 5.5 × 8.5 in</button></p>
       <h3>Printing and folding</h3>
       <ol class="steps">
         <li>In the print window: paper <b>Letter</b>, <b>landscape</b>, <b>print on both sides</b> →
           <b>flip on short edge</b>, scale <b>100%</b> / “Default” (not “fit”).</li>
-        <li><b>Fold</b> each sheet in half, the printed page 1 side outwards.</li>
+        <li><b>Fold</b> each sheet in half, the side with its lowest page number outwards.</li>
+      </ol>
+      <ol class="steps" start="3" id="folded-perfect-steps">
+        <li><b>Stack</b> the folded sheets in the order they came out of the printer, one after the other (not inside
+          each other), and glue them at the fold.</li>
+      </ol>
+      <ol class="steps" start="3" id="folded-signature-steps">
         <li>For each signature, <b>nest</b> its sheets in the order they came out of the printer: the first one is the
           outside, each next one goes inside it. Then the next signature, and so on.</li>
-        <li><b>Stack</b> the signatures in order and sew, staple or glue them at the fold.</li>
+        <li>One signature: <b>staple</b> it at the fold. Several: <b>stack</b> them in order, sew and glue at the spine.</li>
       </ol>
     </div>
     <h3>For checking</h3>

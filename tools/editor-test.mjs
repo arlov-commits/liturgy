@@ -184,17 +184,39 @@ try {
   check(await page.isVisible('#print-panel #print-pages') && await page.isVisible('#print-panel #print-sheets') && !(await page.isVisible('#settings')) && Math.abs(edge[0] - edge[1]) < 3,
     'Print panel: letter sheets, just the pages, instructions; reaches the text panel\'s edge', edge.join(' / '));
   await page.keyboard.press('Escape');
-  // Settings → Binding → signatures: the Print panel shows the split and the folding steps; one thick signature is warned about
-  await openSettings(); await page.selectOption('#set--binding', 'signatures'); await page.selectOption('#set--signature-sheets', 'all'); await afterEdit();
-  await page.click('#print');
-  const sig = [await page.isVisible('#print-folded'), await page.isVisible('#print-perfect'), await page.textContent('#signature-plan'), await page.isVisible('#signature-warning'), await status()];
+  // Settings → Format and binding: a nested choice; each format sets the page size; under it the three numbers
+  // (pages printed, sheets, signatures) and in the Print panel the matching steps
+  const metrics = () => page.textContent('#binding-metrics');
+  await openSettings();
+  const formats = await page.$$eval('.format-choice input[name=format]', (l) => l.map((x) => x.value + (x.checked ? '*' : '')).join());
+  const quartoSoon = await page.isDisabled('.format-choice input[name=binding][value=signatures]');
+  await page.check('.format-choice input[name=format][value=folio]'); await afterEdit();
+  const folioPerfect = [await page.inputValue('#set--page-width'), await metrics()];
+  await page.check('.format-choice input[name=binding][value=signatures]'); await page.selectOption('#set--signature-sheets', 'all'); await afterEdit();
+  const oneSig = await metrics();
+  const size = await page.inputValue('#set--english-size');
+  await page.fill('#set--english-size', '20'); await afterEdit();   // (more pages: one signature gets too thick)
+  const thick = [await metrics(), await status()];
+  await page.fill('#set--english-size', size); await afterEdit();
+  await page.selectOption('#set--signature-sheets', '2'); await afterEdit();
+  const autoSig = await metrics();
+  await page.selectOption('#set--signature-sheets', 'auto'); await afterEdit();
+  await closeSettings(); await page.click('#print');
+  const folded = [await page.isVisible('#print-folded'), await page.isVisible('#folded-signature-steps'), await page.isVisible('#folded-perfect-steps'), await page.isVisible('#print-perfect')];
   await page.keyboard.press('Escape');
-  await openSettings(); await page.selectOption('#set--binding', 'in-order'); await closeSettings(); await page.click('#print');
-  const inOrder = [await page.isVisible('#print-inorder'), await page.isVisible('#print-perfect'), await page.isVisible('#print-folded'), await page.textContent('#print-sheets')];
+  await openSettings(); await page.check('.format-choice input[name=format][value=letter]'); await afterEdit();
+  const letter = [await page.inputValue('#set--page-width'), await page.isVisible('.format-choice input[name=binding]')];
+  await closeSettings(); await page.click('#print');
+  const letterPrint = [await page.isVisible('#print-inorder'), await page.textContent('#print-sheets')];
   await page.keyboard.press('Escape');
-  check(inOrder[0] && !inOrder[1] && !inOrder[2] && inOrder[3] === 'Print the pages…', 'binding: perfect bound, pages in order (not imposed): its own print steps');
-  await openSettings(); await page.selectOption('#set--binding', 'perfect'); await page.selectOption('#set--signature-sheets', 'auto'); await closeSettings(); await afterEdit();
-  check(sig[0] && !sig[1] && /one signature of \d+ sheets/.test(sig[2]) && sig[3] && /too thick/.test(sig[4]), 'signatures: Print panel shows the split, warns about a signature over 32 pages', sig.slice(2).join(' | '));
+  await openSettings(); await page.check('.format-choice input[name=format][value=quarto]'); await closeSettings(); await afterEdit();
+  const backToQuarto = [+((await status()).match(/(\d+) pages/) || [])[1], await page.evaluate(() => JSON.stringify(Editor.state.settings.changes))];
+  check(formats === 'letter,folio,quarto*' && quartoSoon && folioPerfect[0] === '5.5' && /Pages printed: \d+/.test(folioPerfect[1]) && /folded sheets?, glued/.test(folioPerfect[1]) &&
+    /Signatures: 1 — can be stapled/.test(oneSig) && /too thick/.test(thick[0]) && /too thick/.test(thick[1]) && /Signatures: [2-9] — .*sew and glue/.test(autoSig) &&
+    folded.join() === 'true,true,false,false' && letter[0] === '8.5' && !letter[1] && letterPrint[0] && letterPrint[1] === 'Print the pages…' &&
+    !/--format|--binding|--page-width/.test(backToQuarto[1]),
+    'Format and binding: nested choice sets the page size; pages printed, sheets and signatures shown (staple vs sew); print steps follow',
+    `${folioPerfect[1]} | ${oneSig} | ${thick[0]} | ${autoSig}`);
   const first = await page.evaluate(() => Editor.state.docMap[0].name);
   const heads = await page.evaluate(() => [Editor.state.docMap.length, document.querySelectorAll('.cm-chapter-head').length, Editor.state.book.sections.filter((s) => !s.virtual).length]);
   check(heads[0] > 1 && heads[0] === heads[2] && heads[1] > 0, 'the text holds the whole booklet, a title bar per chapter', heads.join());

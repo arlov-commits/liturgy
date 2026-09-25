@@ -6,11 +6,12 @@
    automatically from the bundled "Liturgy Extra" font.
    =================================================================== */
 :root {
-  /* ---- Binding ---- */
-  --binding: perfect;         /* how the booklet is made up (the Print panel explains the steps) */
-  --signature-sheets: auto;   /* folded signatures only: letter sheets folded together in each signature (4 pages a sheet) */
+  /* ---- Format and binding ---- */
+  --format: quarto;           /* letter = pages 8.5 × 11 in order; folio = letter sheets folded in half; quarto = letter sheets cut into quarters */
+  --binding: perfect;         /* folio or quarto: perfect (glued) or signatures (sheets nested, sewn or stapled) */
+  --signature-sheets: auto;   /* signatures: letter sheets folded together in each signature (4 pages a sheet) */
 
-  /* ---- Page (4.25 × 5.5 in = a quarter of a letter sheet; folded signatures: 5.5 × 8.5 in) ---- */
+  /* ---- Page (its size is set by the format above; change it here only for something else) ---- */
   --page-width: 4.25in;
   --page-height: 5.5in;
   --margin-binding: 0.45in;   /* edge that gets glued or folded — keep generous */
