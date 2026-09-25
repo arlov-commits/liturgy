@@ -27,7 +27,7 @@ Current choices:
 |---|---|---|
 | Pagination / on-screen page preview | **Paged.js** (vendored, `vendor/paged.min.js`) | Chosen over Vivliostyle in Phase 2 (see below). Needs the small var-filling shim in `index.html` because it can't read `var()` inside `@page`. |
 | Pinyin under characters | native `<ruby>` + `ruby-position: under` | never position pinyin manually |
-| Final print | Chrome's print of the Paged.js preview: **Print…** = letter sheets, 4 pages a side (`preview.html printSheets`); Print tab → “just the pages” for checking | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
+| Final print | Chrome's print of the Paged.js preview: **Print…** = letter sheets, 4 pages a side (`preview.html printSheets`); the ▾ beside it → “just the pages” for checking | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
 | Text editing | **CodeMirror 6** (vendored, `vendor/codemirror.min.js`) | never `contenteditable`. Bundle built from `tools/vendor/codemirror.mjs` by `npm run vendor` — add any new CodeMirror import there. |
 | Pinyin checking | **pinyin-pro** (vendored, loaded only when “Suggest pinyin readings” is ticked) | suggestions only (blue dotted, opt-in) — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate. `toneSandhi: false` so 一/不 aren't flagged. |
 | Letter-sheet imposition | none needed: the Paged.js pages are copied into a 2 × 2 letter-sheet grid and printed with `@page { size: letter }` | Order in `js/impose.js`, per sheet of 8 pages: front 2 3 / 6 7, back 4 1 / 8 5 (duplex, flip on long edge); cut in four, stack in page order. Each copy gets `counter-reset: page n−1` so page numbers stay right. (Replaced the earlier save-PDF-then-upload step with pdf-lib.) |
@@ -36,7 +36,7 @@ Current choices:
 | Resizable panels | **Split.js** (vendored, `vendor/split.min.js`) | drag bars between contents list, panel and pages; sizes kept in localStorage; not on narrow screens |
 
 Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
-`js/editor.js` (the editor page, incl. the Chapters tab), `js/texttab.js` / `js/settings.js` (Text and Settings tabs) and wiring.
+`js/editor.js` (the editor page, incl. the Chapters tab), `js/texttab.js` / `js/settings.js` (Text tab, Settings drawer) and wiring.
 In the UI a section file is a **chapter**; a booklet is built by adding existing chapters (shared between booklets) or new ones.
 The Text tab's colouring repeats `parse.js`'s line rules — keep them in step with FORMAT.md.
 The Text tab is **one editor holding the whole booklet**: each chapter follows a header line (`LiturgyText.SEP`
@@ -66,7 +66,7 @@ spaces. Visible lines only (~1 ms a keystroke). Off by default; switch: Settings
 
 ## Formatting lives in CSS, not in the text
 - `css/settings.css` — the list of knobs and their defaults: named variables with plain-English comments
-  (margins, sizes, fonts, spacing). The Settings tab builds its controls from this file (group headers
+  (margins, sizes, fonts, spacing). The Settings drawer (top bar) builds its controls from this file (group headers
   `/* ---- Name ---- */`, a trailing `/* hint */` per line), so add new knobs here, never hard-code.
 - `settings.css` **in liturgy-text** — the editor's saved changes (only the values that differ), loaded after
   the app's defaults. Saving goes to the text repo so one key (Contents: read and write, that repo only) covers everything.

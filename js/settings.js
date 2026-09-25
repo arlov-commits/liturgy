@@ -1,4 +1,4 @@
-// settings.js — the Settings tab. Builds one control per variable in css/settings.css (labels and hints come
+// settings.js — the Settings drawer (top bar). Builds one control per variable in css/settings.css (labels and hints come
 // from the file's own comments), and turns the editor's changes into a small stylesheet that overrides it.
 (function (root) {
   "use strict";

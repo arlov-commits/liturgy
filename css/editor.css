@@ -57,9 +57,17 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #tab-book .add .row { display: flex; gap: 6px; margin-top: 4px; }
 #tab-book .add select { flex: 1; min-width: 0; font: inherit; }
 
-/* Settings tab */
-#tab-settings fieldset { border: 0; border-top: 1px solid #ddd; margin: 14px 0 0; padding: 6px 0 0; }
-#tab-settings legend { font-weight: 700; padding-right: 6px; }
+/* Settings: a drawer over the left side (the pages stay in view, to see each change) */
+#app { position: relative; }
+#settings { position: absolute; left: 0; top: 0; bottom: 0; width: min(500px, 100%); z-index: 20; overflow: auto; box-sizing: border-box;
+  background: #fafaf8; border-right: 1px solid #bbb; box-shadow: 4px 0 16px rgba(0,0,0,.18); padding: 0 14px 24px; }
+#settings[hidden] { display: none; }
+#settings .settings-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center;
+  background: #fafaf8; padding: 10px 0 8px; border-bottom: 1px solid #ddd; font-size: 15px; }
+#settings .settings-head button { border: 0; background: none; font-size: 16px; padding: 2px 8px; }
+#settings fieldset { border: 0; border-top: 1px solid #ddd; margin: 14px 0 0; padding: 6px 0 0; }
+#settings legend { font-weight: 700; padding-right: 6px; }
+#bar button.on { background: #fff0c2; border-color: #8a5a00; }
 .setting { display: grid; grid-template-columns: 1fr auto 24px; align-items: center; gap: 2px 8px; padding: 5px 4px; border-radius: 4px; }
 .setting.changed { background: #fff4d6; }
 .setting label { font-weight: 600; }
@@ -74,11 +82,19 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #settings-editor .hint { padding: 0 4px 0 28px; }
 .setting .reset { padding: 0 4px; border: 0; background: none; font-size: 16px; color: #8a5a00; }
 
-/* Print tab */
-#tab-print h3 { margin: 8px 0; font-size: 15px; }
-#tab-print .steps { padding-left: 20px; }
-#tab-print .steps li { margin-bottom: 10px; }
-#tab-print button.primary { font-weight: 600; padding: 6px 16px; }
+/* A button with a ▾ part that opens a menu (native popover, placed under the button) */
+.split-btn { display: inline-flex; }
+.split-btn > button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.split-btn > button.more { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; padding: 4px 7px; }
+.menu[popover] { position: fixed; inset: auto; margin: 0; width: 380px; max-width: calc(100vw - 16px); max-height: calc(100vh - 70px); overflow: auto;
+  box-sizing: border-box; padding: 6px; background: #fff; border: 1px solid #bbb; border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.22); font-size: 14px; }
+.menu .item { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 4px; }
+.menu .item:hover:not(:disabled) { background: #fff0c2; }
+.menu .item .hint { display: block; font-weight: 400; }
+.menu h3 { margin: 12px 10px 4px; font-size: 14px; }
+.menu .steps { padding-left: 28px; margin: 4px 6px; }
+.menu .steps li { margin-bottom: 6px; }
+.menu > .hint { margin: 4px 10px; }
 
 #preview { flex: 1; position: relative; min-width: 0; }
 /* drag bars between the contents list, the panel and the pages (Split.js sets the widths) */

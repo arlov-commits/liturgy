@@ -495,11 +495,27 @@
     markPlace(state.cursorLine);
   }
 
+  // ---- menus in the top bar: native popovers, opened under their ▾ button ----
+  for (const b of document.querySelectorAll("[popovertarget]")) {
+    const menu = document.getElementById(b.getAttribute("popovertarget"));
+    menu.addEventListener("beforetoggle", (ev) => {
+      if (ev.newState !== "open") return;
+      const r = b.getBoundingClientRect();
+      menu.style.top = r.bottom + 4 + "px";
+      menu.style.right = Math.max(8, innerWidth - r.right) + "px";
+    });
+  }
+  // ---- settings: a drawer over the left side ----
+  const showSettings = (on) => { $("#settings").hidden = !on; $("#settings-btn").classList.toggle("on", on); };
+  $("#settings-btn").onclick = () => showSettings($("#settings").hidden);
+  $("#settings-close").onclick = () => showSettings(false);
+  window.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("#settings").hidden) showSettings(false); });
+
   // ---- print ----
   // Letter sheets, 4 pages a side (preview.html printSheets), or just the pages as shown
   const printSheets = () => frame && frame.contentWindow.printSheets();
-  $("#print-sheets").onclick = printSheets;
-  $("#print-pages").onclick = () => frame && frame.contentWindow.print();
+  $("#print-sheets").onclick = () => { $("#print-menu").hidePopover(); printSheets(); };
+  $("#print-pages").onclick = () => { $("#print-menu").hidePopover(); if (frame) frame.contentWindow.print(); };
 
   // ---- saving ----
   // Every file the editor can change, as it is now in memory
@@ -606,6 +622,7 @@
     state.saved = currentFiles();
     changed();
     $("#app").hidden = false;
+    $("#settings-btn").hidden = false;
     startSplit();
     render();
   }

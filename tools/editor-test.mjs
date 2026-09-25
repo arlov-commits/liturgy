@@ -85,8 +85,8 @@ const status = () => page.textContent('#status');
 const settled = () => page.waitForFunction(() => { const s = document.querySelector('#status').textContent; return !/Updating|Loading|Saving/.test(s) && s.length > 0; }, null, { timeout: 60000 });
 const saveDone = () => page.waitForFunction(() => /^(Saved|Not saved|Downloaded)/.test(document.querySelector('#status').textContent), null, { timeout: 30000 });
 const afterEdit = async () => { await page.waitForTimeout(1200); await settled(); };
-const openSettings = () => page.click('#tabs button[data-tab="settings"]');
-const closeSettings = () => page.click('#tabs button[data-tab="text"]');
+const openSettings = () => page.click('#settings-btn');
+const closeSettings = () => page.click('#settings-close');
 // the preview frame on show (the other one lays out the next version, hidden)
 const shownPreview = async () => { const els = await page.$$('#preview iframe:not(.loading)'); return els.length ? els[0].contentFrame() : preview(); };
 const preview = () => page.frames().find((f) => f.url().includes('preview.html'));
@@ -118,7 +118,7 @@ try {
   const [navW2, panelW2] = await widths();
   check(Math.abs(navW2 - navW - 80) < 4 && Math.abs(panelW2 - (panelW - 80 + 120)) < 4, 'contents list and panel can be dragged wider', `${navW}→${navW2}, ${panelW}→${panelW2}`);
 
-  await page.click('#tabs button[data-tab="settings"]');
+  await openSettings();
   await page.fill('#set--english-size', '12'); await afterEdit();
   const bigger = +((await status()).match(/(\d+) pages/) || [])[1];
   check(bigger > pages, 'settings: bigger English makes more pages', `${pages} → ${bigger}`);
@@ -128,8 +128,11 @@ try {
   await page.fill('#set--english-size', '12'); await afterEdit();
   const again = +((await status()).match(/(\d+) pages/) || [])[1];
   check(back === pages && again === bigger, 'settings apply on every redraw (reused preview frames)', `${back}, ${again}`);
-
-  await page.click('#tabs button[data-tab="text"]');
+  await closeSettings();
+  check(!(await page.isVisible('#settings')), 'settings drawer closes');
+  await page.click('#bar .split-btn .more');
+  check(await page.isVisible('#print-menu #print-pages') && await page.isVisible('#print-menu #print-sheets'), 'Print ▾ menu: letter sheets, just the pages, instructions');
+  await page.keyboard.press('Escape');
   const first = await page.evaluate(() => Editor.state.docMap[0].name);
   const heads = await page.evaluate(() => [Editor.state.docMap.length, document.querySelectorAll('.cm-chapter-head').length, Editor.state.book.sections.filter((s) => !s.virtual).length]);
   check(heads[0] > 1 && heads[0] === heads[2] && heads[1] > 0, 'the text holds the whole booklet, a title bar per chapter', heads.join());
