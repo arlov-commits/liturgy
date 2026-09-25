@@ -151,8 +151,10 @@ try {
   check(back === pages && again === bigger, 'settings apply on every redraw (reused preview frames)', `${back}, ${again}`);
   await closeSettings();
   check(!(await page.isVisible('#settings')), 'settings drawer closes');
-  await page.click('#print-more');
-  check(await page.isVisible('#print-menu #print-pages') && await page.isVisible('#print-menu #print-sheets'), 'Print ▾ menu: letter sheets, just the pages, instructions');
+  await page.click('#print');
+  const edge = await page.evaluate(() => [document.querySelector('#print-panel').getBoundingClientRect().right, document.querySelector('#panel').getBoundingClientRect().right].map(Math.round));
+  check(await page.isVisible('#print-panel #print-pages') && await page.isVisible('#print-panel #print-sheets') && !(await page.isVisible('#settings')) && Math.abs(edge[0] - edge[1]) < 3,
+    'Print panel: letter sheets, just the pages, instructions; reaches the text panel\'s edge', edge.join(' / '));
   await page.keyboard.press('Escape');
   const first = await page.evaluate(() => Editor.state.docMap[0].name);
   const heads = await page.evaluate(() => [Editor.state.docMap.length, document.querySelectorAll('.cm-chapter-head').length, Editor.state.book.sections.filter((s) => !s.virtual).length]);
@@ -250,7 +252,9 @@ try {
   check(pageTop === 'ok', '…and shows the page it starts on at the top of the pages', pageTop);
   await edit("return '// test edit\\n' + t"); await afterEdit();
   check((await page.textContent('#save')).includes('2 files'), 'unsaved changes are counted', await page.textContent('#save'));
+  const printX = await page.evaluate(() => Math.round(document.querySelector('#print').getBoundingClientRect().left));
   await page.keyboard.press('Control+s'); await saveDone();
+  check(await page.evaluate(() => Math.round(document.querySelector('#print').getBoundingClientRect().left)) === printX, 'the top-bar buttons stay put when the Save label changes');
   check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'edits', first), 'utf8').startsWith('// test edit') && !readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// test edit') &&
     readFileSync(path.join(repo, 'settings.css'), 'utf8').includes('--english-size: 12pt'), 'Ctrl+S saves text (as an edition — the original untouched) and settings');
 

@@ -627,16 +627,32 @@
   }
 
   // ---- settings: a drawer over the left side ----
-  const showSettings = (on) => { $("#settings").hidden = !on; $("#settings-btn").classList.toggle("on", on); };
-  $("#settings-btn").onclick = () => showSettings($("#settings").hidden);
-  $("#settings-close").onclick = () => showSettings(false);
-  window.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("#settings").hidden) showSettings(false); });
+  // ---- Settings and Print: panels over the left side, reaching the right edge of the text panel (at least 420 px) ----
+  const drawers = { settings: ["#settings", "#settings-btn"], print: ["#print-panel", "#print"] };
+  function fitDrawers() {
+    const w = Math.max(420, Math.round($("#panel").getBoundingClientRect().right - $("#app").getBoundingClientRect().left));
+    for (const [panel] of Object.values(drawers)) $(panel).style.width = w + "px";
+  }
+  function showDrawer(which) {
+    fitDrawers();
+    for (const [name, [panel, button]] of Object.entries(drawers)) {
+      $(panel).hidden = name !== which;
+      $(button).classList.toggle("on", name === which);
+    }
+  }
+  const openDrawer = () => Object.keys(drawers).find((n) => !$(drawers[n][0]).hidden);
+  for (const [name, [panel, button]] of Object.entries(drawers)) {
+    $(button).onclick = () => showDrawer(openDrawer() === name ? null : name);
+    $(panel).querySelector(".drawer-close").onclick = () => showDrawer(null);
+  }
+  window.addEventListener("resize", fitDrawers);
+  window.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && openDrawer()) showDrawer(null); });
 
   // ---- print ----
   // Letter sheets, 4 pages a side (preview.html printSheets), or just the pages as shown
   const printSheets = () => frame && frame.contentWindow.printSheets();
-  $("#print-sheets").onclick = () => { $("#print-menu").hidePopover(); printSheets(); };
-  $("#print-pages").onclick = () => { $("#print-menu").hidePopover(); if (frame) frame.contentWindow.print(); };
+  $("#print-sheets").onclick = printSheets;
+  $("#print-pages").onclick = () => frame && frame.contentWindow.print();
 
   // ---- saving ----
   // Every file the editor can change, as it is now in memory
@@ -738,7 +754,6 @@
     await LiturgySource.pickedFolder.forget();
     location.reload();
   };
-  $("#print").onclick = printSheets;
 
   // The contents list and the panel can be made wider or narrower by dragging the bars between them
   // (Split.js). Sizes are remembered in this browser. Not on narrow screens, where the panel sits above the pages.
@@ -753,7 +768,8 @@
     $("#app").classList.add("split");
     Split(["#toc-nav", "#panel", "#preview"], {
       sizes, minSize: [120, 300, 250], gutterSize: 7, snapOffset: 0,
-      onDragEnd: (s) => { try { localStorage.setItem("liturgy.panelSizes", JSON.stringify(s)); } catch {} },
+      onDrag: fitDrawers,
+      onDragEnd: (s) => { fitDrawers(); try { localStorage.setItem("liturgy.panelSizes", JSON.stringify(s)); } catch {} },
     });
   }
 

@@ -67,14 +67,18 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 
 /* Settings: a drawer over the left side (the pages stay in view, to see each change) */
 #app { position: relative; }
-#settings { position: absolute; left: 0; top: 0; bottom: 0; width: min(500px, 100%); z-index: 20; overflow: auto; box-sizing: border-box;
+.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 500px; max-width: 100%; z-index: 20; overflow: auto; box-sizing: border-box;
   background: #fafaf8; border-right: 1px solid #bbb; box-shadow: 4px 0 16px rgba(0,0,0,.18); padding: 0 14px 24px; }
-#settings[hidden] { display: none; }
-#settings .settings-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center;
+.drawer[hidden] { display: none; }
+.drawer .drawer-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center;
   background: #fafaf8; padding: 10px 0 8px; border-bottom: 1px solid #ddd; font-size: 15px; }
-#settings .settings-head button { border: 0; background: none; font-size: 16px; padding: 2px 8px; }
+.drawer .drawer-head button { border: 0; background: none; font-size: 16px; padding: 2px 8px; }
 #settings fieldset { border: 0; border-top: 1px solid #ddd; margin: 14px 0 0; padding: 6px 0 0; }
 #settings legend { font-weight: 700; padding-right: 6px; }
+#print-panel h3 { margin: 16px 0 6px; font-size: 14px; }
+#print-panel .steps { padding-left: 22px; }
+#print-panel .steps li { margin-bottom: 8px; }
+#print-panel button.primary { font-weight: 600; padding: 6px 16px; }
 #bar button.on { background: #fff0c2; border-color: #8a5a00; }
 .setting { display: grid; grid-template-columns: 1fr auto 24px; align-items: center; gap: 2px 8px; padding: 5px 4px; border-radius: 4px; }
 .setting.changed { background: #fff4d6; }
@@ -100,7 +104,9 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 .menu .item:hover:not(:disabled) { background: #fff0c2; }
 .menu .item .hint { display: block; font-weight: 400; }
 .split-btn[hidden] { display: none; }
-.split-btn > button.chip { font-size: 12px; color: #555; }
+.split-btn > button.chip { font-size: 12px; color: #555; width: 4.6em; }
+/* buttons whose words change keep one width, so the ones beside them don't move */
+#save { width: 8.6em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .split-btn > button.chip.on { color: #2a7a3a; font-weight: 600; }
 .menu label.item.check { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: baseline; cursor: pointer; }
 .menu label.item.check .hint { grid-column: 2; }

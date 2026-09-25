@@ -34,9 +34,7 @@
     <button type="button" id="redo" disabled>↷ Redo</button><button type="button" class="more" id="redo-more" popovertarget="redo-menu" disabled aria-label="Redo several steps" title="Redo several steps">▾</button>
   </span>
   <button type="button" id="settings-btn" hidden title="How the booklet looks: page size, fonts, spacing, page numbers…">Settings</button>
-  <span class="split-btn">
-    <button type="button" id="print" disabled title="Print on letter paper, 4 pages a side">Print…</button><button type="button" class="more" id="print-more" popovertarget="print-menu" title="Other ways to print, and how to cut and stack the sheets" aria-label="Print options">▾</button>
-  </span>
+  <button type="button" id="print" disabled title="Print the booklet: how, and on what paper">Print…</button>
   <span class="split-btn">
     <button id="save" disabled title="Save your changes (Ctrl+S)">Saved</button><button type="button" class="more chip" id="save-more" popovertarget="save-menu" title="Save automatically, or only when you click Save">auto ▾</button>
   </span>
@@ -100,8 +98,8 @@
     </div>
   </aside>
   <section id="preview" aria-label="Pages"></section>
-  <aside id="settings" hidden aria-label="Settings">
-    <div class="settings-head"><b>Settings</b> <button type="button" id="settings-close" title="Close (Esc)">✕</button></div>
+  <aside id="settings" class="drawer" hidden aria-label="Settings">
+    <div class="drawer-head"><b>Settings</b> <button type="button" id="settings-close" class="drawer-close" title="Close (Esc)">✕</button></div>
     <div id="settings-book"></div>
     <fieldset id="settings-editor">
       <legend>The text editor (this browser only — not part of the booklet)</legend>
@@ -112,6 +110,24 @@
       <div class="hint">Marks with blue dots the pinyin that differs from the usual reading (pinyin-pro). Suggestions only:
         liturgical readings such as nā mó are deliberate.</div>
     </fieldset>
+  </aside>
+  <aside id="print-panel" class="drawer" hidden aria-label="Print">
+    <div class="drawer-head"><b>Print</b> <button type="button" class="drawer-close" title="Close (Esc)">✕</button></div>
+    <p><button type="button" id="print-sheets" class="primary">Print on letter paper…</button></p>
+    <p class="hint">4 booklet pages on each side of a letter sheet.</p>
+    <h3>Printing on letter paper</h3>
+    <ol class="steps">
+      <li>In the print window: choose your printer (or <b>Save as PDF</b>), paper <b>Letter</b>,
+        <b>print on both sides</b> → <b>flip on long edge</b>, scale <b>100%</b> / “Default” (not “fit”).</li>
+      <li><b>Cut</b> each sheet into four: across the middle, then down the middle.</li>
+      <li><b>Stack</b> the pieces in page order — each piece has an odd page on one side and the next even
+        page on the other: 1–2, 3–4, 5–6, 7–8, then the next sheet's 9–10 … Ready to glue.</li>
+    </ol>
+    <p class="hint">Page order on each sheet — front: 2 3 / 6 7, back: 4 1 / 8 5 (then 9–16 on the next sheet).
+      The front of each half is a pair of facing pages. Blank pages fill up the last sheet.</p>
+    <h3>For checking</h3>
+    <p><button type="button" id="print-pages">Print just the pages…</button></p>
+    <p class="hint">one booklet page per sheet of paper, in order</p>
   </aside>
 </main>
 <dialog id="books-dialog">
@@ -130,20 +146,7 @@
     <span class="hint">a few seconds after you stop typing or changing a setting. Off: nothing is saved until you click Save (or press Ctrl+S).</span></label>
   <p class="hint" id="autosave-note" hidden></p>
 </div>
-<div id="print-menu" class="menu" popover>
-  <button type="button" id="print-sheets" class="item"><b>Print on letter paper…</b><span class="hint">4 booklet pages on each side of a letter sheet (the same as “Print…”)</span></button>
-  <button type="button" id="print-pages" class="item"><b>Print just the pages…</b><span class="hint">one booklet page per sheet of paper, in order — for checking</span></button>
-  <h3>Printing on letter paper</h3>
-  <ol class="steps">
-    <li>In the print window: choose your printer (or <b>Save as PDF</b>), paper <b>Letter</b>,
-      <b>print on both sides</b> → <b>flip on long edge</b>, scale <b>100%</b> / “Default” (not “fit”).</li>
-    <li><b>Cut</b> each sheet into four: across the middle, then down the middle.</li>
-    <li><b>Stack</b> the pieces in page order — each piece has an odd page on one side and the next even
-      page on the other: 1–2, 3–4, 5–6, 7–8, then the next sheet's 9–10 … Ready to glue.</li>
-  </ol>
-  <p class="hint">Page order on each sheet — front: 2 3 / 6 7, back: 4 1 / 8 5 (then 9–16 on the next sheet).
-    The front of each half is a pair of facing pages. Blank pages fill up the last sheet.</p>
-</div>
+
 
 <script src="vendor/codemirror.min.js"></script>
 <script src="vendor/split.min.js"></script>
