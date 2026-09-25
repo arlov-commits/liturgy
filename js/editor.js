@@ -485,8 +485,9 @@
     for (const s of state.book.sections) {
       if (s.virtual) continue;
       const sec = new DOMParser().parseFromString(LiturgyParse.parse(s.text || "", s.name), "text/html").querySelector("section");
-      const name = labelOf(s.name);
-      if (sec && sec.dataset.toc) out.push({ key: name, title: sec.dataset.toc, line: `${sec.dataset.toc} ${LiturgyText.refText(name)}` });
+      // every chapter of the booklet has a line (its [toc: …] name, else its first title); "// " in front leaves it out
+      const name = labelOf(s.name), title = (sec && sec.dataset.toc) || titleOf(s.text, s.name);
+      out.push({ key: name, title, line: `${title} ${LiturgyText.refText(name)}` });
       for (const e of sec ? sec.querySelectorAll("[data-toc-entry]") : []) {
         const part = e.dataset.tocEntry;
         out.push({ key: `${name} / ${part}`, title: part, line: `  ${part} ${LiturgyText.refText(name, part)}` });
@@ -494,8 +495,9 @@
     }
     return out;
   }
+  // (a line left out with "//" still counts as that entry's line, so it isn't added again)
   const rowKey = (line) => { const m = [...line.matchAll(LiturgyText.REF)].pop(); return m ? LiturgyText.refKey(m[2], m[3]) : null; };
-  const rowTitle = (line) => { const m = [...line.matchAll(LiturgyText.REF)].pop(); return (m ? line.slice(0, m.index) + line.slice(m.index + m[0].length) : line).replace(/[\s.·…]+$/, "").trim(); };
+  const rowTitle = (line) => { const m = [...line.matchAll(LiturgyText.REF)].pop(); return (m ? line.slice(0, m.index) + line.slice(m.index + m[0].length) : line).replace(/^\s*(\/\/\s*)?/, "").replace(/[\s.·…]+$/, "").trim(); };
   // the contents chapter's text with its lines brought up to date (lastTitles: each entry's title before, to follow changes)
   function syncContents(text, entries, lastTitles = new Map()) {
     const lines = text.replace(/\n$/, "").split("\n");

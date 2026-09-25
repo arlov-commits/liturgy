@@ -67,16 +67,19 @@ prints `?` and is flagged.
     Incense Praise [page of 10-meal-offering / Incense Praise]
   [/contents]
   ```
-  The text before the reference is what's printed — change it freely (e.g. a shorter name). The editor keeps the
-  lines in step with the booklet: a chapter added gets a line, a chapter taken out loses it, and a line whose text is
-  still the chapter's own title follows it when the title changes. A line without a page reference prints as a small
+  The text before the reference is what's printed — change it freely (e.g. a shorter name). Every chapter of the
+  booklet gets a line (its `[toc: …]` name, else its first title); to leave one out of this booklet's contents, put
+  `//` in front of its line (it stays out). The editor keeps the lines in step with the booklet: a chapter added gets
+  a line, a chapter taken out loses it, and a line whose text is still the chapter's own title follows it when the
+  title changes. A line without a page reference prints as a small
   heading. The edited text is kept for that booklet in `books/contents/<booklet>.txt`; **Original** (Chapters tab)
   puts back the automatic one.
 - `[contents]` alone (no `[/contents]`) prints the list made automatically.
 - `[contents]` on its own line in a chapter prints a table of contents there: one line per section of the booklet
   (except the section it's in), with the page each starts on — filled in automatically.
 - A chapter is listed under its first `#` title. To list it under another name, put `[toc: Name]` on a line
-  of its own at the top of the chapter (before its first block); `[toc: -]` leaves the chapter out.
+  of its own at the top of the chapter (before its first block); `[toc: -]` leaves the chapter out of the list made
+  automatically (in a written-out table of contents, `//` in front of its line does that).
 - `[toc: Name]` further down a chapter adds an extra entry for the block that follows it (e.g. the parts of the
   Meal Offering).
 

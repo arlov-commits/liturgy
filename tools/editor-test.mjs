@@ -392,6 +392,21 @@ try {
     fixedShown === '99' && warned > 0 && /set by hand/.test(handChip) && /SHORT NAME \[page of /.test(tocBack) && !/page 99/.test(tocBack),
     'table of contents written out in the text: rename an entry; a page number typed by hand is warned; one click back to the automatic number',
     `${chips.join(',')} | ${aliasShown[0]} | ${fixedShown} | ${handChip}`);
+  // every chapter gets a line (even one marked [toc: -]); "//" in front leaves one out, and it stays out as chapters are added
+  await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, m = Editor.state.docMap[0];
+    for (let i = m.last; i >= m.first; i--) { const t = d.line(i).text; if (/\[page of/.test(t)) { v.dispatch({ changes: { from: d.line(i).from, insert: '// ' } }); return; } } });
+  await afterEdit();
+  const rowsBefore = await (await shownPreview()).evaluate(() => document.querySelectorAll('.pagedjs_page .toc-entry').length);
+  await page.click('#tabs button[data-tab="book"]');
+  await page.selectOption('#add-chapter', '11-3-three-refuges.txt'); await page.click('#add-chapter-btn'); await afterEdit();
+  await page.click('#tabs button[data-tab="text"]');
+  const tocAfter = await tocText();
+  const rowsAfter = await (await shownPreview()).evaluate(() => [...document.querySelectorAll('.pagedjs_page .toc-entry .toc-title')].map((t) => t.textContent));
+  check(/^\/\/ .*\[page of /m.test(tocAfter) && /THREE REFUGES \[page of 11-3-three-refuges\]/.test(tocAfter) && rowsAfter.length === rowsBefore + 1 && rowsAfter.includes('THE THREE REFUGES'),
+    'table of contents: a chapter added gets its line (even one marked [toc: -]); a line with // stays out', `${rowsBefore} → ${rowsAfter.join(' | ')}`);
+  await page.click('#tabs button[data-tab="book"]');
+  await page.locator('#chapters li', { hasText: 'THREE REFUGES' }).locator('button', { hasText: 'Remove' }).click(); await afterEdit();
+  await page.click('#tabs button[data-tab="text"]');
   // autosave: switched on in the Save ▾ menu, it saves a few seconds after the last change
   await page.click('#save-more'); await page.check('#autosave'); await page.keyboard.press('Escape');
   await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0]; v.dispatch({ changes: { from: v.state.doc.line(m.first).from, insert: '> autosaved note\n' } }); });
