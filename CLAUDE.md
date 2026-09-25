@@ -128,7 +128,8 @@ node tools/render-test.mjs paged out         # PDF via Paged.js preview
 node tools/editor-test.mjs                   # end-to-end editor checks against a fake GitHub (temp copy of ../liturgy-text)
 python3 tools/check_glyphs.py ../liturgy-text/text   # must report 0
 ```
-Booklets: `books/test.txt` (2 sections), `books/full.txt` (all 15 sections).
+Booklets change as the editor uses the app (`../liturgy-text/books/`); `render-test.mjs` takes the booklet name as a third
+argument. `editor-test.mjs` makes its own two-chapter `test` booklet (and drops saved settings/edits) in its temp copy.
 Run `tools/editor-test.mjs` before pushing editor changes.
 Always look at rendered pages (PDF → PNG) before claiming a layout change works.
 

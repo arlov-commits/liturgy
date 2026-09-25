@@ -15,9 +15,10 @@ const app = path.resolve('.');
 const tmp = mkdtempSync(path.join(tmpdir(), 'liturgy-test-'));
 const repo = path.join(tmp, 'repo');                  // the fake GitHub repo
 cpSync(path.resolve('../liturgy-text'), repo, { recursive: true, filter: (p) => !p.includes('/.git') });
-// start from a known booklet: the test booklet's two chapters, no table of contents (that is checked further down)
-const testBook = path.join(repo, 'books', 'test.txt');
-writeFileSync(testBook, readFileSync(testBook, 'utf8').split('\n').filter((l) => l.trim() !== '[contents]').join('\n'));
+// start from a known state, whatever is in the text repo now: a two-chapter test booklet, the app's default settings,
+// no edited chapters, no tables of contents or booklet order
+for (const p of ['edits', 'books/contents', 'settings.css', 'booklets.txt']) rmSync(path.join(repo, p), { recursive: true, force: true });
+writeFileSync(path.join(repo, 'books', 'test.txt'), '// Test booklet (made by editor-test)\n03-amitabha-sutra.txt\n04-rebirth-mantra.txt\n');
 mkdirSync(path.join(tmp, 'site'));
 symlinkSync(app, path.join(tmp, 'site', 'liturgy'));   // like github.io: no liturgy-text next to the app
 
@@ -112,6 +113,21 @@ try {
   await page.fill('#signin input', 'good'); await Promise.all([page.waitForNavigation(), page.click('#signin button')]); await settled();
   const pages = +((await status()).match(/(\d+) pages/) || [])[1];
   check(pages > 0 && !(await status()).includes('problem'), 'good key: booklet renders', await status());
+
+  // letter sheets: each copied page keeps its page number in the outside corner (right-hand pages: right)
+  const sides = await (await shownPreview()).evaluate(() => {
+    buildSheets(); document.documentElement.classList.add('print-sheets');
+    const out = [...document.querySelectorAll('#sheets .slot .pagedjs_page')].map((p) => {
+      const n = [...p.querySelectorAll('.pagedjs_margin-bottom > .hasContent, .pagedjs_margin-top > .hasContent')][0];
+      if (!n) return 'ok';
+      const pr = p.getBoundingClientRect(), r = n.querySelector('.pagedjs_margin-content').getBoundingClientRect();
+      const right = r.left + r.width / 2 > pr.left + pr.width / 2;
+      return right === p.classList.contains('pagedjs_right_page') ? 'ok' : 'wrong';
+    });
+    document.documentElement.classList.remove('print-sheets'); document.getElementById('sheets').remove();
+    return out;
+  });
+  check(sides.length > 4 && sides.every((x) => x === 'ok'), 'letter sheets: page numbers in the outside corner (right-hand pages on the right)', sides.join(' '));
 
   // the contents list and the panel can be dragged wider
   const widths = () => page.evaluate(() => ['#toc-nav', '#panel'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().width)));
