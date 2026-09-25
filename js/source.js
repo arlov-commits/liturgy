@@ -119,6 +119,15 @@
       headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28", ...init.headers },
     });
     const contents = (path) => "/contents/" + path.split("/").map(encodeURIComponent).join("/");
+    // a file's version: known from reading it, else asked for (e.g. it was read as plain text, see get)
+    async function version(path) {
+      for (let tries = 0; !(path in shas) && tries < 2; tries++) {   // (a plain-text answer: ask once more)
+        const r = await call(contents(path));
+        const file = r.ok ? parseJson(await r.text()) : null;
+        if (!r.ok || file) shas[path] = file && file.sha ? file.sha : null;
+      }
+      return shas[path] ?? null;
+    }
     return {
       where: repo, usesKey: true, canSave: true,
       // Check the key once up front, so a bad key gets a clear message instead of "file not found"
@@ -149,13 +158,8 @@
       },
       // Saves one file as a commit on the repo's main branch
       async put(path, text, message) {
-        if (!(path in shas)) {   // version unknown (see get): ask GitHub for it now
-          const r = await call(contents(path));
-          const file = r.ok ? parseJson(await r.text()) : null;
-          shas[path] = file && file.sha ? file.sha : null;
-        }
         const body = { message, content: b64encode(text) };
-        if (shas[path]) body.sha = shas[path];
+        if (await version(path)) body.sha = shas[path];
         const r = await call(contents(path), { method: "PUT", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
         if (r.status === 409 || r.status === 422) throw new SourceError(`${path} was changed on GitHub by someone else since you opened it. Copy your changes somewhere, reload the page, and make them again.`);
         if (r.status === 403 || r.status === 404) throw new SourceError("Your key can only read. Make a new key with Contents set to “Read and write”, click “Disconnect” at the top, and connect with the new one.");
@@ -165,8 +169,7 @@
       },
       // Deletes one file as a commit (nothing to do if it isn't there)
       async remove(path, message) {
-        if (!(path in shas)) await this.get(path, true);
-        if (!shas[path]) return;
+        if (!(await version(path))) return;
         const r = await call(contents(path), { method: "DELETE", body: JSON.stringify({ message, sha: shas[path] }), headers: { "Content-Type": "application/json" } });
         if (r.status === 409 || r.status === 422) throw new SourceError(`${path} was changed on GitHub by someone else since you opened it. Reload the page and try again.`);
         if (r.status === 403) throw new SourceError("Your key can only read. Make a new key with Contents set to “Read and write”, click “Disconnect” at the top, and connect with the new one.");

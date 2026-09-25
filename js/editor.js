@@ -166,28 +166,39 @@
     });
   }
 
-  // ---- booklets: books/<name>.txt ----
+  // ---- booklets: books/<name>.txt, shown in the order kept in booklets.txt (others after, A–Z) ----
+  const ORDER_FILE = "booklets.txt";
+  async function bookNames() {
+    const names = (await state.source.list("books")).filter((n) => n.endsWith(".txt")).map((n) => n.slice(0, -4)).sort();
+    const order = LiturgySource.listNames((await state.source.get(ORDER_FILE, true)) || "");
+    return [...order.filter((n) => names.includes(n)), ...names.filter((n) => !order.includes(n))];
+  }
+  const saveOrder = (names) => state.source.put(ORDER_FILE, "// The booklets, in the order the editor lists them (one per line)\n" + names.join("\n") + "\n", "Change the order of the booklets (from the editor)");
+  const openBook = (name) => { const u = new URLSearchParams(location.search); u.set("book", name); location.search = u; };
   async function startBookPicker() {
-    const names = (await state.source.list("books")).filter((n) => n.endsWith(".txt")).map((n) => n.slice(0, -4));
+    const names = await bookNames();
     if (!names.includes(state.bookName)) names.push(state.bookName);
     const pick = $("#book");
-    for (const n of names.sort()) pick.append(Object.assign(document.createElement("option"), { value: n, textContent: n }));
+    pick.textContent = "";
+    for (const n of names) pick.append(Object.assign(document.createElement("option"), { value: n, textContent: n }));
     pick.append(Object.assign(document.createElement("option"), { value: "@new", textContent: "New booklet…" }));
+    pick.append(Object.assign(document.createElement("option"), { value: "@edit", textContent: "Edit booklets…" }));
     pick.value = state.bookName;
     pick.hidden = false;
     pick.onchange = () => {
-      if (pick.value === "@new") { pick.value = state.bookName; return newBook(names).catch((e) => setStatus("Problem: " + e.message, true)); }
-      const u = new URLSearchParams(location.search);
-      u.set("book", pick.value);
-      location.search = u;   // the unsaved-changes question comes from beforeunload
+      const v = pick.value;
       pick.value = state.bookName;
+      if (v === "@new") return newBook(names).catch((e) => setStatus("Problem: " + e.message, true));
+      if (v === "@edit") return editBooks().catch((e) => setStatus("Problem: " + e.message, true));
+      openBook(v);   // the unsaved-changes question comes from beforeunload
     };
   }
+  const slug = (title, fallback) => title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || fallback;
 
   async function newBook(existing) {
     const title = (prompt("Name of the new booklet (for example: Evening Ceremony)") || "").trim();
     if (!title) return;
-    const name = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "booklet";
+    const name = slug(title, "booklet");
     if (existing.includes(name)) return alert(`There is already a booklet called “${name}”.`);
     const path = `books/${name}.txt`;
     const text = `// ${title} — the chapter files of this booklet, in order, one per line\n`;
@@ -196,9 +207,81 @@
       return setStatus(`Downloaded ${name}.txt — put it in ${state.source.where}books/, then reload`);
     }
     await state.source.put(path, text, `Add booklet ${name} (from the editor)`);
-    const u = new URLSearchParams(location.search);
-    u.set("book", name);
-    location.search = u;
+    if (await state.source.get(ORDER_FILE, true) !== null) await saveOrder([...existing.filter((n) => n !== name), name]);
+    openBook(name);
+  }
+
+  // Edit booklets: rename, move up/down, delete — each done straight away (your unsaved changes are saved first)
+  async function editBooks() {
+    const dialog = $("#books-dialog"), list = $("#books-list");
+    const can = state.source.canSave;
+    $("#books-note").hidden = can;
+    $("#books-note").textContent = can ? "" : `Working from ${state.source.where}: booklets can't be changed from here — rename, move or delete the files in its books folder.`;
+    let names = await bookNames();
+    let moved = false;   // the current booklet renamed or deleted: open another when the dialog closes
+    const busy = (on) => list.querySelectorAll("button").forEach((b) => (b.disabled = on || !can || b.dataset.off === "1"));
+    async function saveFirst() {
+      if (!unsaved().length) return true;
+      await save();
+      if (unsaved().length) { alert("Your changes couldn't be saved (see the message at the top), so the booklets were left as they are."); return false; }
+      return true;
+    }
+    async function act(fn) {
+      busy(true);
+      try { if (await saveFirst()) await fn(); } catch (e) { alert("Problem: " + e.message); }
+      names = await bookNames();
+      draw();
+    }
+    const move = (i, d) => act(async () => { [names[i], names[i + d]] = [names[i + d], names[i]]; await saveOrder(names); setStatus("Booklet order saved"); });
+    const rename = (old) => {
+      const title = (prompt(`New name for the booklet “${old}”`, old) || "").trim();
+      if (!title) return;
+      const name = slug(title, old);
+      if (name === old) return;
+      if (names.includes(name)) return alert(`There is already a booklet called “${name}”.`);
+      act(async () => {
+        const msg = `Rename booklet ${old} to ${name} (from the editor)`;
+        await state.source.put(`books/${name}.txt`, await state.source.get(`books/${old}.txt`), msg);
+        const toc = await state.source.get(LiturgySource.contentsFile(old), true);
+        if (toc !== null) { await state.source.put(LiturgySource.contentsFile(name), toc, msg); await state.source.remove(LiturgySource.contentsFile(old), msg); }
+        await state.source.remove(`books/${old}.txt`, msg);
+        const i = names.indexOf(old);
+        if (await state.source.get(ORDER_FILE, true) !== null) { names[i] = name; await saveOrder(names); }
+        if (old === state.bookName) moved = name;
+        setStatus(`Booklet “${old}” is now “${name}”`);
+      });
+    };
+    const remove = (name) => {
+      if (names.length < 2) return alert("This is the only booklet, so it can't be deleted.");
+      if (!confirm(`Delete the booklet “${name}”?\n\nOnly the booklet (its list of chapters) goes. The chapters themselves stay, for other booklets.` +
+        (state.source.usesKey ? " GitHub keeps the old version in its history." : ""))) return;
+      act(async () => {
+        const msg = `Delete booklet ${name} (from the editor)`;
+        await state.source.remove(`books/${name}.txt`, msg);
+        await state.source.remove(LiturgySource.contentsFile(name), msg);
+        if (await state.source.get(ORDER_FILE, true) !== null) await saveOrder(names.filter((n) => n !== name));
+        if (name === state.bookName) moved = names.find((n) => n !== name);
+        setStatus(`Booklet “${name}” deleted`);
+      });
+    };
+    function draw() {
+      list.textContent = "";
+      names.forEach((name, i) => {
+        const btn = (text, title, fn, off) => {
+          const b = Object.assign(document.createElement("button"), { type: "button", textContent: text, title, onclick: fn, disabled: off || !can });
+          b.dataset.off = off ? "1" : "";
+          return b;
+        };
+        const li = document.createElement("li");
+        li.append(Object.assign(document.createElement("span"), { className: "title", textContent: name + (name === state.bookName ? " (open now)" : "") }),
+          btn("↑", "Move up", () => move(i, -1), i === 0), btn("↓", "Move down", () => move(i, 1), i === names.length - 1),
+          btn("Rename…", "Give this booklet another name", () => rename(name)), btn("Delete…", "Delete this booklet (its chapters stay)", () => remove(name)));
+        list.append(li);
+      });
+    }
+    draw();
+    dialog.onclose = () => (moved ? openBook(moved) : startBookPicker());
+    dialog.showModal();
   }
 
   // ---- chapters (the Text tab) ----

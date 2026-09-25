@@ -133,6 +133,16 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #refolder { max-width: 36em; margin: 24px auto; padding: 16px 24px; background: #fff; border: 1px solid #ccc; }
 #refolder a { margin-left: 12px; color: #555; }
 
+/* Edit booklets dialog */
+#books-dialog { width: min(520px, calc(100vw - 32px)); border: 1px solid #bbb; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.25); padding: 8px 20px; }
+#books-dialog::backdrop { background: rgba(0,0,0,.25); }
+#books-dialog h2 { font-size: 18px; margin: 8px 0; }
+#books-list { padding-left: 24px; }
+#books-list li { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid #eee; }
+#books-list li .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#books-list li button { padding: 1px 8px; font-size: 13px; }
+#books-dialog .end { text-align: right; }
+
 /* Narrow screens: panel above the pages */
 @media (max-width: 900px) {
   #app { flex-direction: column; }

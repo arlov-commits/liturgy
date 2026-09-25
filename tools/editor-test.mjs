@@ -272,6 +272,28 @@ try {
   const tocTop = await (await shownPreview()).evaluate(() => Math.round(document.querySelector('.pagedjs_page').getBoundingClientRect().top));
   check(Math.abs(tocTop) < 5, '…and its entry in the contents list shows its page', `top at ${tocTop}px`);
 
+  // Edit booklets: reorder, rename (the open one: it opens under its new name), delete (after a confirmation)
+  const bookDialogs = (d) => (d.type() === 'prompt' ? d.accept('Renamed booklet') : d.accept());
+  page.on('dialog', bookDialogs);
+  await page.selectOption('#book', '@edit');
+  await page.waitForSelector('#books-dialog[open] #books-list li');
+  const booksBefore = await page.$$eval('#books-list li .title', (l) => l.map((x) => x.textContent));
+  await page.locator('#books-list li').last().locator('button[title="Move up"]').click();
+  await page.waitForFunction((n) => document.querySelectorAll('#books-list li').length === n && !document.querySelector('#books-list button:disabled:not([title="Move up"]):not([title="Move down"])'), booksBefore.length);
+  const order = readFileSync(path.join(repo, 'booklets.txt'), 'utf8').split('\n').filter((l) => l && !l.startsWith('//'));
+  await page.locator('#books-list li', { hasText: '(open now)' }).locator('button', { hasText: 'Rename' }).click();
+  await page.waitForFunction(() => [...document.querySelectorAll('#books-list li .title')].some((t) => t.textContent.startsWith('renamed-booklet')));
+  const other = booksBefore.find((n) => !n.includes('(open now)') && n !== 'renamed-booklet');
+  await page.locator('#books-list li', { hasText: other }).locator('button', { hasText: 'Delete' }).click();
+  await page.waitForFunction((o) => ![...document.querySelectorAll('#books-list li .title')].some((t) => t.textContent === o), other);
+  await Promise.all([page.waitForNavigation(), page.click('#books-dialog button:has-text("Close")')]); await settled();
+  page.off('dialog', bookDialogs);
+  const booksDir = readdirSync(path.join(repo, 'books'));
+  check(order.length === booksBefore.length && order[order.length - 2] === booksBefore[booksBefore.length - 1].replace(' (open now)', '') &&
+    booksDir.includes('renamed-booklet.txt') && !booksDir.includes('test-booklet.txt') && existsSync(path.join(repo, 'books', 'contents', 'renamed-booklet.txt')) &&
+    !booksDir.includes(other + '.txt') && new URL(page.url()).searchParams.get('book') === 'renamed-booklet' && /\d+ pages/.test(await status()),
+    'Edit booklets: reorder, rename (with its table of contents), delete', `${order.join(',')} | ${booksDir.join(',')}`);
+
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'readonly'));
   page.once('dialog', (d) => d.accept());
   await page.reload(); await settled();

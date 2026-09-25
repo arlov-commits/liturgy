@@ -134,7 +134,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 1. ✅ Text format + converter — whole workbook converted and verified; one file per liturgical section (15), not per Excel tab
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "keep together" ✅ (`[keep together]`…, one page or facing pages, blank pages placed by setting); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "use a folder on this computer" ✅ (File System Access API, Chrome/Edge);
-4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, Chapters tab: add existing chapters / reorder / remove ✅, new booklet / new chapter ✅)
+4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, Chapters tab: add existing chapters / reorder / remove ✅, new booklet / new chapter ✅, Edit booklets…: rename / delete / order ✅ — order kept in `booklets.txt`)
 5. Print: letter sheets, 4-up, duplex ✅ (Print… prints them directly; per-sheet order 2 3 / 6 7 — 4 1 / 8 5); PWA shell ✅
 6. ✅ Convert the remaining sheets (done with the converter in liturgy-text/tools)
 7. ✅ Bundle an Ext-B font for 𤙖 (Jigmo2)
