@@ -241,9 +241,15 @@
   };
   // lines in [from, to) — `to` one past the end of the last line, as in a Chunk
   const lineCount = (doc, from, to) => (from >= to ? 0 : doc.lineAt(Math.min(to - 1, doc.length)).number - doc.lineAt(from).number + 1);
-  function dotsOf(state) {
+  // the chapter a position is in (its header line's name)
+  function chapterOf(doc, pos) {
+    for (let n = doc.lineAt(Math.min(pos, doc.length)).number; n >= 1; n--) { const t = doc.line(n).text; if (isSep(t)) return t.slice(SEP.length); }
+    return null;
+  }
+  function dotsOf(state, marked) {
     const doc = state.doc, kinds = new Map();
     for (const c of state.field(diffField).chunks) {
+      if (!marked(chapterOf(doc, c.fromB))) continue;   // (a chapter with nothing to compare with: made in the editor)
       if (c.fromB === c.toB) { const at = doc.lineAt(Math.min(c.fromB, doc.length)).from; if (!kinds.has(at)) kinds.set(at, "removed"); continue; }
       for (let pos = c.fromB; pos < c.toB && pos <= doc.length;) { const l = doc.lineAt(pos); kinds.set(l.from, "changed"); pos = l.to + 1; }
     }
@@ -255,9 +261,10 @@
     return b.finish();
   }
   // a click on a dot
-  function toggleLine(view, lineFrom, where) {
+  function toggleLine(view, lineFrom, where, marked) {
     const state = view.state, doc = state.doc, orig = state.field(diffField).original;
-    const chunk = state.field(diffField).chunks.find((c) => (c.fromB === c.toB ? doc.lineAt(Math.min(c.fromB, doc.length)).from === lineFrom : c.fromB <= lineFrom && lineFrom < c.toB));
+    const chunk = state.field(diffField).chunks.find((c) => (c.fromB === c.toB ? doc.lineAt(Math.min(c.fromB, doc.length)).from === lineFrom : c.fromB <= lineFrom && lineFrom < c.toB)
+      && marked(chapterOf(doc, c.fromB)));
     const n = doc.lineAt(lineFrom).number;
     if (chunk) {
       const aLines = lineCount(orig, chunk.fromA, chunk.toA), bLines = lineCount(doc, chunk.fromB, chunk.toB);
@@ -302,7 +309,8 @@
   // Undo/Redo lists), onHistory() → the Undo/Redo lists changed
   // Returns { setDoc(text, original), replace(from, to, text, label), goto(line), refreshHeaders(), undo(n), redo(n),
   // history() → { undo: [text…], redo: [text…] } (next first), label, view }.
-  function build(box, { onChange, onCursor = () => {}, header, check, where = (n) => "line " + n, onHistory = () => {} }) {
+  // marked(name) → false for a chapter whose changed lines get no dots (one made in the editor: it has no original)
+  function build(box, { onChange, onCursor = () => {}, header, check, where = (n) => "line " + n, onHistory = () => {}, marked = () => true }) {
     const { Decoration, WidgetType, StateField, StateEffect, RangeSetBuilder } = CM;
     const redraw = StateEffect.define();
     let version = 0;
@@ -369,9 +377,9 @@
     }, { delay: 500, needsRefresh: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(recheck))) });
     const changeGutter = CM.Prec.high(CM.gutter({
       class: "cm-changes",
-      markers: (v) => dotsOf(v.state),
+      markers: (v) => dotsOf(v.state, marked),
       initialSpacer: () => DOTS.spacer,
-      domEventHandlers: { mousedown: (v, line) => toggleLine(v, line.from, where) },
+      domEventHandlers: { mousedown: (v, line) => toggleLine(v, line.from, where, marked) },
     }));
     let steps = { undo: [], redo: [] };
     function track(u) {

@@ -314,6 +314,7 @@
       check: checkDoc,
       where: (n) => { const m = chapterAt(n); return m ? `${navLabel(m.name)}, line ${n - m.first + 1}` : `line ${n}`; },
       onHistory: showHistory,
+      marked: (name) => !!state.known[name] && state.known[name].original != null,
     });
     loadDoc();
     renderChapters();

@@ -306,6 +306,16 @@ try {
     'new booklet: add existing chapters, reorder, save', list.join(' '));
 
   // table of contents: in the text like a chapter, editable, saved with the booklet; its entry in the contents list shows its page
+  // a chapter made in the editor: no dots (nothing to compare with)
+  const onNew = (d) => (d.type() === 'prompt' ? d.accept('Brand new') : d.accept());
+  page.on('dialog', onNew);
+  await page.click('#tabs button[data-tab="book"]'); await page.click('#tab-book .new-chapter'); await afterEdit();
+  page.off('dialog', onNew);
+  await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap.find((x) => x.name === 'brand-new.txt'); v.dispatch({ changes: { from: v.state.doc.line(m.last).to, insert: '\nTyped in the new chapter' } }); Editor.state.text.goto(m.first, false); });
+  await page.waitForTimeout(200);
+  check(await dots() === '', 'a new chapter: no changed-line dots', await dots());
+  await page.click('#tabs button[data-tab="book"]');
+  await page.locator('#chapters li', { hasText: 'BRAND NEW' }).locator('button', { hasText: 'Remove' }).click(); await afterEdit();
   await page.click('#add-contents'); await afterEdit();
   const tocDoc = await page.evaluate(() => Editor.state.docMap[0].name);
   await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0]; v.dispatch({ changes: { from: v.state.doc.line(m.first).from, insert: '# OUR CONTENTS\n' } }); });
