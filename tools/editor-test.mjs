@@ -130,12 +130,36 @@ try {
   check(back === pages && again === bigger, 'settings apply on every redraw (reused preview frames)', `${back}, ${again}`);
   await closeSettings();
   check(!(await page.isVisible('#settings')), 'settings drawer closes');
-  await page.click('#bar .split-btn .more');
+  await page.click('#print-more');
   check(await page.isVisible('#print-menu #print-pages') && await page.isVisible('#print-menu #print-sheets'), 'Print ▾ menu: letter sheets, just the pages, instructions');
   await page.keyboard.press('Escape');
   const first = await page.evaluate(() => Editor.state.docMap[0].name);
   const heads = await page.evaluate(() => [Editor.state.docMap.length, document.querySelectorAll('.cm-chapter-head').length, Editor.state.book.sections.filter((s) => !s.virtual).length]);
   check(heads[0] > 1 && heads[0] === heads[2] && heads[1] > 0, 'the text holds the whole booklet, a title bar per chapter', heads.join());
+  // changed lines get a dot; clicking it puts the original back (a hollow dot stays: click it to have the change again)
+  const textOf = (n) => page.evaluate((n) => Editor.state.text.view.state.doc.line(n).text, n);
+  const dots = () => page.evaluate(() => [...document.querySelectorAll('.cm-changes .cm-dot:not(.cm-dot-spacer)')].map((d) => d.className.replace('cm-dot cm-dot-', '')).join());
+  const lineN = await page.evaluate(() => Editor.state.docMap[0].first + 2);
+  const was = await textOf(lineN);
+  await page.evaluate((n) => { const v = Editor.state.text.view; v.dispatch({ selection: { anchor: v.state.doc.line(n).to } }); v.focus(); }, lineN);
+  await page.keyboard.type(' extra');
+  await page.waitForTimeout(100);
+  const d1 = await dots();
+  await page.locator('.cm-changes .cm-dot-changed').first().click();
+  const [d2, t2] = [await dots(), await textOf(lineN)];
+  await page.locator('.cm-changes .cm-dot-ghost').first().click();
+  const [d3, t3] = [await dots(), await textOf(lineN)];
+  check(d1 === 'changed' && d2 === 'ghost' && t2 === was && d3 === 'changed' && t3 === was + ' extra', 'changed line: dot; click → original (hollow dot stays); click again → change back', [d1, d2, d3].join(' / '));
+  // Undo / Redo in the top bar, with the list of steps
+  await page.click('#undo-more');
+  const steps = await page.evaluate(() => [...document.querySelectorAll('#undo-menu .item')].map((b) => b.textContent));
+  await page.locator('#undo-menu .item').nth(2).click();
+  const t4 = await textOf(lineN);
+  await page.click('#redo');
+  const t5 = await textOf(lineN);
+  await page.click('#undo');
+  check(steps.length === 3 && /Your change again/.test(steps[0]) && /Back to the original/.test(steps[1]) && /Typing “extra”/.test(steps[2]) && t4 === was && t5 === was + ' extra' && await dots() === '',
+    'Undo ▾ lists the steps (pick one to undo up to it); Redo; Undo', steps.join(' | '));
   // the header lines can't be edited away
   const before = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
   await page.evaluate(() => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: 'gone' } }); });
@@ -162,6 +186,8 @@ try {
   const nav = await page.evaluate(() => { const v = Editor.state.text.view, n = v.state.doc.lineAt(v.state.selection.main.head).number;
     const here = document.querySelector('#toc-nav a.here'); return [n, Editor.state.docMap[1].first, here && here.textContent, Editor.state.docMap[1].name.replace(/\.txt$/, '')]; });
   check(navCount === heads[0] && nav[0] === nav[1] && nav[2] === nav[3], 'contents list: chapter file names; jumps to a chapter and marks it', nav.join(' | '));
+  // (pages still being laid out: a spinner shows until the chapter is there, then it jumps)
+  await (await shownPreview()).waitForFunction(() => document.getElementById('jumping').hidden, null, { timeout: 30000 });
   const pageTop = await (await shownPreview()).evaluate((f) => { const s = [...document.querySelectorAll('.pagedjs_page [data-file]')].find((x) => x.dataset.file === f);
     const top = Math.round(s.closest('.pagedjs_page').getBoundingClientRect().top), atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
     return Math.abs(top) < 5 || (atEnd && top > 0 && top < innerHeight) ? 'ok' : `top at ${top}px`; }, nav[3] + '.txt');
@@ -179,8 +205,9 @@ try {
   check(await page.locator('.cm-lintRange-error').count() > 0 && (await status()).includes('problem'), 'pinyin count mismatch is flagged in text and pages');
   await page.keyboard.press('Control+z'); await afterEdit();
 
-  const target = await preview().evaluate(() => { const b = document.querySelectorAll('.pagedjs_page')[2].querySelector('[data-line]'); b.scrollIntoView(); return b.dataset.line; });
-  await preview().click(`.pagedjs_page:nth-child(3) [data-line="${target}"]`);
+  const shown = await shownPreview();
+  const target = await shown.evaluate(() => { const b = document.querySelectorAll('.pagedjs_page')[2].querySelector('[data-line]'); b.scrollIntoView(); return b.dataset.line; });
+  await shown.click(`.pagedjs_page:nth-child(3) [data-line="${target}"]`);
   const cursor = await page.evaluate(() => { const v = Editor.state.text.view, n = v.state.doc.lineAt(v.state.selection.main.head).number;
     const m = [...Editor.state.docMap].reverse().find((x) => x.head <= n); return n - m.first + 1; });
   check(String(cursor) === target, 'clicking a verse in the pages opens its line', `${target} → ${cursor}`);

@@ -163,10 +163,112 @@
     return out.join("\n");
   };
 
+  // ---- changed lines: a dot beside each line that differs from the original text ----
+  // The original is a second document (same chapter header lines); @codemirror/merge's Chunk works out which lines
+  // differ and keeps that up to date as you type. Clicking a dot puts that line (or, where lines were added or
+  // removed, that group of lines) back to the original; a hollow "ghost" dot stays, and clicking it puts your
+  // change back. Both are ordinary edits, so Undo/Redo work on them too.
+  const label = CM.Annotation.define();   // a description of an edit for the Undo/Redo lists
+  const addGhost = CM.StateEffect.define(), dropGhost = CM.StateEffect.define();
+  const diffField = CM.StateField.define({
+    create: (state) => ({ original: state.doc, chunks: [] }),
+    update: (v, tr) => (tr.docChanged ? { original: v.original, chunks: CM.Chunk.updateB(v.chunks, v.original, tr.newDoc, tr.changes) } : v),
+  });
+  // ghosts: { from, to, text } — a reverted range (in the current text) and what was there before the revert
+  const ghostField = CM.StateField.define({
+    create: () => [],
+    update(ghosts, tr) {
+      let out = ghosts;
+      if (tr.docChanged) {
+        out = [];
+        for (const g of ghosts) {
+          let touched = false;
+          tr.changes.iterChangedRanges((from, to) => { if (from <= g.to && to >= g.from) touched = true; });
+          if (!touched) out.push({ ...g, from: tr.changes.mapPos(g.from, -1), to: tr.changes.mapPos(g.to, 1) });
+        }
+      }
+      for (const e of tr.effects) {
+        if (e.is(addGhost)) out = [...out, e.value];
+        if (e.is(dropGhost)) out = out.filter((g) => g.from !== e.value.from || g.to !== e.value.to);
+      }
+      return out;
+    },
+  });
+  class Dot extends CM.GutterMarker {
+    constructor(kind, title) { super(); this.kind = kind; this.title = title; }
+    eq(o) { return o.kind === this.kind; }
+    toDOM() { return Object.assign(document.createElement("span"), { className: "cm-dot cm-dot-" + this.kind, title: this.title }); }
+  }
+  const DOTS = {
+    changed: new Dot("changed", "Changed from the original text — click to put the original back"),
+    removed: new Dot("removed", "Lines of the original text were taken out here — click to put them back"),
+    ghost: new Dot("ghost", "Put back to the original — click to have your change again"),
+    spacer: new Dot("spacer", ""),   // (only sets the column's width)
+  };
+  // lines in [from, to) — `to` one past the end of the last line, as in a Chunk
+  const lineCount = (doc, from, to) => (from >= to ? 0 : doc.lineAt(Math.min(to - 1, doc.length)).number - doc.lineAt(from).number + 1);
+  function dotsOf(state) {
+    const doc = state.doc, kinds = new Map();
+    for (const c of state.field(diffField).chunks) {
+      if (c.fromB === c.toB) { const at = doc.lineAt(Math.min(c.fromB, doc.length)).from; if (!kinds.has(at)) kinds.set(at, "removed"); continue; }
+      for (let pos = c.fromB; pos < c.toB && pos <= doc.length;) { const l = doc.lineAt(pos); kinds.set(l.from, "changed"); pos = l.to + 1; }
+    }
+    for (const g of state.field(ghostField)) {
+      for (let pos = g.from; pos <= Math.max(g.from, g.to - 1) && pos <= doc.length;) { const l = doc.lineAt(pos); if (!kinds.has(l.from)) kinds.set(l.from, "ghost"); pos = l.to + 1; }
+    }
+    const b = new CM.RangeSetBuilder();
+    for (const at of [...kinds.keys()].sort((x, y) => x - y)) b.add(at, at, DOTS[kinds.get(at)]);
+    return b.finish();
+  }
+  // a click on a dot
+  function toggleLine(view, lineFrom, where) {
+    const state = view.state, doc = state.doc, orig = state.field(diffField).original;
+    const chunk = state.field(diffField).chunks.find((c) => (c.fromB === c.toB ? doc.lineAt(Math.min(c.fromB, doc.length)).from === lineFrom : c.fromB <= lineFrom && lineFrom < c.toB));
+    const n = doc.lineAt(lineFrom).number;
+    if (chunk) {
+      const aLines = lineCount(orig, chunk.fromA, chunk.toA), bLines = lineCount(doc, chunk.fromB, chunk.toB);
+      let from, to, insert;
+      if (aLines && aLines === bLines) {
+        // lines changed one for one: just this line
+        const line = doc.line(n), was = orig.line(orig.lineAt(chunk.fromA).number + n - doc.lineAt(chunk.fromB).number);
+        [from, to, insert] = [line.from, line.to, was.text];
+      } else {
+        // lines added or taken out: the whole group (as @codemirror/merge's rejectChunk does)
+        insert = orig.sliceString(chunk.fromA, Math.max(chunk.fromA, chunk.toA - 1));
+        if (chunk.fromA !== chunk.toA && chunk.toB <= doc.length) insert += "\n";
+        [from, to] = [chunk.fromB, Math.min(doc.length, chunk.toB)];
+      }
+      const text = doc.sliceString(from, to);
+      view.dispatch({ changes: { from, to, insert }, effects: addGhost.of({ from, to: from + insert.length, text }),
+        userEvent: "revert", annotations: [label.of(`Back to the original — ${where(n)}`), CM.isolateHistory.of("full")] });
+      return true;
+    }
+    const g = state.field(ghostField).find((x) => x.from <= lineFrom && lineFrom <= Math.max(x.from, x.to - 1));
+    if (g) {
+      view.dispatch({ changes: { from: g.from, to: g.to, insert: g.text }, effects: dropGhost.of(g),
+        userEvent: "reapply", annotations: [label.of(`Your change again — ${where(n)}`), CM.isolateHistory.of("full")] });
+      return true;
+    }
+    return false;
+  }
+
+  // ---- Undo/Redo lists: a description of each step, kept in step with CodeMirror's own history ----
+  const clip = (t) => { t = t.replace(/\n/g, " ⏎ ").trim(); return t.length > 32 ? t.slice(0, 30) + "…" : t; };
+  function describeStep(tr, where) {
+    const custom = tr.annotation(label);
+    if (custom) return { text: custom };
+    let typed = "", gone = "", at = 0;
+    tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => { typed += inserted.toString(); gone += tr.startState.doc.sliceString(fromA, toA); at = fromB; });
+    return { typed, gone, where: where(tr.newDoc.lineAt(at).number), paste: tr.isUserEvent("input.paste"), drop: tr.isUserEvent("input.drop") || tr.isUserEvent("move") };
+  }
+  const stepText = (s) => s.text || (s.paste ? `Paste “${clip(s.typed)}”` : s.drop ? "Move text" : s.typed ? `Typing “${clip(s.typed)}”` : s.gone ? `Delete “${clip(s.gone)}”` : "Change") + (s.where ? ` — ${s.where}` : "");
+
   // options: onChange(docText), onCursor(line), header(name) → element for a chapter's title bar,
-  // check(docText) → problems [{ line, from?, to?, severity, message }]
-  // Returns { setDoc(text), replace(from, to, text), goto(line), refreshHeaders(), view }.
-  function build(box, { onChange, onCursor = () => {}, header, check }) {
+  // check(docText) → problems [{ line, from?, to?, severity, message }], where(line) → "chapter, line n" (for the
+  // Undo/Redo lists), onHistory() → the Undo/Redo lists changed
+  // Returns { setDoc(text, original), replace(from, to, text, label), goto(line), refreshHeaders(), undo(n), redo(n),
+  // history() → { undo: [text…], redo: [text…] } (next first), label, view }.
+  function build(box, { onChange, onCursor = () => {}, header, check, where = (n) => "line " + n, onHistory = () => {} }) {
     const { Decoration, WidgetType, StateField, StateEffect, RangeSetBuilder } = CM;
     const redraw = StateEffect.define();
     let version = 0;
@@ -204,12 +306,45 @@
         return { from, to, severity: p.severity, message: p.message };
       });
     }, { delay: 500, needsRefresh: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(recheck))) });
-    const create = (doc) => EditorState.create({
+    const changeGutter = CM.Prec.high(CM.gutter({
+      class: "cm-changes",
+      markers: (v) => dotsOf(v.state),
+      initialSpacer: () => DOTS.spacer,
+      domEventHandlers: { mousedown: (v, line) => toggleLine(v, line.from, where) },
+    }));
+    let steps = { undo: [], redo: [] };
+    function track(u) {
+      let moved = false;
+      for (const tr of u.transactions) {
+        if (tr.isUserEvent("undo")) { const s = steps.undo.pop(); if (s) steps.redo.push(s); moved = true; }
+        else if (tr.isUserEvent("redo")) { const s = steps.redo.pop(); if (s) steps.undo.push(s); moved = true; }
+      }
+      const undoN = CM.undoDepth(u.state), redoN = CM.redoDepth(u.state);
+      if (!moved && u.docChanged) {
+        const tr = u.transactions.find((t) => t.docChanged), step = describeStep(tr, where);
+        if (undoN > CM.undoDepth(u.startState) || !steps.undo.length) steps.undo.push(step);
+        else {   // joined to the step before (typing on)
+          const top = steps.undo[steps.undo.length - 1];
+          if (!top.text) { top.typed = (top.typed || "") + (step.typed || ""); top.gone = (step.gone || "") + (top.gone || ""); }
+        }
+      }
+      // in step with the real history (it forgets the oldest steps after a while)
+      while (steps.undo.length > undoN) steps.undo.shift();
+      while (steps.undo.length < undoN) steps.undo.unshift({ text: "An earlier change" });
+      if (!redoN) steps.redo = [];
+      while (steps.redo.length > redoN) steps.redo.shift();
+      while (steps.redo.length < redoN) steps.redo.unshift({ text: "A change" });
+      if (u.docChanged || moved) onHistory();
+    }
+    const create = (doc, original) => EditorState.create({
       doc,
       extensions: [
-        basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, lint, lintGutter(),
+        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, lint, lintGutter(),
         alignSlot.of(alignExt()),
+        diffField.init((st) => { const o = CM.EditorState.create({ doc: original ?? doc }).doc; return { original: o, chunks: CM.Chunk.build(o, st.doc) }; }),
+        ghostField,
         EditorView.updateListener.of((u) => {
+          track(u);
           if (u.docChanged) onChange(u.state.doc.toString());
           if (u.docChanged || u.selectionSet) onCursor(u.state.doc.lineAt(u.state.selection.main.head).number);
         }),
@@ -218,10 +353,17 @@
     const view = new EditorView({ parent: box, state: create("") });
     return {
       view,
-      // a new document (e.g. chapters added or removed): starts a fresh undo history
-      setDoc(text) { view.setState(create(text)); },
+      label,
+      // a new document (e.g. chapters added or removed): starts a fresh undo history.
+      // original: the same document as it was originally (for the dots beside changed lines)
+      setDoc(text, original) { view.setState(create(text, original)); steps = { undo: [], redo: [] }; onHistory(); },
       // one undoable change (e.g. a chapter back to its original text)
-      replace(from, to, text) { view.dispatch({ changes: { from, to, insert: text } }); },
+      replace(from, to, text, what) {
+        view.dispatch({ changes: { from, to, insert: text }, annotations: what ? [label.of(what), CM.isolateHistory.of("full")] : [] });
+      },
+      undo(n = 1) { for (let i = 0; i < n; i++) CM.undo(view); },
+      redo(n = 1) { for (let i = 0; i < n; i++) CM.redo(view); },
+      history: () => ({ undo: steps.undo.map(stepText).reverse(), redo: steps.redo.map(stepText).reverse() }),
       goto(line, focus = true) {
         const l = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
         view.dispatch({ selection: { anchor: l.from }, effects: EditorView.scrollIntoView(l.from, { y: "start", yMargin: 40 }) });

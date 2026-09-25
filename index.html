@@ -18,9 +18,15 @@
   <select id="book" title="Which booklet" hidden></select>
   <span id="status">Loading…</span>
   <span class="grow"></span>
+  <span class="split-btn" id="undo-group" hidden>
+    <button type="button" id="undo" disabled>↶ Undo</button><button type="button" class="more" id="undo-more" popovertarget="undo-menu" disabled aria-label="Undo several steps" title="Undo several steps">▾</button>
+  </span>
+  <span class="split-btn" id="redo-group" hidden>
+    <button type="button" id="redo" disabled>↷ Redo</button><button type="button" class="more" id="redo-more" popovertarget="redo-menu" disabled aria-label="Redo several steps" title="Redo several steps">▾</button>
+  </span>
   <button type="button" id="settings-btn" hidden title="How the booklet looks: page size, fonts, spacing, page numbers…">Settings</button>
   <span class="split-btn">
-    <button type="button" id="print" disabled title="Print on letter paper, 4 pages a side">Print…</button><button type="button" class="more" popovertarget="print-menu" title="Other ways to print, and how to cut and stack the sheets" aria-label="Print options">▾</button>
+    <button type="button" id="print" disabled title="Print on letter paper, 4 pages a side">Print…</button><button type="button" class="more" id="print-more" popovertarget="print-menu" title="Other ways to print, and how to cut and stack the sheets" aria-label="Print options">▾</button>
   </span>
   <button id="save" disabled title="Save your changes (Ctrl+S)">Saved</button>
   <a id="forget" href="#" hidden title="Forget the GitHub key or the folder on this computer, and connect again">Disconnect</a>
@@ -97,6 +103,8 @@
     </fieldset>
   </aside>
 </main>
+<div id="undo-menu" class="menu steps-menu" popover></div>
+<div id="redo-menu" class="menu steps-menu" popover></div>
 <div id="print-menu" class="menu" popover>
   <button type="button" id="print-sheets" class="item"><b>Print on letter paper…</b><span class="hint">4 booklet pages on each side of a letter sheet (the same as “Print…”)</span></button>
   <button type="button" id="print-pages" class="item"><b>Print just the pages…</b><span class="hint">one booklet page per sheet of paper, in order — for checking</span></button>

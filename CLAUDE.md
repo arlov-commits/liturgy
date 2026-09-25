@@ -29,6 +29,7 @@ Current choices:
 | Pinyin under characters | native `<ruby>` + `ruby-position: under` | never position pinyin manually |
 | Final print | Chrome's print of the Paged.js preview: **Print…** = letter sheets, 4 pages a side (`preview.html printSheets`); the ▾ beside it → “just the pages” for checking | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
 | Text editing | **CodeMirror 6** (vendored, `vendor/codemirror.min.js`) | never `contenteditable`. Bundle built from `tools/vendor/codemirror.mjs` by `npm run vendor` — add any new CodeMirror import there. |
+| Changed-line dots | **@codemirror/merge** `Chunk` (in the CodeMirror bundle) | `texttab.js diffField`: the editor text vs. the same chapters as originally (`loadDoc` builds both); click a dot → that line (or group of added/removed lines) back to the original, a hollow “ghost” dot redoes it. |
 | Pinyin checking | **pinyin-pro** (vendored, loaded only when “Suggest pinyin readings” is ticked) | suggestions only (blue dotted, opt-in) — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate. `toneSandhi: false` so 一/不 aren't flagged. |
 | Letter-sheet imposition | none needed: the Paged.js pages are copied into a 2 × 2 letter-sheet grid and printed with `@page { size: letter }` | Order in `js/impose.js`, per sheet of 8 pages: front 2 3 / 6 7, back 4 1 / 8 5 (duplex, flip on long edge); cut in four, stack in page order. Each copy gets `counter-reset: page n−1` so page numbers stay right. (Replaced the earlier save-PDF-then-upload step with pdf-lib.) |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | English choices (Settings): Lora, Gentium Book Plus, Crimson Pro, Alegreya, Libre Baskerville, Merriweather, Noto Serif, Source Serif 4, Noto Sans, Source Sans 3 — Latin + Latin Extended, 400/600 + italics. Rejected at the tone-mark check: EB Garamond (bold À), Spectral (ǖǘǚǜ), Cormorant Garamond (carons). |
@@ -50,6 +51,10 @@ Pinyin is lined up under the characters in the editor by a display-only layer (`
 character and its syllable become inline-block columns of equal, canvas-measured width; spaces in the pinyin line
 take no room; punctuation gets an empty column), so both lines wrap at the same places. The text keeps single
 spaces. Visible lines only (~1 ms a keystroke). Off by default; switch: Settings → The text editor (per browser).
+Undo/Redo in the top bar use CodeMirror's history; `texttab.js track()` keeps a description of each step in step with
+it (`undoDepth`/`redoDepth`) for the ▾ lists; programmatic edits pass a `label` annotation. Adding, removing or
+moving chapters rebuilds the editor, which starts a fresh history.
+The pages swap in early only once the new layout reaches the place the current pages are scrolled to (`previewEarly`).
 
 ## Pages
 - `index.html` — the editor: top bar, panels, and the pages in a frame. **Two** preview frames take turns: the next

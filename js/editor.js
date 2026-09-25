@@ -62,11 +62,15 @@
     frame.classList.remove("loading");
     followCursor();
   }
-  // called by preview.html when the pages in view are laid out (the rest is still coming)
+  // called by preview.html as pages get laid out, once the pages in view are done (the rest is still coming).
+  // Swaps in as soon as the new pages reach the place the current ones are scrolled to; returns true then.
   function previewEarly(win) {
-    if (!pending || win !== pending.contentWindow) return;
+    if (!pending || win !== pending.contentWindow) return true;
+    const want = frame ? frame.contentWindow.scrollY + frame.contentWindow.innerHeight : 0;
+    if (win.document.documentElement.scrollHeight < want) return false;   // (scrolled on since the layout began)
     swapIn();
     early = win;
+    return true;
   }
   // called by preview.html when its pages are laid out
   function previewDone(win, info) {
@@ -225,6 +229,8 @@
       },
       header: chapterHeader,
       check: checkDoc,
+      where: (n) => { const m = chapterAt(n); return m ? `${navLabel(m.name)}, line ${n - m.first + 1}` : `line ${n}`; },
+      onHistory: showHistory,
     });
     loadDoc();
     renderChapters();
@@ -245,8 +251,10 @@
   function loadDoc() {
     const keep = state.docMap && chapterAt(state.cursorLine || 1);
     const doc = state.book.sections.map((s) => LiturgyText.SEP + s.name + "\n" + norm(s.text)).join("");
+    // the same, as originally: the dots beside the lines mark the differences
+    const original = state.book.sections.map((s) => LiturgyText.SEP + s.name + "\n" + norm(s.original ?? s.baseline)).join("");
     state.docMap = mapDoc(doc).map;
-    state.text.setDoc(doc);
+    state.text.setDoc(doc, original);
     const back = keep && state.docMap.find((m) => m.name === keep.name);
     if (back) state.text.goto(back.first, false);
     renderNav();
@@ -339,9 +347,11 @@
     if (!s || s.original == null || !m) return;
     const doc = state.text.view.state.doc;
     const from = doc.line(Math.min(m.first, doc.lines)).from, to = doc.line(Math.min(m.last, doc.lines)).to;
-    state.text.replace(from, Math.max(from, to), norm(s.original).replace(/\n$/, m.last === doc.lines ? "\n" : ""));
+    state.text.replace(from, Math.max(from, to), norm(s.original).replace(/\n$/, m.last === doc.lines ? "\n" : ""), `${navLabel(name)} back to the original`);
   }
   function addKnown(s) {
+    // a chapter made in the editor has no original: its changed lines are marked from how it was when opened
+    if (s.original == null && s.baseline == null) s.baseline = s.text;
     s.label = s.virtual ? "Table of contents (made automatically)" : titleOf(s.text, s.name);
     s.check = checkSection;
     state.known[s.name] = s;
@@ -459,7 +469,8 @@
     if (sel.empty) return setStatus(`Select the lines to ${what} first (drag over them in the text), then click again.`, true);
     const first = doc.lineAt(sel.from), last = doc.lineAt(doc.lineAt(sel.to).from === sel.to && sel.to > sel.from ? sel.to - 1 : sel.to);
     if (chapterAt(first.number) !== chapterAt(last.number)) return setStatus(`The lines to ${what} must be in one chapter.`, true);
-    v.dispatch({ changes: [{ from: first.from, insert: `[${mark}]\n` }, { from: last.to, insert: `\n[/${mark}]` }] });
+    v.dispatch({ changes: [{ from: first.from, insert: `[${mark}]\n` }, { from: last.to, insert: `\n[/${mark}]` }],
+      annotations: state.text.label.of(`${mark[0].toUpperCase() + mark.slice(1)} — ${navLabel(chapterAt(first.number).name)}, lines ${first.number - chapterAt(first.number).first + 1}–${last.number - chapterAt(first.number).first + 1}`) });
     v.focus();
   }
   $("#keep-together").onclick = () => wrapSelection("keep together", "keep together");
@@ -505,6 +516,32 @@
       menu.style.right = Math.max(8, innerWidth - r.right) + "px";
     });
   }
+  // ---- Undo / Redo (top bar), each with a list of the next steps: pick one to undo (redo) up to there ----
+  function showHistory() {
+    if (!state.text) return;
+    const h = state.text.history();
+    for (const [kind, list] of [["undo", h.undo], ["redo", h.redo]]) {
+      $("#" + kind).disabled = $(`#${kind}-more`).disabled = !list.length;
+      $("#" + kind).title = list.length ? `${kind === "undo" ? "Undo" : "Redo"}: ${list[0]} (${kind === "undo" ? "Ctrl+Z" : "Ctrl+Y"})` : `Nothing to ${kind}`;
+    }
+  }
+  $("#undo").onclick = () => state.text.undo();
+  $("#redo").onclick = () => state.text.redo();
+  for (const kind of ["undo", "redo"]) {
+    const menu = $(`#${kind}-menu`);
+    menu.addEventListener("beforetoggle", (ev) => {
+      if (ev.newState !== "open") return;
+      const list = state.text.history()[kind].slice(0, 20);
+      menu.textContent = "";
+      menu.append(Object.assign(document.createElement("div"), { className: "menu-head", textContent: kind === "undo" ? "Undo up to…" : "Redo up to…" }));
+      list.forEach((text, i) => {
+        const b = Object.assign(document.createElement("button"), { type: "button", className: "item step", textContent: `${i + 1}. ${text}` });
+        b.onclick = () => { menu.hidePopover(); state.text[kind](i + 1); };
+        menu.append(b);
+      });
+    });
+  }
+
   // ---- settings: a drawer over the left side ----
   const showSettings = (on) => { $("#settings").hidden = !on; $("#settings-btn").classList.toggle("on", on); };
   $("#settings-btn").onclick = () => showSettings($("#settings").hidden);
@@ -623,6 +660,7 @@
     changed();
     $("#app").hidden = false;
     $("#settings-btn").hidden = false;
+    $("#undo-group").hidden = $("#redo-group").hidden = false;
     startSplit();
     render();
   }

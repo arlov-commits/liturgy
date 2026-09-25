@@ -163,7 +163,7 @@ async function render(id) {
     const showAt = editor ? editor.pagesNeeded() : Infinity;
     let shown = false;
     previewer.chunker.on("renderedPage", () => {
-      if (!shown && id === runId && previewer.chunker.total >= showAt) { shown = true; editor.previewEarly(window); }
+      if (!shown && id === runId && previewer.chunker.total >= showAt) shown = editor.previewEarly(window);
       checkWanted(false);
     });
     pages = (await previewer.preview(src, sheets, main)).total;
@@ -372,18 +372,24 @@ function showLine(file, line) {
 // pages are still coming): show a spinner and go there as soon as it is.
 let wanted = null;
 function showChapter(file) {
-  wanted = null;
-  const start = [...document.querySelectorAll(".pagedjs_page [data-file]")].find((s) => s.dataset.file === file);
+  wanted = file;
+  return checkWanted(document.body.dataset.ready === "1");
+}
+// (also called as each page is laid out, and when all are). While pages are still coming, the chapter's first page
+// may be the last one so far, which can't be scrolled to the top yet: keep at it until it can.
+function checkWanted(done) {
+  if (!wanted) return true;
+  const start = [...document.querySelectorAll(".pagedjs_page [data-file]")].find((s) => s.dataset.file === wanted);
+  let there = false;
   if (start) {
+    const page = start.closest(".pagedjs_page");
     quietUntil = Date.now() + 800;
-    start.closest(".pagedjs_page").scrollIntoView({ block: "start" });
-  } else if (document.body.dataset.ready !== "1") wanted = file;
+    page.scrollIntoView({ block: "start" });
+    there = Math.abs(page.getBoundingClientRect().top) < 2;
+  }
+  if (there || done) wanted = null;
   document.getElementById("jumping").hidden = !wanted;
   return !!start;
-}
-// (called as each page is laid out, and when all are)
-function checkWanted(done) {
-  if (wanted && (showChapter(wanted) || done)) { wanted = null; document.getElementById("jumping").hidden = true; }
 }
 
 // Scrolling the pages by hand tells the editor which verse is at the top, to mark that place in its contents list
