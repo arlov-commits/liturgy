@@ -14,6 +14,9 @@ A booklet is a list in `books/<name>.txt`: the chapter file names, in order, one
 
 ## Blocks
 
+A `#` title line right under other lines (no blank line between) starts a new block there: the lines above keep
+their own style and the title follows with no space above it. The editor marks it, in case a blank line was meant.
+
 A **blank line** separates blocks; each further blank line in a row adds one line of empty space on the page
 (two blank lines = a block break plus one empty line, and so on). A normal block is:
 

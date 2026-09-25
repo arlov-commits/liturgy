@@ -73,6 +73,7 @@
       if (block.level === 1) cls.push("title");
       if (block.level === 2) cls.push("subtitle");
       if (block.mantra) cls.push("mantra");
+      if (block.runOn) cls.push("run-on");
       // a [toc: …] partway through the chapter: an extra contents entry, pointing at this block
       const entry = pendingEntry ? ` id="${anchor(name || "")}-l${block.start}" data-toc-entry="${esc(pendingEntry)}"` : "";
       pendingEntry = null;
@@ -137,7 +138,16 @@
         problems.push({ line: n + 1, severity: "warning", message: "Page breaks are automatic — this line is ignored. To keep lines on one page (or on facing pages), use Keep together." });
         continue;
       }
+      // a title (#) right under other lines, with no blank line between: it starts a new block there (the lines
+      // above keep their own style, with no gap before the title) — and the editor points it out
+      const heading = /^#{1,2}(\s|$)/.test(line);
+      if (heading && block && block.body) {
+        problems.push({ line: n + 1, severity: "warning", message: "A title (#) right under other lines, with no blank line between them — the lines above stay as they are and the title starts here, with no space above it. Put a blank line above the title if it should stand apart." });
+        block.runOn = true;
+        close();
+      }
       open(n);
+      if (!heading) block.body = (block.body || 0) + 1;
       if (REPEAT.test(line)) {
         block.html.push(`<div class="repeat">${esc(line)}</div>`);
       } else if (line.includes("|") && HAS_CJK.test(line)) {
