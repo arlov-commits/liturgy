@@ -201,9 +201,14 @@
 
   // A booklet = books/<name>.txt, a list of chapter files in order (// lines are comments)
   const listNames = (listText) => listText.split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
-  // "[contents]" in a booklet list = a table of contents made automatically (not a file)
-  const CONTENTS_ENTRY = "[contents]";
-  const contentsChapter = () => ({ name: CONTENTS_ENTRY, text: "[toc: -]\n[contents]\n", virtual: true });
+  // "[contents]" in a booklet list = a table of contents made automatically. It can be edited like a chapter
+  // (a title above the list, a note below…); the edited text is kept per booklet in books/contents/<booklet>.txt.
+  const CONTENTS_ENTRY = "[contents]", CONTENTS_TEXT = "[toc: -]\n[contents]\n";
+  const contentsFile = (bookName) => `books/contents/${bookName}.txt`;
+  async function loadContents(source, bookName) {
+    const saved = await source.get(contentsFile(bookName), true);
+    return { name: CONTENTS_ENTRY, text: saved ?? CONTENTS_TEXT, original: CONTENTS_TEXT, edited: saved !== null, virtual: true };
+  }
   // The original text (text/<name>) is never changed by the editor: edits are a parallel edition in
   // edits/<name>. A chapter reads as its edited version when there is one, else the original.
   const ORIGINAL = "text/", EDITION = "edits/";
@@ -215,11 +220,11 @@
   async function loadBook(source, bookName) {
     const listText = await source.get(`books/${bookName}.txt`);
     const sections = await Promise.all(listNames(listText).map((name) =>
-      name === CONTENTS_ENTRY ? contentsChapter() : loadChapter(source, name)));
+      name === CONTENTS_ENTRY ? loadContents(source, bookName) : loadChapter(source, name)));
     // settings.css in the text repo = the settings saved from the editor (only the changed ones)
     const css = (await source.get(SETTINGS_FILE, true)) || "";
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, contentsChapter };
+  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, loadContents, contentsFile };
 })(window);

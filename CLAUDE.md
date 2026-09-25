@@ -15,7 +15,8 @@ It will be used by a **non-technical editor**. Every feature must be usable with
 - **The editor never writes `text/`** — that's the original (baseline). Edits are a parallel edition in
   `edits/<name>.txt` (only for chapters that differ; chapters made in the editor live only there). A chapter reads
   as its edition when there is one (`source.js loadChapter`); "Original" in the Chapters tab puts the original back,
-  and saving then deletes the edition file.
+  and saving then deletes the edition file. A booklet's table of contents (`[contents]` in its list) is edited in the
+  text like a chapter and kept in `books/contents/<booklet>.txt` (none = the automatic default, `source.js loadContents`).
 
 ## Non-negotiable rule: use existing libraries, don't hand-roll
 The owner was burned by a hand-built editor (bold toggling nested `<b><b>` instead of unbolding).

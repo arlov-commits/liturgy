@@ -219,6 +219,21 @@ try {
   check(list.join() === [...libraryNames].reverse().join() && (await status()).startsWith('Saved'),
     'new booklet: add existing chapters, reorder, save', list.join(' '));
 
+  // table of contents: in the text like a chapter, editable, saved with the booklet; its entry in the contents list shows its page
+  await page.click('#add-contents'); await afterEdit();
+  const tocDoc = await page.evaluate(() => Editor.state.docMap[0].name);
+  await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0]; v.dispatch({ changes: { from: v.state.doc.line(m.first).from, insert: '# OUR CONTENTS\n' } }); });
+  await afterEdit();
+  const tocShown = await (await shownPreview()).evaluate(() => document.querySelector('.pagedjs_page')?.textContent.includes('OUR CONTENTS'));
+  await page.keyboard.press('Control+s'); await saveDone();
+  const tocFile = path.join(repo, 'books', 'contents', 'test-booklet.txt');
+  check(tocDoc === '[contents]' && tocShown && existsSync(tocFile) && readFileSync(tocFile, 'utf8').startsWith('# OUR CONTENTS') && readFileSync(path.join(repo, 'books', 'test-booklet.txt'), 'utf8').includes('[contents]'),
+    'table of contents: shown and edited in the text, saved with the booklet');
+  await (await shownPreview()).evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  await page.locator('#toc-nav a.nav-l0').first().click(); await page.waitForTimeout(300);
+  const tocTop = await (await shownPreview()).evaluate(() => Math.round(document.querySelector('.pagedjs_page').getBoundingClientRect().top));
+  check(Math.abs(tocTop) < 5, '…and its entry in the contents list shows its page', `top at ${tocTop}px`);
+
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'readonly'));
   page.once('dialog', (d) => d.accept());
   await page.reload(); await settled();

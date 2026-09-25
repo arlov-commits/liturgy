@@ -55,7 +55,9 @@ prints `?` and is flagged.
 ## Table of contents
 
 - In the editor, **Add table of contents** (Chapters tab) inserts a contents page made automatically (the line
-  `[contents]` in the booklet list; its heading is the “contents title” setting).
+  `[contents]` in the booklet list; its heading is the “contents title” setting). It shows in the text like a
+  chapter and can be edited (a title, a note above or below the list); the edited text is kept for that booklet in
+  `books/contents/<booklet>.txt`, and **Original** puts back the automatic one.
 - `[contents]` on its own line in a chapter prints a table of contents there: one line per section of the booklet
   (except the section it's in), with the page each starts on — filled in automatically.
 - A chapter is listed under its first `#` title. To list it under another name, put `[toc: Name]` on a line

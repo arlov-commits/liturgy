@@ -244,7 +244,7 @@
   // (Re)build the editor from the chapters — after chapters are added, removed or moved
   function loadDoc() {
     const keep = state.docMap && chapterAt(state.cursorLine || 1);
-    const doc = state.book.sections.filter((s) => !s.virtual).map((s) => LiturgyText.SEP + s.name + "\n" + norm(s.text)).join("");
+    const doc = state.book.sections.map((s) => LiturgyText.SEP + s.name + "\n" + norm(s.text)).join("");
     state.docMap = mapDoc(doc).map;
     state.text.setDoc(doc);
     const back = keep && state.docMap.find((m) => m.name === keep.name);
@@ -275,7 +275,7 @@
     const el = document.createElement("div");
     el.className = "cm-chapter-head";
     el.append(Object.assign(document.createElement("span"), { className: "t", textContent: s ? s.label : name }),
-      Object.assign(document.createElement("span"), { className: "f", textContent: labelOf(name) }));
+      Object.assign(document.createElement("span"), { className: "f", textContent: s && s.virtual ? "kept with this booklet" : labelOf(name) }));
     if (isEdited(s)) el.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
     return el;
   }
@@ -331,8 +331,8 @@
     if (m) markPlace(m.first + line - 1);
   }
 
-  // A chapter differs from its original (or has none: made in the editor)
-  const isEdited = (s) => !!s && !s.virtual && (s.original == null || norm(s.text) !== norm(s.original));
+  // A chapter differs from its original (or has none: made in the editor). The table of contents: from the one made automatically.
+  const isEdited = (s) => !!s && (s.original == null || norm(s.text) !== norm(s.original));
   // Put the original text back (one undoable edit; saved as removing the edition file)
   function revertChapter(name) {
     const s = state.known[name], m = (state.docMap || []).find((x) => x.name === name);
@@ -372,7 +372,11 @@
   async function updateSections() {
     const sections = [];
     for (const name of chapterNames()) {
-      if (!state.known[name] && name === LiturgySource.CONTENTS_ENTRY) addKnown(LiturgySource.contentsChapter());
+      if (!state.known[name] && name === LiturgySource.CONTENTS_ENTRY) {
+        const toc = await LiturgySource.loadContents(state.source, state.bookName);
+        addKnown(toc);
+        state.saved[LiturgySource.contentsFile(state.bookName)] = toc.edited ? toc.text : null;
+      }
       if (!state.known[name]) {
         const ch = state.library[name] || await LiturgySource.loadChapter(state.source, name).catch(() => null);
         if (!ch) continue;
@@ -502,7 +506,7 @@
   function currentFiles() {
     const files = { [LiturgySource.SETTINGS_FILE]: state.book.css, [`books/${state.bookName}.txt`]: state.contents.text };
     // chapters: the edition file holds the text when it differs from the original; null = no edition file
-    for (const s of state.book.sections) if (!s.virtual) files[LiturgySource.EDITION + s.name] = isEdited(s) ? s.text : null;
+    for (const s of state.book.sections) files[s.virtual ? LiturgySource.contentsFile(state.bookName) : LiturgySource.EDITION + s.name] = isEdited(s) ? s.text : null;
     return files;
   }
   const unsaved = () => { const f = currentFiles(); return Object.keys(f).filter((p) => f[p] !== state.saved[p]); };
@@ -513,6 +517,8 @@
   }
   function commitMessage(path) {
     if (path === LiturgySource.SETTINGS_FILE) return "Change booklet settings (from the editor)";
+    if (path === LiturgySource.contentsFile(state.bookName))
+      return currentFiles()[path] === null ? `Back to the automatic table of contents of booklet ${state.bookName} (from the editor)` : `Edit the table of contents of booklet ${state.bookName} (from the editor)`;
     if (path.startsWith("books/")) return `Change the chapters of booklet ${state.bookName} (from the editor)`;
     const name = path.slice(LiturgySource.EDITION.length), s = state.known[name];
     if (currentFiles()[path] === null) return `Back to the original text of ${name} (from the editor)`;
