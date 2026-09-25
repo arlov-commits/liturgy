@@ -46,6 +46,11 @@
   ]);
   const theme = EditorView.theme({
     "&": { height: "100%", fontSize: "15px", backgroundColor: "#fff" },
+    // groups ([keep together], [border]): darker the deeper they're nested
+    ".cm-group-1": { backgroundColor: "rgba(138, 90, 0, 0.07)" },
+    ".cm-group-2": { backgroundColor: "rgba(138, 90, 0, 0.14)" },
+    ".cm-group-3": { backgroundColor: "rgba(138, 90, 0, 0.21)" },
+    ".cm-group-4": { backgroundColor: "rgba(138, 90, 0, 0.28)" },
     ".cm-scroller": { fontFamily: '"Gentium Book Plus", "Noto Serif TC", "Liturgy Extra", serif', lineHeight: "1.55" },
   });
 
@@ -162,6 +167,35 @@
     for (let i = 1; i <= doc.lines; i++) { const t = doc.line(i).text; if (isSep(t)) out.push(t); }
     return out.join("\n");
   };
+
+  // ---- groups: the lines of a [keep together] or [border] span (markers included) get a shaded background,
+  // a shade darker for each span they're inside. Spans end with their chapter (the header line). Only the lines in
+  // view are shaded; the depth is worked out from the chapter's start.
+  const SPAN_LINE = /^\[(\/?)(keep together|one page|border)\]$/i;
+  const groupLine = [1, 2, 3, 4].map((d) => CM.Decoration.line({ class: "cm-group cm-group-" + d }));
+  function groupDecos(view) {
+    const doc = view.state.doc, b = new CM.RangeSetBuilder();
+    for (const { from, to } of view.visibleRanges) {
+      let n = doc.lineAt(from).number;
+      while (n > 1 && !isSep(doc.line(n).text)) n--;   // back to the chapter's header line
+      const last = doc.lineAt(to).number;
+      let depth = 0;
+      for (; n <= last; n++) {
+        const text = doc.line(n).text, m = text.trim().match(SPAN_LINE);
+        if (isSep(text)) depth = 0;
+        let here = depth;
+        if (m && !m[1]) here = ++depth;          // an opening marker: the span starts with it
+        else if (m && m[1] && depth) depth--;    // a closing marker: the span ends with it (shaded at its depth)
+        const line = doc.line(n);
+        if (here && line.from >= from && line.from <= to) b.add(line.from, line.from, groupLine[Math.min(here, 4) - 1]);
+      }
+    }
+    return b.finish();
+  }
+  const groupShading = CM.ViewPlugin.fromClass(class {
+    constructor(view) { this.decorations = groupDecos(view); }
+    update(u) { if (u.docChanged || u.viewportChanged) this.decorations = groupDecos(u.view); }
+  }, { decorations: (p) => p.decorations });
 
   // ---- changed lines: a dot beside each line that differs from the original text ----
   // The original is a second document (same chapter header lines); @codemirror/merge's Chunk works out which lines
@@ -340,7 +374,7 @@
       doc,
       extensions: [
         changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, lint, lintGutter(),
-        alignSlot.of(alignExt()),
+        alignSlot.of(alignExt()), groupShading,
         diffField.init((st) => { const o = CM.EditorState.create({ doc: original ?? doc }).doc; return { original: o, chunks: CM.Chunk.build(o, st.doc) }; }),
         ghostField,
         EditorView.updateListener.of((u) => {

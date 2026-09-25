@@ -169,6 +169,14 @@ try {
   const blanks = await (await shownPreview()).evaluate(() => document.querySelectorAll('.pagedjs_page .blank-line').length);
   await page.click('#undo'); await afterEdit();
   check(blanks === 2, 'three blank lines in a row: a block break and two empty lines in the pages', `${blanks} empty lines`);
+  // Keep together / Border groups are shaded in the text, a shade darker when one is inside another
+  await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, f = Editor.state.docMap[0].first; v.dispatch({ selection: { anchor: d.line(f + 12).from, head: d.line(f + 22).to }, scrollIntoView: true }); });
+  await page.click('#keep-together');
+  await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, f = Editor.state.docMap[0].first; v.dispatch({ selection: { anchor: d.line(f + 16).from, head: d.line(f + 18).to } }); });
+  await page.click('#add-border');
+  const shades = await page.evaluate(() => [...document.querySelectorAll('.cm-line')].map((l) => +((l.className.match(/cm-group-(\d)/) || [0, 0])[1])));
+  await page.click('#undo'); await page.click('#undo');
+  check(shades.filter((d) => d === 1).length >= 5 && shades.filter((d) => d === 2).length === 5 && await dots() === '', 'Keep together / Border groups shaded in the text, darker when nested', shades.join(''));
   // the header lines can't be edited away
   const before = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
   await page.evaluate(() => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: 'gone' } }); });
