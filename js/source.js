@@ -71,6 +71,9 @@
         await w.write(text);
         await w.close();
       },
+      async remove(path) {
+        try { const [dir, name] = await walk(path, false); await dir.removeEntry(name); } catch (e) { if (e.name !== "NotFoundError") throw e; }
+      },
     };
   }
 
@@ -160,6 +163,16 @@
         if (!r.ok) throw new SourceError(`GitHub said ${r.status} while saving ${path}`);
         shas[path] = (await r.json()).content.sha;
       },
+      // Deletes one file as a commit (nothing to do if it isn't there)
+      async remove(path, message) {
+        if (!(path in shas)) await this.get(path, true);
+        if (!shas[path]) return;
+        const r = await call(contents(path), { method: "DELETE", body: JSON.stringify({ message, sha: shas[path] }), headers: { "Content-Type": "application/json" } });
+        if (r.status === 409 || r.status === 422) throw new SourceError(`${path} was changed on GitHub by someone else since you opened it. Reload the page and try again.`);
+        if (r.status === 403) throw new SourceError("Your key can only read. Make a new key with Contents set to “Read and write”, click “Disconnect” at the top, and connect with the new one.");
+        if (!r.ok && r.status !== 404) throw new SourceError(`GitHub said ${r.status} while removing ${path}`);
+        shas[path] = null;
+      },
     };
   }
 
@@ -186,19 +199,27 @@
     return source;
   }
 
-  // A booklet = books/<name>.txt, a list of section files in order (// lines are comments)
+  // A booklet = books/<name>.txt, a list of chapter files in order (// lines are comments)
   const listNames = (listText) => listText.split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
   // "[contents]" in a booklet list = a table of contents made automatically (not a file)
   const CONTENTS_ENTRY = "[contents]";
   const contentsChapter = () => ({ name: CONTENTS_ENTRY, text: "[toc: -]\n[contents]\n", virtual: true });
+  // The original text (text/<name>) is never changed by the editor: edits are a parallel edition in
+  // edits/<name>. A chapter reads as its edited version when there is one, else the original.
+  const ORIGINAL = "text/", EDITION = "edits/";
+  async function loadChapter(source, name) {
+    const [original, edited] = await Promise.all([source.get(ORIGINAL + name, true), source.get(EDITION + name, true)]);
+    if (original === null && edited === null) throw new SourceError(`There is no chapter called ${name}`);
+    return { name, text: edited ?? original, original, edited: edited !== null };
+  }
   async function loadBook(source, bookName) {
     const listText = await source.get(`books/${bookName}.txt`);
-    const sections = await Promise.all(listNames(listText).map(async (name) =>
-      name === CONTENTS_ENTRY ? contentsChapter() : { name, text: await source.get("text/" + name) }));
+    const sections = await Promise.all(listNames(listText).map((name) =>
+      name === CONTENTS_ENTRY ? contentsChapter() : loadChapter(source, name)));
     // settings.css in the text repo = the settings saved from the editor (only the changed ones)
     const css = (await source.get(SETTINGS_FILE, true)) || "";
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, contentsChapter };
+  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, contentsChapter };
 })(window);

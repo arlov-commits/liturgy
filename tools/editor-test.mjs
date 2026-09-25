@@ -53,6 +53,13 @@ await ctx.route('https://api.github.com/**', async (route) => {
   if (!m) return json(404, {});
   if (m[1] === undefined) return json(200, { name: 'liturgy-text' });
   const rel = decodeURIComponent(m[1]), file = path.join(repo, rel);
+  if (req.method() === 'DELETE') {
+    const body = JSON.parse(req.postData());
+    if (!existsSync(file)) return json(404, {});
+    if (body.sha !== sha(readFileSync(file))) return json(409, {});
+    rmSync(file);
+    return json(200, {});
+  }
   if (req.method() === 'PUT') {
     if (auth === 'Bearer readonly') return json(403, {});
     const body = JSON.parse(req.postData());
@@ -108,8 +115,8 @@ try {
   await edit("return '// test edit\\n' + t"); await afterEdit();
   check((await page.textContent('#save')).includes('2 files'), 'unsaved changes are counted', await page.textContent('#save'));
   await page.keyboard.press('Control+s'); await saveDone();
-  check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// test edit') &&
-    readFileSync(path.join(repo, 'settings.css'), 'utf8').includes('--english-size: 12pt'), 'Ctrl+S saves text and settings to the repo');
+  check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'edits', first), 'utf8').startsWith('// test edit') && !readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// test edit') &&
+    readFileSync(path.join(repo, 'settings.css'), 'utf8').includes('--english-size: 12pt'), 'Ctrl+S saves text (as an edition — the original untouched) and settings');
 
   const line = await page.evaluate(() => { const d = Editor.state.text.view.state.doc; for (let i = 1; i < d.lines; i++) if (/[一-鿿]/.test(d.line(i).text) && !/[一-鿿]/.test(d.line(i + 1).text) && d.line(i + 1).text.trim()) return i + 1; });
   await page.evaluate((n) => { const v = Editor.state.text.view; const l = v.state.doc.line(n); const cut = l.text.lastIndexOf(' '); v.dispatch({ changes: { from: l.from + cut, to: l.to } }); }, line);
@@ -122,7 +129,16 @@ try {
   const cursor = await page.evaluate(() => { const v = Editor.state.text.view; return v.state.doc.lineAt(v.state.selection.main.head).number; });
   check(String(cursor) === target, 'clicking a verse in the pages opens its line', `${target} → ${cursor}`);
 
-  writeFileSync(path.join(repo, 'text', first), 'changed elsewhere\n');
+  // Revert to the original: the edition file goes, the original was never touched
+  await page.click('#tabs button[data-tab="book"]');
+  const tagged = await page.locator('#chapters li:has(.tag)').count();
+  await page.click(`#chapters li:has(.tag) button:has-text("Original")`);
+  await page.keyboard.press('Control+s'); await saveDone();
+  check(tagged === 1 && (await status()).startsWith('Saved') && !existsSync(path.join(repo, 'edits', first)) && (await page.locator('#chapters li:has(.tag)').count()) === 0,
+    'Original: puts the original text back and removes the edition file', `tagged ${tagged}`);
+  await page.click('#tabs button[data-tab="text"]');
+  await edit("return t + '\\n'"); await afterEdit(); await page.keyboard.press('Control+s'); await saveDone();
+  writeFileSync(path.join(repo, 'edits', first), 'changed elsewhere\n');
   await edit("return t + '\\n'"); await afterEdit();
   await page.click('#save'); await saveDone();
   check((await status()).includes('someone else'), 'never overwrites a newer change on GitHub');
@@ -133,7 +149,7 @@ try {
   check(/\d+ pages/.test(await status()), 'plain-text answers from GitHub (stale cache) still load', await status());
   await edit("return '// after raw read\\n' + t"); await afterEdit();
   await page.click('#save'); await saveDone();
-  check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// after raw read'),
+  check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'edits', first), 'utf8').startsWith('// after raw read'),
     '…and still save (version looked up first)', await status());
 
   // Booklet tab: a new blank booklet, built by adding existing chapters

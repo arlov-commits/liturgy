@@ -210,11 +210,17 @@
     return first ? first.replace(/^#+\s*/, "").replace(/[~\[\]]+/g, " ").replace(/\s+/g, " ").trim() : labelOf(name);
   };
   async function startText() {
-    state.textFiles = await state.source.list("text");   // [] when the source can't list folders
+    // every chapter there is: originals and chapters made in the editor (which live only in the edition)
+    // ([] when the source can't list folders)
+    state.textFiles = [...new Set([...(await state.source.list("text")), ...(await state.source.list("edits"))])];
     state.known = {};   // every chapter loaded or made, by name — taking one out and back keeps its edits
     for (const s of state.book.sections) addKnown(s);
     state.contents = { text: state.book.listText };
-    state.text = LiturgyText.build($("#cm"), $("#section"), () => { changed(); refresh(250); }, (e, line) => {
+    state.text = LiturgyText.build($("#cm"), $("#section"), (e) => {
+      changed();
+      refresh(250);
+      if (isEdited(e) !== e.shownEdited) renderChapters();   // the "edited" tag comes or goes
+    }, (e, line) => {
       state.cursor = { file: e.name, line };
       clearTimeout(state.cursorTimer);
       state.cursorTimer = setTimeout(followCursor, 250);
@@ -222,6 +228,15 @@
     state.text.setEntries(state.book.sections.filter((s) => !s.virtual));
     renderChapters();
     loadLibrary();
+  }
+  // A chapter differs from its original (or has none: made in the editor)
+  const isEdited = (s) => !!s && !s.virtual && (s.original == null || s.text !== s.original);
+  // Put the original text back (one undoable edit; saved as removing the edition file)
+  function revertChapter(name) {
+    const s = state.known[name];
+    if (!s || s.original == null) return;
+    state.text.setText(name, s.original);
+    renderChapters();
   }
   function addKnown(s) {
     s.label = s.virtual ? "Table of contents (made automatically)" : titleOf(s.text, s.name);
@@ -256,10 +271,10 @@
     for (const name of chapterNames()) {
       if (!state.known[name] && name === LiturgySource.CONTENTS_ENTRY) addKnown(LiturgySource.contentsChapter());
       if (!state.known[name]) {
-        const text = state.library[name] ?? await state.source.get("text/" + name, true).catch(() => null);
-        if (text === null) continue;
-        addKnown({ name, text });
-        state.saved["text/" + name] = text;
+        const ch = state.library[name] || await LiturgySource.loadChapter(state.source, name).catch(() => null);
+        if (!ch) continue;
+        addKnown({ ...ch });
+        state.saved[LiturgySource.EDITION + name] = ch.edited ? ch.text : null;
         if (!state.textFiles.includes(name)) state.textFiles.push(name);
       }
       if (!sections.includes(state.known[name])) sections.push(state.known[name]);
@@ -274,11 +289,12 @@
   state.library = {};
   async function loadLibrary() {
     const names = state.textFiles.filter((n) => n.endsWith(".txt"));
-    await Promise.all(names.map(async (n) => { state.library[n] = await state.source.get("text/" + n, true).catch(() => null); }));
+    await Promise.all(names.map(async (n) => { state.library[n] = await LiturgySource.loadChapter(state.source, n).catch(() => null); }));
     renderChapters();
   }
   function renderChapters() {
     const list = $("#chapters"), names = chapterNames();
+    for (const n of names) if (state.known[n]) state.known[n].shownEdited = isEdited(state.known[n]);
     list.textContent = "";
     names.forEach((name, i) => {
       const s = state.known[name];
@@ -287,6 +303,8 @@
       const move = (d) => { const n = [...names]; [n[i], n[i + d]] = [n[i + d], n[i]]; setChapters(n); };
       li.append(
         Object.assign(document.createElement("span"), { className: "title", textContent: s ? s.label : `${labelOf(name)} — missing: no chapter file with this name` }),
+        ...(isEdited(s) ? [Object.assign(document.createElement("span"), { className: "tag", textContent: "edited", title: "Changed from the original text" }),
+          btn("Original", "Put back the original text of this chapter (Save to keep that; Undo in the text to change your mind)", () => revertChapter(name))] : []),
         btn("Edit", "Open this chapter in the Text tab", () => jumpTo(name, 1), !s || s.virtual),
         btn("↑", "Move up", () => move(-1), i === 0),
         btn("↓", "Move down", () => move(1), i === names.length - 1),
@@ -303,7 +321,7 @@
     pick.append(Object.assign(document.createElement("option"), { value: "", textContent: "— choose a chapter —" }));
     const choices = Object.keys({ ...state.library, ...state.known }).filter((n) => !names.includes(n)).sort();
     for (const n of choices) {
-      const text = state.known[n] ? state.known[n].text : state.library[n];
+      const text = state.known[n] ? state.known[n].text : state.library[n] && state.library[n].text;
       pick.append(Object.assign(document.createElement("option"), { value: n, textContent: `${titleOf(text, n)}  (${labelOf(n)})` }));
     }
     $("#add-chapter-btn").disabled = true;
@@ -323,7 +341,7 @@
     const name = base + ".txt";
     if (state.known[name] || state.textFiles.includes(name) || name in state.library)
       return alert(`There is already a chapter called “${base}”. Pick another name, or add that chapter with “Add a chapter”.`);
-    addKnown({ name, text: `# ${title.toUpperCase()}\n\n` });
+    addKnown({ name, text: `# ${title.toUpperCase()}\n\n`, original: null, edited: true });
     await setChapters([...chapterNames(), name]);
     jumpTo(name, 3);
   }
@@ -368,7 +386,8 @@
   // Every file the editor can change, as it is now in memory
   function currentFiles() {
     const files = { [LiturgySource.SETTINGS_FILE]: state.book.css, [`books/${state.bookName}.txt`]: state.contents.text };
-    for (const s of state.book.sections) if (!s.virtual) files["text/" + s.name] = s.text;
+    // chapters: the edition file holds the text when it differs from the original; null = no edition file
+    for (const s of state.book.sections) if (!s.virtual) files[LiturgySource.EDITION + s.name] = isEdited(s) ? s.text : null;
     return files;
   }
   const unsaved = () => { const f = currentFiles(); return Object.keys(f).filter((p) => f[p] !== state.saved[p]); };
@@ -380,7 +399,10 @@
   function commitMessage(path) {
     if (path === LiturgySource.SETTINGS_FILE) return "Change booklet settings (from the editor)";
     if (path.startsWith("books/")) return `Change the chapters of booklet ${state.bookName} (from the editor)`;
-    return `${path in state.saved ? "Edit" : "Add"} ${path.replace(/^text\//, "")} (from the editor)`;
+    const name = path.slice(LiturgySource.EDITION.length), s = state.known[name];
+    if (currentFiles()[path] === null) return `Back to the original text of ${name} (from the editor)`;
+    if (s && s.original === null) return `${state.saved[path] == null ? "Add" : "Edit"} new chapter ${name} (from the editor)`;
+    return `Edit ${name} — edition, the original is kept (from the editor)`;
   }
   function download(path, text) {
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: path.split("/").pop() });
@@ -395,7 +417,10 @@
       for (const path of paths) {
         if (state.source.canSave) {
           $("#save").textContent = "Saving…";
-          await state.source.put(path, files[path], commitMessage(path));
+          if (files[path] === null) await state.source.remove(path, commitMessage(path));
+          else await state.source.put(path, files[path], commitMessage(path));
+        } else if (files[path] === null) {
+          continue;   // (nothing to hand over: the edition file just isn't needed any more)
         } else {
           // Working from a local folder: hand the file over to put in the folder by hand
           download(path, files[path]);

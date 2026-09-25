@@ -35,6 +35,7 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #chapters li { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid #eee; }
 #chapters li .title { flex: 1; min-width: 0; }
 #chapters li.missing .title { color: #b00; }
+.tag { font-size: 11px; background: #fff0c2; color: #7a5200; border-radius: 8px; padding: 0 6px; }
 #chapters li button { padding: 1px 7px; font-size: 13px; }
 #tab-book .add { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; }
 #tab-book .add .row { display: flex; gap: 6px; margin-top: 4px; }

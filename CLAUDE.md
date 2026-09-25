@@ -12,6 +12,10 @@ It will be used by a **non-technical editor**. Every feature must be usable with
   `../liturgy-text/`. Layout there: `text/*.txt` (one file per liturgical section — Excel tabs were
   merged; `// ====== from Excel …` comments mark the old tab boundaries), `books/*.txt`
   (a booklet = a list of section files in order), `tools/` (the Excel converter).
+- **The editor never writes `text/`** — that's the original (baseline). Edits are a parallel edition in
+  `edits/<name>.txt` (only for chapters that differ; chapters made in the editor live only there). A chapter reads
+  as its edition when there is one (`source.js loadChapter`); "Original" in the Booklet tab puts the original back,
+  and saving then deletes the edition file.
 
 ## Non-negotiable rule: use existing libraries, don't hand-roll
 The owner was burned by a hand-built editor (bold toggling nested `<b><b>` instead of unbolding).
