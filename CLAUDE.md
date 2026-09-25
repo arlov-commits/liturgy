@@ -114,7 +114,8 @@ The pages swap in early only once the new layout reaches the place the current p
 - **Font vetting:** Fontsource's Tinos and Noto Serif TC draw ō ū ā with a *detached* macron.
   Pinyin uses Gentium Book Plus (SIL) — verified correct for all tone marks incl. ǖ ǘ ǚ ǜ.
   Any new pinyin/English font must pass the tone-mark render check before adoption.
-- No manual page breaks: pages break by themselves. `[keep together]` spans are planned in `preview.html`
+- Pages break by themselves, plus: a `#` title further down a chapter starts a new page (`--title-start`, parse.js
+  class `title-break`; not a title right under another title block, nor a run-on one), and `[new page]` (New page button). `[keep together]` spans are planned in `preview.html`
   (`planKeeps`: one page, shrunk if needed, else a spread; even page counts start on a left page via
   `break-before: left`, which makes Paged.js add a blank page). `editor.js improveLayout()` re-runs the layout
   hidden (≤4 passes) when a span took more pages than measured, or to move the blank page to the chapter end

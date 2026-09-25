@@ -73,6 +73,10 @@ a.toc-page::after { content: target-counter(attr(href), page); }
 .pageref { color: inherit; text-decoration: none; }
 a.pageref::after { content: target-counter(attr(href), page); }
 
+/* a # title further down a chapter (setting "titles start"); [new page] */
+.block.title-break { break-before: var(--title-start); }
+.page-break { break-before: page; height: 0; }
+
 /* a block followed straight away by a title with no blank line between (see FORMAT.md): no gap */
 .block.run-on { margin-bottom: 0; }
 .block {

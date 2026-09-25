@@ -14,7 +14,8 @@ A booklet is a list in `books/<name>.txt`: the chapter file names, in order, one
 
 ## Blocks
 
-A `#` title line right under other lines (no blank line between) starts a new block there: the lines above keep
+A `#` title further down a chapter starts a new page (Settings → Page layout → “Title start”; not one right
+under another title block). A `#` title line right under other lines (no blank line between) starts a new block there: the lines above keep
 their own style and the title follows with no space above it. The editor marks it, in case a blank line was meant.
 
 A **blank line** separates blocks; each further blank line in a row adds one line of empty space on the page
@@ -46,6 +47,7 @@ qí shù jǐ gū dú yuán
 | `> ` | small note line — leader instructions ("The Leader says:"), Sanskrit equivalents, "Proceed to…" |
 | `[keep together]` … `[/keep together]` | keep the lines between on one page (each marker on its own line; the editor's **Keep together** button adds them). If they don't fit a page even shrunk (not below the “fit smallest” setting), they run over pages: an even number of pages starts on a left-hand page so the pages face each other; an odd number may start on either side. A blank page is added where needed — just before, or at the end of the chapter before (setting “blank page”). |
 | `[border]` … `[/border]` | a box around the lines between (the editor's **Border** button adds the markers). Line thickness, style, colour, padding, rounded corners and spacing are in Settings → Borders. Kept on one page unless taller than a page. Spans may be put inside one another — a border inside a keep together, or a keep together inside a longer keep together (the inner group stays on one page, or on facing pages if too long, within the longer span) — but must be closed in reverse order. |
+| `[new page]` | start a new page here (the editor's **New page** button adds it) |
 | `[blank page]` | a page left empty on purpose (e.g. at the start of the book) |
 | `//` | comment — never printed |
 

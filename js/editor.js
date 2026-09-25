@@ -714,6 +714,15 @@
   }
   $("#keep-together").onclick = () => wrapSelection("keep together", "keep together");
   $("#add-border").onclick = () => wrapSelection("border", "put in a border");
+  // New page: a [new page] line above the line with the cursor
+  $("#new-page").onclick = () => {
+    const v = state.text && state.text.view;
+    if (!v) return;
+    const line = v.state.doc.lineAt(v.state.selection.main.head);
+    if (LiturgyText.isSep(line.text)) return;
+    v.dispatch({ changes: { from: line.from, insert: "[new page]\n" }, annotations: state.text.label.of(`New page — ${navLabel(chapterAt(line.number).name)}, line ${line.number - chapterAt(line.number).first + 1}`) });
+    v.focus();
+  };
 
   // pinyin lined up under the characters in the text editor: off unless switched on (remembered per browser)
   try { $("#align-pinyin").checked = localStorage.getItem("liturgy.alignPinyin") === "1"; } catch {}

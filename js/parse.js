@@ -10,7 +10,7 @@
   // They may be put inside one another (also the same kind), but must be closed in the reverse order.
   const SPANS = { "keep together": "keep", "one page": "keep", border: "bordered" };
   const SPAN_MARK = /^\[(\/?)(keep together|one page|border)\]$/i;
-  const BLANK_PAGE = /^\[blank page\]$/i;
+  const BLANK_PAGE = /^\[blank page\]$/i, NEW_PAGE = /^\[new page\]$/i;
   const CONTENTS = /^\[contents\]$/i, CONTENTS_END = /^\[\/contents\]$/i, TOC_TITLE = /^\[toc:\s*(.*?)\s*\]$/i;
   // ASCII punctuation inside a Chinese line is shown as its full-width form
   const FULL_WIDTH = { ",": "，", ".": "。", "!": "！", "?": "？", ":": "：", ";": "；" };
@@ -74,6 +74,10 @@
       if (block.level === 2) cls.push("subtitle");
       if (block.mantra) cls.push("mantra");
       if (block.runOn) cls.push("run-on");
+      // a # title further down a chapter starts a new page (setting "titles start") — not one right under another
+      // title block, nor one that runs on from the text above it
+      if (block.level === 1 && blocks > 0 && lastLevel !== 1 && !lastRunOn) cls.push("title-break");
+      lastLevel = block.level; lastRunOn = !!block.runOn;
       // a [toc: …] partway through the chapter: an extra contents entry, pointing at this block
       const entry = pendingEntry ? ` id="${anchor(name || "")}-l${block.start}" data-toc-entry="${esc(pendingEntry)}"` : "";
       pendingEntry = null;
@@ -84,7 +88,7 @@
       block = null;
     };
     const open = (n) => (block = block || { html: [], en: [], level: 0, mantra: false, start: n + 1 });
-    let tocTitle = null, pendingEntry = null, blocks = 0;
+    let tocTitle = null, pendingEntry = null, blocks = 0, lastLevel = 0, lastRunOn = false;
 
     const open_ = [];   // spans ([keep together], [border]) not closed yet
     let blankRun = 0, mostBlank = 0;   // blank lines in a row just before this one; the longest such row since the last text
@@ -133,9 +137,10 @@
         continue;
       }
       if (BLANK_PAGE.test(line)) { close(); out.push('<div class="blank-page"></div>'); continue; }
+      if (NEW_PAGE.test(line)) { close(); out.push('<div class="page-break"></div>'); lastLevel = 0; continue; }
       if (line === "---") {
         // page breaks are automatic now
-        problems.push({ line: n + 1, severity: "warning", message: "Page breaks are automatic — this line is ignored. To keep lines on one page (or on facing pages), use Keep together." });
+        problems.push({ line: n + 1, severity: "warning", message: "This line is ignored — for a page break of your own, use [new page] (the New page button). To keep lines on one page (or on facing pages), use Keep together." });
         continue;
       }
       // a title (#) right under other lines, with no blank line between: it starts a new block there (the lines

@@ -150,6 +150,23 @@ try {
   });
   check(sides.length > 4 && sides.every((x) => x === 'ok'), 'letter sheets: page numbers in the outside corner (right-hand pages on the right)', sides.join(' '));
 
+  // a # title further down a chapter starts a new page (default); "straight after the text before" lets it run on
+  const titleTops = async () => (await shownPreview()).evaluate(() => [...document.querySelectorAll('.pagedjs_page')].filter((p) => p.querySelector('.pagedjs_page_content .title-break')).length);
+  await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, f = Editor.state.docMap[0].first;
+    for (let i = f + 30; i < f + 200; i++) if (!d.line(i - 1).text.trim() && /^[A-Z]/.test(d.line(i).text)) { v.dispatch({ changes: { from: d.line(i).from, insert: '# A TITLE PARTWAY\n\n' } }); return; } });
+  await afterEdit();
+  const pagesBreaking = +((await status()).match(/(\d+) pages/) || [])[1];
+  const breaksOn = await titleTops();
+  // (first on its page, and marked by Paged.js to break before it)
+  const titleFirst = () => shownPreview().then((f) => f.evaluate(() => [...document.querySelectorAll('.pagedjs_page_content .title-break')].every((b) =>
+    b.closest('.pagedjs_page_content').querySelector('.block') === b && b.dataset.breakBefore === 'page')));
+  const firstOnPage = await titleFirst();
+  await openSettings(); await page.selectOption('#set--title-start', 'auto'); await closeSettings(); await afterEdit();
+  const firstRunOn = await titleFirst();
+  await openSettings(); await page.selectOption('#set--title-start', 'page'); await closeSettings(); await afterEdit();
+  await page.click('#undo'); await afterEdit();
+  check(breaksOn > 0 && firstOnPage && !firstRunOn, '# titles start a new page (setting: or run on)', `${breaksOn} title page(s) of ${pagesBreaking}; first on page: ${firstOnPage} / run on: ${firstRunOn}`);
+
   // zoom: the pages get bigger or smaller, the layout (page count) stays the same, and a new layout keeps the zoom
   await page.click('#zoom-in'); await page.click('#zoom-in');
   const zoomed = [await page.textContent('#zoom-reset'), await page.evaluate(() => Math.round(document.querySelector('#preview iframe:not(.loading)').getBoundingClientRect().width / document.querySelector('#preview').clientWidth * 100))];
