@@ -377,13 +377,13 @@
     const problems = LiturgyParse.check(text);
     text.split("\n").forEach((line, i) => {
       for (const ref of LiturgyParse.pageRefs(line)) {
-        if (!here.has(ref)) problems.push({ line: i + 1, severity: "error", message: `“${ref}” is not a chapter of this booklet, so its page can't be found. Add that chapter in the Booklet tab, or check the name.` });
+        if (!here.has(ref)) problems.push({ line: i + 1, severity: "error", message: `“${ref}” is not a chapter of this booklet, so its page can't be found. Add that chapter in the Chapters tab, or check the name.` });
       }
     });
     return problems;
   }
 
-  // ---- the Booklet tab: which chapters, in which order ----
+  // ---- the Chapters tab: which chapters, in which order ----
   const chapterNames = () => LiturgySource.listNames(state.contents.text);
   // Rewrites the list file: keeps its opening // comment lines, then one chapter per line
   async function setChapters(names) {
@@ -431,7 +431,6 @@
         Object.assign(document.createElement("span"), { className: "title", textContent: s ? s.label : `${labelOf(name)} — missing: no chapter file with this name` }),
         ...(isEdited(s) ? [Object.assign(document.createElement("span"), { className: "tag", textContent: "edited", title: "Changed from the original text" }),
           btn("Original", "Put back the original text of this chapter (Save to keep that; Undo in the text to change your mind)", () => revertChapter(name))] : []),
-        btn("Edit", "Open this chapter in the Text tab", () => jumpTo(name, 1), !s || s.virtual),
         btn("↑", "Move up", () => move(-1), i === 0),
         btn("↓", "Move down", () => move(1), i === names.length - 1),
         btn("Remove", "Take this chapter out of the booklet (the chapter itself is kept)", () => setChapters(names.filter((_, j) => j !== i))),
@@ -485,8 +484,8 @@
   $("#keep-together").onclick = () => wrapSelection("keep together", "keep together");
   $("#add-border").onclick = () => wrapSelection("border", "put in a border");
 
-  // pinyin lined up under the characters in the text editor: on unless switched off (remembered per browser)
-  try { $("#align-pinyin").checked = localStorage.getItem("liturgy.alignPinyin") !== "0"; } catch {}
+  // pinyin lined up under the characters in the text editor: off unless switched on (remembered per browser)
+  try { $("#align-pinyin").checked = localStorage.getItem("liturgy.alignPinyin") === "1"; } catch {}
   $("#align-pinyin").onchange = () => {
     try { localStorage.setItem("liturgy.alignPinyin", $("#align-pinyin").checked ? "1" : "0"); } catch {}
     LiturgyText.setAligning($("#align-pinyin").checked, state.text && state.text.view);

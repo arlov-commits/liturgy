@@ -85,6 +85,8 @@ const status = () => page.textContent('#status');
 const settled = () => page.waitForFunction(() => { const s = document.querySelector('#status').textContent; return !/Updating|Loading|Saving/.test(s) && s.length > 0; }, null, { timeout: 60000 });
 const saveDone = () => page.waitForFunction(() => /^(Saved|Not saved|Downloaded)/.test(document.querySelector('#status').textContent), null, { timeout: 30000 });
 const afterEdit = async () => { await page.waitForTimeout(1200); await settled(); };
+const openSettings = () => page.click('#tabs button[data-tab="settings"]');
+const closeSettings = () => page.click('#tabs button[data-tab="text"]');
 const preview = () => page.frames().find((f) => f.url().includes('preview.html'));
 // changes the text of the first chapter in the editor (which holds the whole booklet)
 const edit = (fn) => page.evaluate((fn) => {
@@ -123,7 +125,9 @@ try {
   const before = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
   await page.evaluate(() => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: 'gone' } }); });
   check(await page.evaluate((b) => Editor.state.text.view.state.doc.toString() === b, before), 'chapter title bars can\'t be deleted');
-  // pinyin lined up under the characters in the text: each syllable centred under its character
+  // pinyin lined up under the characters in the text (off until switched on in Settings): each syllable centred under its character
+  const offAtFirst = await page.locator('.cm-col').count();
+  await openSettings(); await page.check('#align-pinyin'); await closeSettings();
   const align = await page.evaluate(() => {
     const mid = (e) => { const r = e.getBoundingClientRect(); return r.left + r.width / 2; };
     const lines = [...document.querySelectorAll('.cm-line')];
@@ -134,11 +138,9 @@ try {
     }
     return [0, 99];
   });
-  check(align[0] > 0 && align[1] < 1.5, 'text editor: pinyin lined up under the characters', `${align[0]} columns, off by ${align[1].toFixed(2)}px at most`);
-  await page.click('#tabs button[data-tab="settings"]'); await page.uncheck('#align-pinyin');
-  const off = await page.locator('.cm-col').count();
-  await page.check('#align-pinyin'); await page.click('#tabs button[data-tab="text"]');
-  check(off === 0 && await page.locator('.cm-col').count() > 0, 'lining up can be switched off in Settings');
+  check(offAtFirst === 0 && align[0] > 0 && align[1] < 1.5, 'text editor: pinyin lined up under the characters when switched on', `${align[0]} columns, off by ${align[1].toFixed(2)}px at most`);
+  await openSettings(); await page.uncheck('#align-pinyin'); await closeSettings();
+  check(await page.locator('.cm-col').count() === 0, '…and off again');
   // contents list: a chapter link jumps to its text and is marked as the place you're at
   const navCount = await page.locator('#toc-nav a.nav-l0').count();
   await page.locator('#toc-nav a.nav-l0').nth(1).click(); await page.waitForTimeout(300);

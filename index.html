@@ -54,7 +54,7 @@
   <nav id="toc-nav" aria-label="Contents of the booklet"></nav>
   <aside id="panel">
     <nav id="tabs">
-      <button type="button" data-tab="book">Booklet</button>
+      <button type="button" data-tab="book">Chapters</button>
       <button type="button" data-tab="text" class="on">Text</button>
       <button type="button" data-tab="settings">Settings</button>
       <button type="button" data-tab="print">Print</button>
@@ -73,12 +73,10 @@
       <p class="hint">A chapter can be in several booklets. Editing it changes it in all of them.</p>
     </div>
     <div id="tab-text" class="tab">
-      <div class="row"><span class="hint grow">The whole booklet, chapter after chapter. Jump to a place with the contents list on the left.</span>
-        <button type="button" class="new-chapter" title="Make a new chapter and add it to the end of this booklet">New chapter…</button></div>
       <div id="cm"></div>
-      <div class="row"><button type="button" id="keep-together" title="Select lines in the text, then click: they stay on one page — or, if too long, on facing pages">Keep together</button>
-        <button type="button" id="add-border" title="Select lines in the text, then click: they get a box around them (style in Settings → Borders)">Border</button>
-        <span class="hint">select lines, then click</span></div>
+      <div class="row"><button type="button" id="keep-together" title="Highlight lines in the text, then click: they stay on one page — or, if too long, on facing pages">Keep together</button>
+        <button type="button" id="add-border" title="Highlight lines in the text, then click: they get a box around them (style in Settings → Borders)">Border</button>
+        <span class="hint">highlight a selection, then click</span></div>
       <p class="hint">Blank line = new block · <b># </b>title · <b>## </b>small heading · <b>&gt; </b>small note ·
         <b>//</b> comment (not printed) · pages break by themselves · <a href="https://github.com/arlov-commits/liturgy/blob/main/FORMAT.md" target="_blank" rel="noopener">full guide</a></p>
     </div>
@@ -86,7 +84,7 @@
       <div id="settings-book"></div>
       <fieldset id="settings-editor">
         <legend>The text editor (this browser only — not part of the booklet)</legend>
-        <label class="setting-check"><input type="checkbox" id="align-pinyin" checked> Line up pinyin under the characters</label>
+        <label class="setting-check"><input type="checkbox" id="align-pinyin"> Line up pinyin under the characters</label>
         <div class="hint">Each syllable is shown under its character, as in the pages. Only the look of the text
           editor changes — the text is saved with single spaces as always.</div>
         <label class="setting-check"><input type="checkbox" id="suggest"> Suggest pinyin readings</label>

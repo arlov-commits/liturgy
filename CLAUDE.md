@@ -14,7 +14,7 @@ It will be used by a **non-technical editor**. Every feature must be usable with
   (a booklet = a list of section files in order), `tools/` (the Excel converter).
 - **The editor never writes `text/`** — that's the original (baseline). Edits are a parallel edition in
   `edits/<name>.txt` (only for chapters that differ; chapters made in the editor live only there). A chapter reads
-  as its edition when there is one (`source.js loadChapter`); "Original" in the Booklet tab puts the original back,
+  as its edition when there is one (`source.js loadChapter`); "Original" in the Chapters tab puts the original back,
   and saving then deletes the edition file.
 
 ## Non-negotiable rule: use existing libraries, don't hand-roll
@@ -34,7 +34,7 @@ Current choices:
 | Remembering a picked folder | **idb-keyval** (vendored) | stores the folder handle in IndexedDB |
 
 Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
-`js/editor.js` (the editor page, incl. the Booklet tab), `js/texttab.js` / `js/settings.js` (Text and Settings tabs) and wiring.
+`js/editor.js` (the editor page, incl. the Chapters tab), `js/texttab.js` / `js/settings.js` (Text and Settings tabs) and wiring.
 In the UI a section file is a **chapter**; a booklet is built by adding existing chapters (shared between booklets) or new ones.
 The Text tab's colouring repeats `parse.js`'s line rules — keep them in step with FORMAT.md.
 The Text tab is **one editor holding the whole booklet**: each chapter follows a header line (`LiturgyText.SEP`
@@ -46,7 +46,7 @@ scrolled by hand — `preview.html` reports it via `Editor.previewScrolled`) is 
 Pinyin is lined up under the characters in the editor by a display-only layer (`texttab.js alignDecos`: each
 character and its syllable become inline-block columns of equal, canvas-measured width; spaces in the pinyin line
 take no room; punctuation gets an empty column), so both lines wrap at the same places. The text keeps single
-spaces. Visible lines only (~1 ms a keystroke). Switch: Settings → The text editor (per browser).
+spaces. Visible lines only (~1 ms a keystroke). Off by default; switch: Settings → The text editor (per browser).
 
 ## Pages
 - `index.html` — the editor: top bar, panels, and the pages in a frame. **Two** preview frames take turns: the next
@@ -124,7 +124,7 @@ One item at a time, one commit per item. Brief, plain-language summaries.
 1. ✅ Text format + converter — whole workbook converted and verified; one file per liturgical section (15), not per Excel tab
 2. ✅ Renderer: pick engine ✅ (Paged.js); outside page numbers ✅, binding margin ✅, Chinese-closer-to-pinyin knob ✅; "keep together" ✅ (`[keep together]`…, one page or facing pages, blank pages placed by setting); TOC with automatic page numbers ✅ (`[contents]`, `[toc: …]`); automatic cross-references ✅ (`[page of <section>]`)
 3. Editor ✅: CodeMirror text tab + pinyin checks, settings tab, live preview, click-to-edit, save to the private repo via GitHub key; "use a folder on this computer" ✅ (File System Access API, Chrome/Edge);
-4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, Booklet tab: add existing chapters / reorder / remove ✅, new booklet / new chapter ✅)
+4. Booklets: `books/*.txt` lists → separate booklets with their own page numbers (picker ✅, Chapters tab: add existing chapters / reorder / remove ✅, new booklet / new chapter ✅)
 5. Print: letter sheets, 4-up, duplex ✅ (Print… prints them directly; per-sheet order 2 3 / 6 7 — 4 1 / 8 5); PWA shell ✅
 6. ✅ Convert the remaining sheets (done with the converter in liturgy-text/tools)
 7. ✅ Bundle an Ext-B font for 𤙖 (Jigmo2)

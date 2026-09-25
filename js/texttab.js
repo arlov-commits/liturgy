@@ -81,7 +81,7 @@
   // its syllable are drawn as columns of the same width (the wider of the two), punctuation gets an empty column in
   // the pinyin line, and spaces in the pinyin line take no room — so both lines wrap at the same places.
   const IDEO = /[㐀-䶿一-鿿豈-﫿]|[\u{20000}-\u{2ffff}]/u;
-  let aligning = true;
+  let aligning = false;
   const alignSlot = new CM.Compartment(), remeasure = CM.StateEffect.define();
   const ruler = document.createElement("canvas").getContext("2d");
   let rulerFont = "", widths = new Map();
