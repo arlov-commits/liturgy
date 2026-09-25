@@ -203,7 +203,10 @@
   }
 
   // A booklet = books/<name>.txt, a list of chapter files in order (// lines are comments)
-  const listNames = (listText) => listText.split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"));
+  // A line may give the chapter a name for this booklet's contents list: "01-traditions.txt = Traditions"
+  const listEntries = (listText) => listText.split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("//"))
+    .map((s) => { const i = s.indexOf(" = "); return i < 0 ? { name: s } : { name: s.slice(0, i).trim(), alias: s.slice(i + 3).trim() }; });
+  const listNames = (listText) => listEntries(listText).map((e) => e.name);
   // "[contents]" in a booklet list = a table of contents made automatically. It can be edited like a chapter
   // (a title above the list, a note below…); the edited text is kept per booklet in books/contents/<booklet>.txt.
   const CONTENTS_ENTRY = "[contents]", CONTENTS_TEXT = "[toc: -]\n[contents]\n";
@@ -229,5 +232,5 @@
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile };
+  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile };
 })(window);

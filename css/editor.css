@@ -52,6 +52,10 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #toc-nav a.nav-l0 { padding-top: 5px; padding-bottom: 5px; }
 #toc-nav a.here { background: #fff0c2; border-left-color: #8a5a00; color: #000; }
 #toc-nav a .tag { margin-left: 6px; }
+#toc-nav a { position: relative; padding-right: 26px; }
+#toc-nav a .rename { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: 0; background: none; padding: 0 4px;
+  font-size: 13px; color: #8a5a00; opacity: 0; }
+#toc-nav a:hover .rename, #toc-nav a .rename:focus { opacity: 1; }
 
 /* Booklet tab */
 #tab-book h3 { margin: 8px 0; font-size: 15px; }

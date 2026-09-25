@@ -331,7 +331,7 @@ try {
   const navCount = await page.locator('#toc-nav a.nav-l0').count();
   await page.locator('#toc-nav a.nav-l0').nth(1).click(); await page.waitForTimeout(300);
   const nav = await page.evaluate(() => { const v = Editor.state.text.view, n = v.state.doc.lineAt(v.state.selection.main.head).number;
-    const here = document.querySelector('#toc-nav a.here'); return [n, Editor.state.docMap[1].first, here && here.textContent, Editor.state.docMap[1].name.replace(/\.txt$/, '')]; });
+    const here = document.querySelector('#toc-nav a.here .label'); return [n, Editor.state.docMap[1].first, here && here.textContent, Editor.state.docMap[1].name.replace(/\.txt$/, '')]; });
   check(navCount === heads[0] && nav[0] === nav[1] && nav[2] === nav[3], 'contents list: chapter file names; jumps to a chapter and marks it', nav.join(' | '));
   // (pages still being laid out: a spinner shows until the chapter is there, then it jumps)
   await (await shownPreview()).waitForFunction(() => document.getElementById('jumping').hidden, null, { timeout: 30000 });
@@ -339,6 +339,16 @@ try {
     const top = Math.round(s.closest('.pagedjs_page').getBoundingClientRect().top), atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
     return Math.abs(top) < 5 || (atEnd && top > 0 && top < innerHeight) ? 'ok' : `top at ${top}px`; }, nav[3] + '.txt');
   check(pageTop === 'ok', '…and shows the page it starts on at the top of the pages', pageTop);
+  // a chapter can be renamed in the contents list (kept in the booklet's list; the chapter file keeps its name)
+  page.once('dialog', (d) => d.accept('My short name'));
+  await page.locator('#toc-nav a.nav-l0').nth(0).hover(); await page.locator('#toc-nav a.nav-l0').nth(0).locator('.rename').click();
+  await page.evaluate(() => Editor.state.text.goto(1, false)); await page.waitForTimeout(150);
+  const renamed = [await page.locator('#toc-nav a.nav-l0 .label').nth(0).textContent(), await page.evaluate(() => Editor.state.contents.text), await page.textContent('.cm-chapter-head[data-name="03-amitabha-sutra.txt"] .t')];
+  page.once('dialog', (d) => d.accept(''));
+  await page.locator('#toc-nav a.nav-l0').nth(0).dblclick();
+  const unnamed = await page.evaluate(() => Editor.state.contents.text);
+  check(renamed[0] === 'My short name' && /03-amitabha-sutra\.txt = My short name/.test(renamed[1]) && renamed[2] === 'My short name' && !/=/.test(unnamed),
+    'contents list: rename a chapter for this booklet (and back)', renamed[0]);
   await edit("return '// test edit\\n' + t"); await afterEdit();
   check((await page.textContent('#save')).includes('2 files'), 'unsaved changes are counted', await page.textContent('#save'));
   const printX = await page.evaluate(() => Math.round(document.querySelector('#print').getBoundingClientRect().left));

@@ -383,7 +383,8 @@
     const s = state.known[name];
     const el = document.createElement("div");
     el.className = "cm-chapter-head";
-    el.append(Object.assign(document.createElement("span"), { className: "t", textContent: s ? s.label : name }),
+    el.dataset.name = name;
+    el.append(Object.assign(document.createElement("span"), { className: "t", textContent: chapterAliases()[name] || (s ? s.label : name) }),
       Object.assign(document.createElement("span"), { className: "f", textContent: s && s.virtual ? "kept with this booklet" : labelOf(name) }));
     if (isEdited(s)) el.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
     return el;
@@ -399,16 +400,22 @@
   }
 
   // ---- the contents list (left): the chapters, by file name; click to go there (text and pages) ----
-  const navLabel = (name) => (name === LiturgySource.CONTENTS_ENTRY ? "Table of contents" : labelOf(name));
+  const navLabel = (name) => (state.contents && chapterAliases()[name]) || (name === LiturgySource.CONTENTS_ENTRY ? "Table of contents" : labelOf(name));
   function renderNav() {
     const nav = $("#toc-nav");
     nav.textContent = "";
     nav.append(Object.assign(document.createElement("div"), { className: "nav-top", textContent: "Contents" }));
     for (const s of state.book.sections) {
       const m = (state.docMap || []).find((x) => x.name === s.name);
-      const a = Object.assign(document.createElement("a"), { href: "#", className: "nav-l0", textContent: navLabel(s.name), title: s.label });
+      const a = Object.assign(document.createElement("a"), { href: "#", className: "nav-l0", title: s.label });
+      a.append(Object.assign(document.createElement("span"), { className: "label", textContent: navLabel(s.name) }));
       if (m) a.dataset.line = m.first;
       if (isEdited(s)) a.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
+      const pen = Object.assign(document.createElement("button"), { type: "button", className: "rename", textContent: "✎",
+        title: "Rename in this booklet's contents list (double-click the name does it too)" });
+      pen.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); renameChapter(s.name); };
+      a.append(pen);
+      a.ondblclick = (ev) => { ev.preventDefault(); renameChapter(s.name); };
       a.onclick = (ev) => {
         ev.preventDefault();
         if (frame && frame.contentWindow.showChapter) frame.contentWindow.showChapter(s.name);
@@ -559,10 +566,25 @@
   // ---- the Chapters tab: which chapters, in which order ----
   const chapterNames = () => LiturgySource.listNames(state.contents.text);
   // Rewrites the list file: keeps its opening // comment lines, then one chapter per line
-  async function setChapters(names) {
+  async function setChapters(names, aliases = chapterAliases()) {
     const head = state.contents.text.split("\n").filter((l, i, all) => l.trim().startsWith("//") && all.slice(0, i).every((x) => x.trim().startsWith("//")));
-    state.contents.text = [...head, ...names].join("\n") + "\n";
+    state.contents.text = [...head, ...names.map((n) => (aliases[n] ? `${n} = ${aliases[n]}` : n))].join("\n") + "\n";
     await updateSections();
+  }
+  // the names chapters are shown under in this booklet's contents list (kept in the booklet's list file)
+  const chapterAliases = () => Object.fromEntries(LiturgySource.listEntries(state.contents.text).filter((e) => e.alias).map((e) => [e.name, e.alias]));
+  function renameChapter(name) {
+    const aliases = chapterAliases(), now = aliases[name] || "";
+    const answer = prompt(`Name for “${labelOf(name)}” in this booklet's contents list (the chapter file keeps its name).\nLeave it empty to show the file name.`, now || labelOf(name));
+    if (answer === null) return;
+    const alias = answer.trim() === labelOf(name) ? "" : answer.trim().replace(/\s+/g, " ");
+    if (alias === now) return;
+    if (alias) aliases[name] = alias; else delete aliases[name];
+    const head = state.contents.text.split("\n").filter((l, i, all) => l.trim().startsWith("//") && all.slice(0, i).every((x) => x.trim().startsWith("//")));
+    state.contents.text = [...head, ...chapterNames().map((n) => (aliases[n] ? `${n} = ${aliases[n]}` : n))].join("\n") + "\n";
+    changed();
+    renderNav();
+    state.text.refreshHeaders();
   }
   // Loads any newly listed chapters, then shows the new set
   async function updateSections() {
