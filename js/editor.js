@@ -566,6 +566,23 @@
   };
   $("#print").onclick = printSheets;
 
+  // The contents list and the panel can be made wider or narrower by dragging the bars between them
+  // (Split.js). Sizes are remembered in this browser. Not on narrow screens, where the panel sits above the pages.
+  function startSplit() {
+    if (typeof Split !== "function" || !matchMedia("(min-width: 901px)").matches) return;
+    let sizes = null;
+    try { sizes = JSON.parse(localStorage.getItem("liturgy.panelSizes")); } catch {}
+    if (!Array.isArray(sizes) || sizes.length !== 3) {
+      const w = $("#app").clientWidth, nav = (220 / w) * 100, panel = (470 / w) * 100;
+      sizes = [nav, panel, 100 - nav - panel];
+    }
+    $("#app").classList.add("split");
+    Split(["#toc-nav", "#panel", "#preview"], {
+      sizes, minSize: [120, 300, 250], gutterSize: 7, snapOffset: 0,
+      onDragEnd: (s) => { try { localStorage.setItem("liturgy.panelSizes", JSON.stringify(s)); } catch {} },
+    });
+  }
+
   async function start() {
     try {
       state.source = await LiturgySource.open(q, state.bookName);
@@ -583,6 +600,7 @@
     state.saved = currentFiles();
     changed();
     $("#app").hidden = false;
+    startSplit();
     render();
   }
 

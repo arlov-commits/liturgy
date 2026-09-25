@@ -108,6 +108,16 @@ try {
   const pages = +((await status()).match(/(\d+) pages/) || [])[1];
   check(pages > 0 && !(await status()).includes('problem'), 'good key: booklet renders', await status());
 
+  // the contents list and the panel can be dragged wider
+  const widths = () => page.evaluate(() => ['#toc-nav', '#panel'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().width)));
+  const [navW, panelW] = await widths();
+  for (const [k, dx] of [[0, 80], [1, 120]]) {
+    const g = await page.locator('#app > .gutter').nth(k).boundingBox();
+    await page.mouse.move(g.x + 3, g.y + 200); await page.mouse.down(); await page.mouse.move(g.x + 3 + dx, g.y + 200, { steps: 5 }); await page.mouse.up();
+  }
+  const [navW2, panelW2] = await widths();
+  check(Math.abs(navW2 - navW - 80) < 4 && Math.abs(panelW2 - (panelW - 80 + 120)) < 4, 'contents list and panel can be dragged wider', `${navW}→${navW2}, ${panelW}→${panelW2}`);
+
   await page.click('#tabs button[data-tab="settings"]');
   await page.fill('#set--english-size', '12'); await afterEdit();
   const bigger = +((await status()).match(/(\d+) pages/) || [])[1];

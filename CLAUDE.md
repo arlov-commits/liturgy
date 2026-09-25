@@ -32,6 +32,7 @@ Current choices:
 | Letter-sheet imposition | none needed: the Paged.js pages are copied into a 2 × 2 letter-sheet grid and printed with `@page { size: letter }` | Order in `js/impose.js`, per sheet of 8 pages: front 2 3 / 6 7, back 4 1 / 8 5 (duplex, flip on long edge); cut in four, stack in page order. Each copy gets `counter-reset: page n−1` so page numbers stay right. (Replaced the earlier save-PDF-then-upload step with pdf-lib.) |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | English choices (Settings): Lora, Gentium Book Plus, Crimson Pro, Alegreya, Libre Baskerville, Merriweather, Noto Serif, Source Serif 4, Noto Sans, Source Sans 3 — Latin + Latin Extended, 400/600 + italics. Rejected at the tone-mark check: EB Garamond (bold À), Spectral (ǖǘǚǜ), Cormorant Garamond (carons). |
 | Remembering a picked folder | **idb-keyval** (vendored) | stores the folder handle in IndexedDB |
+| Resizable panels | **Split.js** (vendored, `vendor/split.min.js`) | drag bars between contents list, panel and pages; sizes kept in localStorage; not on narrow screens |
 
 Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
 `js/editor.js` (the editor page, incl. the Chapters tab), `js/texttab.js` / `js/settings.js` (Text and Settings tabs) and wiring.

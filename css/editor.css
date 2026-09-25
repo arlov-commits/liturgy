@@ -81,6 +81,13 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #tab-print button.primary { font-weight: 600; padding: 6px 16px; }
 
 #preview { flex: 1; position: relative; min-width: 0; }
+/* drag bars between the contents list, the panel and the pages (Split.js sets the widths) */
+#app.split > #toc-nav, #app.split > #panel, #app.split > #preview { flex: none; }
+#app.split > #toc-nav, #app.split > #panel { border-right: 0; }
+#app > .gutter { flex: none; background: #d9d5cc; cursor: col-resize; position: relative; }
+#app > .gutter:hover, #app > .gutter:active { background: #b9a67a; }
+#app > .gutter::after { content: ""; position: absolute; top: 50%; left: 2px; width: 3px; height: 28px; margin-top: -14px;
+  border-left: 1px dotted #888; border-right: 1px dotted #888; }
 #preview iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 #preview iframe.loading { visibility: hidden; }
 
