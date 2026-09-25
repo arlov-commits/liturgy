@@ -15,6 +15,9 @@ const app = path.resolve('.');
 const tmp = mkdtempSync(path.join(tmpdir(), 'liturgy-test-'));
 const repo = path.join(tmp, 'repo');                  // the fake GitHub repo
 cpSync(path.resolve('../liturgy-text'), repo, { recursive: true, filter: (p) => !p.includes('/.git') });
+// start from a known booklet: the test booklet's two chapters, no table of contents (that is checked further down)
+const testBook = path.join(repo, 'books', 'test.txt');
+writeFileSync(testBook, readFileSync(testBook, 'utf8').split('\n').filter((l) => l.trim() !== '[contents]').join('\n'));
 mkdirSync(path.join(tmp, 'site'));
 symlinkSync(app, path.join(tmp, 'site', 'liturgy'));   // like github.io: no liturgy-text next to the app
 

@@ -67,9 +67,11 @@ The pages swap in early only once the new layout reaches the place the current p
   Measured: an edit shows in ~0.5 s (41-page booklet), ~1–2 s (135 pages); a full layout is ~35 ms a page.
 - `preview.html` — the pages themselves (Paged.js). Inside the editor it takes the book from `window.parent.Editor`
   so unsaved edits show; opened on its own it reads the text itself (used by `tools/render-test.mjs`).
-- `sw.js` + `manifest.webmanifest` — installable app. The service worker shows app files from its cache and
-  refreshes them in the background, so after a deploy the first visit shows the previous version and the next
-  one the new. It never caches the text (GitHub API) and isn't registered on localhost.
+- `sw.js` + `manifest.webmanifest` — installable app. The service worker takes app files from the network
+  (`cache: "no-cache"`) and falls back to its cache only when offline. (It used to show the cache first and refresh in
+  the background; with the browser's own 10-minute copies that could mix two versions after quick deploys, and the page
+  stopped at "Loading…".) It never caches the text (GitHub API) and isn't registered on localhost. A startup error
+  shows in the status line (inline script at the top of `index.html`).
 - Printing = printing the preview frame (Print button), so the printed pages are exactly the previewed pages.
 
 ## Formatting lives in CSS, not in the text

@@ -13,6 +13,15 @@
 <link rel="stylesheet" href="css/editor.css">
 </head>
 <body>
+<script>
+  // If the editor fails while starting, say so (instead of "Loading…" for ever)
+  window.addEventListener("error", (ev) => {
+    const status = document.getElementById("status"), app = document.getElementById("app");
+    if (!status || (app && !app.hidden)) return;
+    status.textContent = "The editor couldn't start (" + ev.message + "). Reload the page — if that doesn't help, press Ctrl+Shift+R (Mac: Cmd+Shift+R).";
+    status.classList.add("error");
+  });
+</script>
 <header id="bar">
   <b>Liturgy booklet</b>
   <select id="book" title="Which booklet" hidden></select>
