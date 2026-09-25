@@ -123,6 +123,22 @@ try {
   const before = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
   await page.evaluate(() => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: 'gone' } }); });
   check(await page.evaluate((b) => Editor.state.text.view.state.doc.toString() === b, before), 'chapter title bars can\'t be deleted');
+  // pinyin lined up under the characters in the text: each syllable centred under its character
+  const align = await page.evaluate(() => {
+    const mid = (e) => { const r = e.getBoundingClientRect(); return r.left + r.width / 2; };
+    const lines = [...document.querySelectorAll('.cm-line')];
+    for (let i = 0; i + 1 < lines.length; i++) {
+      const chars = [...lines[i].querySelectorAll('.cm-col')].filter((e) => /[一-鿿]/.test(e.textContent));
+      const syl = [...lines[i + 1].querySelectorAll('.cm-col')];
+      if (chars.length && syl.length && !/[一-鿿]/.test(syl[0].textContent)) return [chars.length, Math.max(...syl.map((e, k) => Math.abs(mid(e) - mid(chars[k]))))];
+    }
+    return [0, 99];
+  });
+  check(align[0] > 0 && align[1] < 1.5, 'text editor: pinyin lined up under the characters', `${align[0]} columns, off by ${align[1].toFixed(2)}px at most`);
+  await page.click('#tabs button[data-tab="settings"]'); await page.uncheck('#align-pinyin');
+  const off = await page.locator('.cm-col').count();
+  await page.check('#align-pinyin'); await page.click('#tabs button[data-tab="text"]');
+  check(off === 0 && await page.locator('.cm-col').count() > 0, 'lining up can be switched off in Settings');
   // contents list: a chapter link jumps to its text and is marked as the place you're at
   const navCount = await page.locator('#toc-nav a.nav-l0').count();
   await page.locator('#toc-nav a.nav-l0').nth(1).click(); await page.waitForTimeout(300);

@@ -43,6 +43,10 @@ split back into chapters by those lines (`editor.js mapDoc`), so every chapter s
 Lines the editor reports are global; `docMap` (`{name, head, first, last}`) maps them to a chapter's own lines.
 Left of the panel, `#toc-nav` lists chapters and their `#`/`##` headings; the place you're at (cursor, or the pages
 scrolled by hand — `preview.html` reports it via `Editor.previewScrolled`) is marked.
+Pinyin is lined up under the characters in the editor by a display-only layer (`texttab.js alignDecos`: each
+character and its syllable become inline-block columns of equal, canvas-measured width; spaces in the pinyin line
+take no room; punctuation gets an empty column), so both lines wrap at the same places. The text keeps single
+spaces. Visible lines only (~1 ms a keystroke). Switch: Settings → The text editor (per browser).
 
 ## Pages
 - `index.html` — the editor: top bar, panels, and the pages in a frame. **Two** preview frames take turns: the next

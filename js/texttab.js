@@ -77,6 +77,81 @@
     if (view) { view.dispatch({ effects: recheck.of(null) }); CM.forceLinting(view); }
   }
 
+  // Line up pinyin under the characters (display only — the text itself keeps single spaces). Each character and
+  // its syllable are drawn as columns of the same width (the wider of the two), punctuation gets an empty column in
+  // the pinyin line, and spaces in the pinyin line take no room — so both lines wrap at the same places.
+  const IDEO = /[㐀-䶿一-鿿豈-﫿]|[\u{20000}-\u{2ffff}]/u;
+  let aligning = true;
+  const alignSlot = new CM.Compartment(), remeasure = CM.StateEffect.define();
+  const ruler = document.createElement("canvas").getContext("2d");
+  let rulerFont = "", widths = new Map();
+  const measure = (text) => { let w = widths.get(text); if (w == null) widths.set(text, (w = ruler.measureText(text).width)); return w; };
+  const isPinyinLine = (t) => t && !HAS_CJK.test(t) && !/^(#|>|\/\/)/.test(t) && t !== "---" && !REPEAT.test(t) && !/^\[.*\]$/.test(t);
+  function alignDecos(view) {
+    const { Decoration, WidgetType } = CM;
+    const cs = getComputedStyle(view.contentDOM), font = `${cs.fontSize} ${cs.fontFamily}`;
+    if (font !== rulerFont) { rulerFont = ruler.font = font; widths = new Map(); }
+    const gap = parseFloat(cs.fontSize) * 0.35;
+    class Gap extends WidgetType {
+      constructor(w) { super(); this.w = w; }
+      eq(o) { return o.w === this.w; }
+      toDOM() { const e = document.createElement("span"); e.className = "cm-py-gap"; e.style.width = this.w + "px"; return e; }
+    }
+    const col = (w) => Decoration.mark({ class: "cm-col", attributes: { style: `width:${w.toFixed(1)}px` } });
+    const none = Decoration.mark({ class: "cm-py-space" });
+    const out = [], doc = view.state.doc, seen = new Set();
+    for (const { from, to } of view.visibleRanges) {
+      // start a line early: a pinyin line at the top of the view needs its Chinese line
+      for (let n = Math.max(1, doc.lineAt(from).number - 1); n <= doc.lineAt(to).number && n < doc.lines; n++) {
+        if (seen.has(n)) continue;
+        const zh = doc.line(n), py = doc.line(n + 1), zt = zh.text.trim();
+        if (!HAS_CJK.test(zt) || zt.startsWith("//") || zt.includes("|") || isSep(zh.text) || !isPinyinLine(py.text.trim())) continue;
+        seen.add(n); seen.add(n + 1);
+        const syl = [...py.text.matchAll(/\S+/g)];
+        for (const m of py.text.matchAll(/\s+/g)) out.push(none.range(py.from + m.index, py.from + m.index + m[0].length));
+        let k = 0, at = 0;
+        for (const ch of zh.text) {
+          const pos = zh.from + at;
+          at += ch.length;
+          if (!ch.trim()) { out.push(none.range(pos, pos + ch.length)); continue; }
+          if (IDEO.test(ch)) {
+            const s = syl[k++];
+            const w = Math.max(measure(ch), s ? measure(s[0]) : 0) + gap;
+            out.push(col(w).range(pos, pos + ch.length));
+            if (s) out.push(col(w).range(py.from + s.index, py.from + s.index + s[0].length));
+          } else {
+            // punctuation: its own column, and an empty one in the pinyin line
+            const w = measure(ch) + gap, next = syl[k];
+            out.push(col(w).range(pos, pos + ch.length));
+            out.push(Decoration.widget({ widget: new Gap(w), side: next ? -1 : 1 }).range(next ? py.from + next.index : py.to));
+          }
+        }
+      }
+    }
+    return Decoration.set(out, true);
+  }
+  const alignPlugin = CM.ViewPlugin.fromClass(class {
+    constructor(view) { this.decorations = alignDecos(view); }
+    update(u) {
+      if (u.docChanged || u.viewportChanged || u.transactions.some((t) => t.effects.some((e) => e.is(remeasure)))) this.decorations = alignDecos(u.view);
+    }
+  }, { decorations: (p) => p.decorations });
+  const alignTheme = EditorView.baseTheme({
+    ".cm-col": { display: "inline-block", textAlign: "center" },
+    ".cm-py-gap": { display: "inline-block" },
+    ".cm-py-space": { display: "inline-block", width: "0", overflow: "hidden", verticalAlign: "bottom" },
+  });
+  const alignExt = () => (aligning ? [alignPlugin, alignTheme] : []);
+  function setAligning(on, view) {
+    aligning = on;
+    if (view) view.dispatch({ effects: alignSlot.reconfigure(alignExt()) });
+  }
+  // fonts arrive late (the rare-character font in pieces): measure again when they do
+  if (document.fonts) document.fonts.addEventListener("loadingdone", () => {
+    widths = new Map();
+    for (const e of document.querySelectorAll(".cm-editor")) { const v = EditorView.findFromDOM(e); if (v) v.dispatch({ effects: remeasure.of(null) }); }
+  });
+
   // The whole booklet in one editor: chapter after chapter, each starting with a header line (SEP + file name).
   // Header lines are drawn as a title bar and can't be edited, deleted or typed before, so every chapter's
   // text can always be told apart and saved to its own file.
@@ -133,6 +208,7 @@
       doc,
       extensions: [
         basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, lint, lintGutter(),
+        alignSlot.of(alignExt()),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChange(u.state.doc.toString());
           if (u.docChanged || u.selectionSet) onCursor(u.state.doc.lineAt(u.state.selection.main.head).number);
@@ -155,5 +231,5 @@
     };
   }
 
-  root.LiturgyText = { build, setSuggesting, SEP, isSep };
+  root.LiturgyText = { build, setSuggesting, setAligning, SEP, isSep };
 })(window);

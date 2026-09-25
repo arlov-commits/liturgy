@@ -485,6 +485,13 @@
   $("#keep-together").onclick = () => wrapSelection("keep together", "keep together");
   $("#add-border").onclick = () => wrapSelection("border", "put in a border");
 
+  // pinyin lined up under the characters in the text editor: on unless switched off (remembered per browser)
+  try { $("#align-pinyin").checked = localStorage.getItem("liturgy.alignPinyin") !== "0"; } catch {}
+  $("#align-pinyin").onchange = () => {
+    try { localStorage.setItem("liturgy.alignPinyin", $("#align-pinyin").checked ? "1" : "0"); } catch {}
+    LiturgyText.setAligning($("#align-pinyin").checked, state.text && state.text.view);
+  };
+  $("#align-pinyin").onchange();
   // pinyin suggestions: remembered per browser
   try { $("#suggest").checked = localStorage.getItem("liturgy.suggestPinyin") === "1"; } catch {}
   $("#suggest").onchange = () => {
