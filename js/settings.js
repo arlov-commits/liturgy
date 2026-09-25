@@ -16,14 +16,15 @@
   // Format and binding: shown as one nested choice (formatControl)
   const BINDING_PARTS = ["--format", "--binding", "--signature-sheets"];
   const FORMAT_TEXT = {
-    letter: ["Regular letter size", "pages 8.5 × 11 in, printed in order, both sides"],
-    folio: ["Folio", "letter sheets folded in half, no cutting — pages 5.5 × 8.5 in"],
-    quarto: ["Quarto", "letter sheets cut into quarters — pages 4.25 × 5.5 in"],
+    letter: ["Regular letter size", "pages 8.5 × 11 in, printed in order on both sides; no cutting; can be stapled"],
+    folio: ["Folio", "letter sheets printed two pages a side — pages 5.5 × 8.5 in"],
+    quarto: ["Quarto", "letter sheets printed four pages a side — pages 4.25 × 5.5 in"],
   };
   const BINDING_TEXT = {
-    folio: { perfect: ["Perfect bound", "each sheet folded on its own, stacked, glued at the fold"],
-      signatures: ["Signatures", "sheets folded together and nested; one signature can be stapled, several are sewn and glued"] },
-    quarto: { perfect: ["Perfect bound", "4 pages each side, cut into quarters, stacked and glued"], signatures: ["Signatures", "coming soon", true] },
+    folio: { perfect: ["Perfect bound", "one cut per sheet (down the middle), the halves stacked in page order; glued, or can be stapled"],
+      signatures: ["Signatures", "no cutting: sheets folded in half and nested; one signature can be stapled, several are sewn and glued"] },
+    quarto: { perfect: ["Perfect bound", "two cuts per sheet (into quarters), the pieces stacked in page order; glued, or can be stapled"],
+      signatures: ["Signatures", "one cut per sheet — coming soon", true] },
   };
   // Settings that are a choice between named options (value → what the editor sees)
   const CHOICES = {
@@ -39,19 +40,23 @@
   };
   const STEP = { in: 0.05, pt: 0.1, em: 0.02, px: 1, mm: 1, cm: 0.1 };
 
-  // Reads settings.css → [{ title, items: [{ name, value, hint }] }]
+  // Reads settings.css → [{ section, title, items: [{ name, value, hint }] }]: sections are /* ==== Name ==== */ (shown
+  // as panels that open and close), groups inside them /* ---- Name ---- */
   function parse(css) {
     const groups = [];
+    let section = "";
     for (const line of css.split("\n")) {
+      const sec = line.match(/^\s*\/\*\s*={2,}\s*(.*?)\s*={2,}\s*\*\/\s*$/);
+      if (sec) { section = sec[1]; groups.push({ section, title: "", items: [] }); continue; }
       const head = line.match(/^\s*\/\*\s*-{2,}\s*(.*?)\s*-{2,}\s*\*\/\s*$/);
-      if (head) { groups.push({ title: head[1], items: [] }); continue; }
+      if (head) { groups.push({ section, title: head[1], items: [] }); continue; }
       const v = line.match(/^\s*(--[\w-]+)\s*:\s*([^;]+?)\s*;\s*(?:\/\*\s*(.*?)\s*\*\/)?\s*$/);
       if (v) {
-        if (!groups.length) groups.push({ title: "", items: [] });
+        if (!groups.length) groups.push({ section, title: "", items: [] });
         groups[groups.length - 1].items.push({ name: v[1], value: v[2], hint: v[3] || "" });
       }
     }
-    return groups;
+    return groups.filter((g) => g.items.length);
   }
 
   // Reads the variables out of a stylesheet like the one toCss() writes
@@ -72,20 +77,32 @@
   const label = (name) => { const s = name.replace(/^--/, "").replace(/-/g, " "); return s[0].toUpperCase() + s.slice(1); };
   const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
 
-  // Builds the tab. `get()` → current changes {name: value}; `set(changes)` is called on every edit.
-  function build(box, groups, get, set) {
+  // Builds the panel. `get()` → current changes {name: value}; `set(changes)` is called on every edit.
+  // opts.isOpen(section) / opts.setOpen(section, open): which sections are open (the editor keeps it per booklet).
+  function build(box, groups, get, set, opts = {}) {
+    const { isOpen = () => false, setOpen = () => {} } = opts;
     box.textContent = "";
-    const intro = el("p", { className: "hint", textContent: "Changes show in the pages straight away. Use Save to keep them. Highlighted settings differ from the defaults; ↺ puts one back." });
-    const resetAll = el("button", { type: "button", textContent: "Set everything back to the defaults", title: "Every setting goes back to the app's default (Save to keep that)", onclick: () => { set({}); build(box, groups, get, set); } });
+    const intro = el("p", { className: "hint", textContent: "Changes show in the pages straight away. Settings shown with a yellow background are ones changed from the app's defaults; ↺ puts one back." });
+    const resetAll = el("button", { type: "button", textContent: "Set everything back to the defaults", title: "Every setting goes back to the app's default (Save to keep that)", onclick: () => { set({}); build(box, groups, get, set, opts); } });
     box.append(intro, resetAll);
 
+    const sections = new Map();
     for (const g of groups) {
-      const fs = el("fieldset", {}, el("legend", { textContent: g.title }));
+      if (!sections.has(g.section)) {
+        const d = el("details", { className: "section", open: isOpen(g.section) }, el("summary", { textContent: g.section || "Other" }));
+        d.ontoggle = () => setOpen(g.section, d.open);
+        sections.set(g.section, d);
+        box.append(d);
+      }
+      const d = sections.get(g.section);
+      const fs = el("fieldset", {}, ...(g.title ? [el("legend", { textContent: g.title })] : []));
       for (const item of g.items) {
         if (item.name === "--format") fs.append(formatControl(g.items));
         else if (!BINDING_PARTS.includes(item.name)) fs.append(control(item));
       }
-      box.append(fs);
+      d.append(fs);
+      // a section holding changed settings says so while closed
+      if (g.items.some((i) => i.name in get())) d.classList.add("has-changes");
     }
 
     // Format and binding: one nested choice (format → binding → sheets per signature). Picking a format also sets
@@ -99,7 +116,7 @@
         if (sizeToo) [c["--page-width"], c["--page-height"]] = LiturgyImpose.FORMATS[m.format];
         for (const k of Object.keys(c)) if ((dflt[k] ?? pageDefaults[k]) === c[k] && (k in dflt || k in pageDefaults)) delete c[k];
         set(c);
-        build(box, groups, get, set);   // (the page size controls below show the new size)
+        build(box, groups, get, set, opts);   // (the page size controls below show the new size)
       };
       const m = now(), wrap = el("div", { className: "format-choice" });
       const radio = (name, value, checked, title, hint, onpick, disabled) => el("label", { className: "choice" + (disabled ? " disabled" : "") },

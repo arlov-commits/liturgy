@@ -111,7 +111,8 @@ const status = () => page.textContent('#status');
 const settled = () => page.waitForFunction(() => { const s = document.querySelector('#status').textContent; return !/Updating|Loading|Saving/.test(s) && s.length > 0; }, null, { timeout: 60000 });
 const saveDone = () => page.waitForFunction(() => /^(Saved|Not saved|Downloaded)/.test(document.querySelector('#status').textContent), null, { timeout: 30000 });
 const afterEdit = async () => { await page.waitForTimeout(1200); await settled(); };
-const openSettings = () => page.click('#settings-btn');
+// (and every section in it open)
+const openSettings = async () => { await page.click('#settings-btn'); await page.evaluate(() => document.querySelectorAll('#settings details').forEach((d) => (d.open = true))); };
 const closeSettings = () => page.click('#settings-close');
 // the preview frame on show (the other one lays out the next version, hidden)
 const shownPreview = async () => { const els = await page.$$('#preview iframe:not(.loading)'); return els.length ? els[0].contentFrame() : preview(); };
@@ -211,7 +212,7 @@ try {
   await page.keyboard.press('Escape');
   await openSettings(); await page.check('.format-choice input[name=format][value=quarto]'); await closeSettings(); await afterEdit();
   const backToQuarto = [+((await status()).match(/(\d+) pages/) || [])[1], await page.evaluate(() => JSON.stringify(Editor.state.settings.changes))];
-  check(formats === 'letter,folio,quarto*' && quartoSoon && folioPerfect[0] === '5.5' && /Pages printed: \d+/.test(folioPerfect[1]) && /folded sheets?, glued/.test(folioPerfect[1]) &&
+  check(formats === 'letter,folio,quarto*' && quartoSoon && folioPerfect[0] === '5.5' && /Pages printed: \d+/.test(folioPerfect[1]) && /Cut in half: \d+ pieces/.test(folioPerfect[1]) &&
     /Signatures: 1 — can be stapled/.test(oneSig) && /too thick/.test(thick[0]) && /too thick/.test(thick[1]) && /Signatures: [2-9] — .*sew and glue/.test(autoSig) &&
     folded.join() === 'true,true,false,false' && letter[0] === '8.5' && !letter[1] && letterPrint[0] && letterPrint[1] === 'Print the pages…' &&
     !/--format|--binding|--page-width/.test(backToQuarto[1]),

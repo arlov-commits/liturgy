@@ -77,8 +77,16 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 .drawer .drawer-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center;
   background: #fafaf8; padding: 10px 0 8px; border-bottom: 1px solid #ddd; font-size: 15px; }
 .drawer .drawer-head button { border: 0; background: none; font-size: 16px; padding: 2px 8px; }
-#settings fieldset { border: 0; border-top: 1px solid #ddd; margin: 14px 0 0; padding: 6px 0 0; }
-#settings legend { font-weight: 700; padding-right: 6px; }
+#settings fieldset { border: 0; margin: 6px 0 0; padding: 0; }
+#settings legend { font-weight: 700; padding: 6px 0 2px; color: #555; font-size: 13px; }
+/* sections that open and close */
+#settings details.section { border-top: 1px solid #ddd; }
+#settings details.section > summary { cursor: pointer; font-weight: 700; font-size: 15px; padding: 9px 4px; list-style: none; display: flex; align-items: center; gap: 8px; }
+#settings details.section > summary::-webkit-details-marker { display: none; }
+#settings details.section > summary::before { content: "▸"; color: #8a5a00; width: 1em; transition: transform .15s; }
+#settings details.section[open] > summary::before { transform: rotate(90deg); }
+#settings details.section.has-changes > summary::after { content: "changed"; font-size: 11px; font-weight: 400; background: #fff0c2; color: #7a5200; border-radius: 8px; padding: 0 6px; }
+#settings details.section[open] { padding-bottom: 10px; }
 #print-panel h3 { margin: 16px 0 6px; font-size: 14px; }
 #print-panel .steps { padding-left: 22px; }
 #print-panel .steps li { margin-bottom: 8px; }

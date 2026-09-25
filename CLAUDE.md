@@ -92,7 +92,8 @@ The pages swap in early only once the new layout reaches the place the current p
 
 ## Formatting lives in CSS, not in the text
 - `css/settings.css` — the list of knobs and their defaults: named variables with plain-English comments
-  (margins, sizes, fonts, spacing). The Settings drawer (top bar) builds its controls from this file (group headers
+  (margins, sizes, fonts, spacing). The Settings drawer (top bar) builds its controls from this file (sections
+  `/* ==== Name ==== */` — panels that open and close, closed at first, remembered per booklet in this browser — groups
   `/* ---- Name ---- */`, a trailing `/* hint */` per line), so add new knobs here, never hard-code.
 - `books/settings/<booklet>.css` **in liturgy-text** — each booklet's saved changes (only the values that differ), loaded
   after the app's defaults; a booklet without one starts from the shared `settings.css` there (`source.js loadSettings`).

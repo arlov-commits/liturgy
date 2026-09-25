@@ -171,7 +171,12 @@
     state.settings.groups = LiturgySettings.parse(css);
     state.settings.changes = readSettings(state.book.css);
     state.book.css = LiturgySettings.toCss(state.settings.changes, state.settings.groups);
-    startSettings.rebuild = () => LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, applySettings);
+    // which sections of the Settings panel are open: remembered for each booklet (in this browser)
+    const openKey = "liturgy.openSettings." + state.bookName;
+    const openList = () => { try { return JSON.parse(localStorage.getItem(openKey)) || []; } catch { return []; } };
+    const sections = { isOpen: (t) => openList().includes(t),
+      setOpen: (t, open) => { const l = openList().filter((x) => x !== t); if (open) l.push(t); try { localStorage.setItem(openKey, JSON.stringify(l)); } catch {} } };
+    startSettings.rebuild = () => LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, applySettings, sections);
     startSettings.rebuild();
     fillCopyFrom().catch(() => {});
   }
@@ -827,7 +832,7 @@
     $("#print-folded").hidden = m.format !== "folio";
     $("#print-perfect").hidden = m.format !== "quarto";
     $("#folded-perfect-steps").hidden = m.binding !== "perfect";
-    $("#folded-signature-steps").hidden = m.binding !== "signatures";
+    $("#folded-signature-steps").hidden = $("#folded-signature-fold").hidden = m.binding !== "signatures";
     $("#print-sheets").textContent = m.format === "letter" ? "Print the pages…" : "Print on letter paper…";
     // page size different from the format's: say so, with a button to set it
     const [w, h] = [setting("--page-width"), setting("--page-height")], [fw, fh] = LiturgyImpose.FORMATS[m.format];
@@ -843,7 +848,9 @@
     if (m.binding === "signatures") {
       const list = (xs) => (xs.length > 1 ? xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1] : String(xs[0]));
       parts.push(`Signatures: <b>${p.signatures}</b> — ${p.signatures === 1 ? "can be stapled" : `${list(p.plan)} sheets; sew and glue them`}`);
-    } else if (m.format === "folio") parts.push(`${plural(p.sheets, "folded sheet")}, glued at the fold`);
+    } else if (m.format === "folio") parts.push(`Cut in half: ${p.sheets * 2} pieces, stacked and glued or stapled`);
+    else if (m.format === "quarto") parts.push(`Cut in quarters: ${p.sheets * 4} pieces, stacked and glued or stapled`);
+    else parts.push("No cutting; can be stapled");
     const html = parts.join("<br>") + (thick ? `<div class="warning">A signature of ${Math.max(...p.plan)} sheets (${Math.max(...p.plan) * 4} pages) is too thick to fold neatly — choose “automatic” to split it into several.</div>` : "");
     for (const box of document.querySelectorAll("#binding-metrics, #signature-plan")) box.innerHTML = html;
     $("#signature-warning").hidden = true;

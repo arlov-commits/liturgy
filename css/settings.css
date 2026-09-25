@@ -6,68 +6,63 @@
    automatically from the bundled "Liturgy Extra" font.
    =================================================================== */
 :root {
-  /* ---- Format and binding ---- */
+  /* ==== Format and binding ==== */
   --format: quarto;           /* letter = pages 8.5 × 11 in order; folio = letter sheets folded in half; quarto = letter sheets cut into quarters */
   --binding: perfect;         /* folio or quarto: perfect (glued) or signatures (sheets nested, sewn or stapled) */
   --signature-sheets: auto;   /* signatures: letter sheets folded together in each signature (4 pages a sheet) */
 
-  /* ---- Page (its size is set by the format above; change it here only for something else) ---- */
+  /* ==== Page layout ==== */
+  /* ---- Page size and margins (the size follows the format; change it only for something else) ---- */
   --page-width: 4.25in;
   --page-height: 5.5in;
   --margin-binding: 0.45in;   /* edge that gets glued or folded — keep generous */
   --margin-outside: 0.25in;  /* edge you hold */
   --margin-top: 0.3in;
   --margin-bottom: 0.45in;
+  /* ---- How the pages flow ---- */
+  --chapter-start: page;   /* where each chapter starts */
+  --fit-smallest: 0.7;     /* a [keep together] span a little too tall for a page is shrunk to fit, but never below this (0.7 = 70%); longer spans go on facing pages */
+  --blank-page: before;    /* where a blank page goes when a kept-together span must start on a left-hand page */
 
-  /* ---- Page numbers ---- */
-  --page-number-position: outside;   /* which corner of the page (the binding is the inside) */
-  --page-number-edge: bottom;        /* at the top or the bottom of the page */
-  --page-number-font: "Lora";
-  --page-number-size: 10pt;
-
+  /* ==== Text ==== */
   /* ---- English ---- */
   --english-font: "Lora";
   --english-size: 8.2pt;
   --english-weight: 600;       /* 400 = regular, 600 = semibold (like the old Lucida Bright Demi) */
-
   /* ---- Chinese ---- */
   --chinese-font: "Noto Serif TC";
   --chinese-size: 14.5pt;
   --character-spacing: 1.72em; /* width of each character slot (like Excel's columns) */
-
   /* ---- Pinyin ---- */
   --pinyin-font: "Gentium Book Plus";
   --pinyin-size: 8.4pt;
-
+  /* ---- Titles and notes ---- */
+  --title-scale: 1.15;     /* titles are this much larger */
+  --subtitle-scale: 0.8;   /* small headings are this much smaller */
+  --note-scale: 0.9;       /* "> " note lines (instructions, Sanskrit) are this much smaller */
   /* ---- Each verse ---- */
   --verse-order: en-zh-py;  /* the order of the parts of every verse */
-
   /* ---- Spacing ---- */
   --space-english-to-chinese: 1pt;  /* gap above the Chinese line */
   --space-chinese-to-pinyin: -1pt;  /* gap between a character and its pinyin */
   --space-between-verses: 6pt;
 
-  --note-scale: 0.9;       /* "> " note lines (instructions, Sanskrit) are this much smaller */
+  /* ==== Page numbers ==== */
+  --page-number-position: outside;   /* which corner of the page (the binding is the inside) */
+  --page-number-edge: bottom;        /* at the top or the bottom of the page */
+  --page-number-font: "Lora";
+  --page-number-size: 10pt;
 
-  /* ---- Pages and chapters ---- */
-  --chapter-start: page;   /* where each chapter starts */
-  --fit-smallest: 0.7;     /* a [keep together] span a little too tall for a page is shrunk to fit, but never below this (0.7 = 70%); longer spans go on facing pages */
-  --blank-page: before;    /* where a blank page goes when a kept-together span must start on a left-hand page */
+  /* ==== Contents page ==== */
+  --contents-title: "CONTENTS";   /* heading above the table of contents (empty = none) */
+  --contents-size: 9pt;      /* size of the table of contents lines */
+  --contents-spacing: 4pt;   /* gap between contents lines */
 
-  /* ---- Borders ([border]) ---- */
+  /* ==== Borders ==== */
   --border-width: 0.75pt;   /* thickness of the line around a bordered section */
   --border-style: solid;    /* kind of line */
   --border-color: #000000;  /* colour of the line (#000000 = black) */
   --border-padding: 5pt;    /* space between the line and the text inside */
   --border-radius: 0pt;     /* rounded corners (0 = square) */
   --border-space: 6pt;      /* space above and below the box */
-
-  /* ---- Contents page ([contents]) ---- */
-  --contents-title: "CONTENTS";   /* heading above the table of contents (empty = none) */
-  --contents-size: 9pt;      /* size of the table of contents lines */
-  --contents-spacing: 4pt;   /* gap between contents lines */
-
-  /* ---- Titles ---- */
-  --title-scale: 1.15;     /* titles are this much larger */
-  --subtitle-scale: 0.8;   /* small headings are this much smaller */
 }
