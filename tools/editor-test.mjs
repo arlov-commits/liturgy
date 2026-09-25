@@ -86,7 +86,12 @@ const settled = () => page.waitForFunction(() => { const s = document.querySelec
 const saveDone = () => page.waitForFunction(() => /^(Saved|Not saved|Downloaded)/.test(document.querySelector('#status').textContent), null, { timeout: 30000 });
 const afterEdit = async () => { await page.waitForTimeout(1200); await settled(); };
 const preview = () => page.frames().find((f) => f.url().includes('preview.html'));
-const edit = (fn) => page.evaluate((fn) => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: new Function('t', fn)(v.state.doc.toString()) } }); }, fn);
+// changes the text of the first chapter in the editor (which holds the whole booklet)
+const edit = (fn) => page.evaluate((fn) => {
+  const v = Editor.state.text.view, m = Editor.state.docMap[0], d = v.state.doc;
+  const from = d.line(m.first).from, to = d.line(m.last).to;
+  v.dispatch({ changes: { from, to, insert: new Function('t', fn)(d.sliceString(from, to)) } });
+}, fn);
 
 try {
   await page.goto('http://localhost:8791/liturgy/index.html'); await settled();
@@ -111,7 +116,19 @@ try {
   check(back === pages && again === bigger, 'settings apply on every redraw (reused preview frames)', `${back}, ${again}`);
 
   await page.click('#tabs button[data-tab="text"]');
-  const first = await page.inputValue('#section');
+  const first = await page.evaluate(() => Editor.state.docMap[0].name);
+  const heads = await page.evaluate(() => [Editor.state.docMap.length, document.querySelectorAll('.cm-chapter-head').length, Editor.state.book.sections.filter((s) => !s.virtual).length]);
+  check(heads[0] > 1 && heads[0] === heads[2] && heads[1] > 0, 'the text holds the whole booklet, a title bar per chapter', heads.join());
+  // the header lines can't be edited away
+  const before = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
+  await page.evaluate(() => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: 'gone' } }); });
+  check(await page.evaluate((b) => Editor.state.text.view.state.doc.toString() === b, before), 'chapter title bars can\'t be deleted');
+  // contents list: a chapter link jumps to its text and is marked as the place you're at
+  const navCount = await page.locator('#toc-nav a.nav-l0').count();
+  await page.locator('#toc-nav a.nav-l0').nth(1).click(); await page.waitForTimeout(300);
+  const nav = await page.evaluate(() => { const v = Editor.state.text.view, n = v.state.doc.lineAt(v.state.selection.main.head).number;
+    const here = document.querySelector('#toc-nav a.here'); return [n, Editor.state.docMap[1].first, here && here.textContent]; });
+  check(navCount === heads[0] && nav[0] === nav[1] && nav[2], 'contents list: jumps to a chapter and marks it', nav.join(' | '));
   await edit("return '// test edit\\n' + t"); await afterEdit();
   check((await page.textContent('#save')).includes('2 files'), 'unsaved changes are counted', await page.textContent('#save'));
   await page.keyboard.press('Control+s'); await saveDone();
@@ -121,12 +138,14 @@ try {
   const line = await page.evaluate(() => { const d = Editor.state.text.view.state.doc; for (let i = 1; i < d.lines; i++) if (/[一-鿿]/.test(d.line(i).text) && !/[一-鿿]/.test(d.line(i + 1).text) && d.line(i + 1).text.trim()) return i + 1; });
   await page.evaluate((n) => { const v = Editor.state.text.view; const l = v.state.doc.line(n); const cut = l.text.lastIndexOf(' '); v.dispatch({ changes: { from: l.from + cut, to: l.to } }); }, line);
   await afterEdit();
+  await page.evaluate((n) => Editor.state.text.goto(n, false), line); await page.waitForTimeout(200);
   check(await page.locator('.cm-lintRange-error').count() > 0 && (await status()).includes('problem'), 'pinyin count mismatch is flagged in text and pages');
   await page.keyboard.press('Control+z'); await afterEdit();
 
   const target = await preview().evaluate(() => { const b = document.querySelectorAll('.pagedjs_page')[2].querySelector('[data-line]'); b.scrollIntoView(); return b.dataset.line; });
   await preview().click(`.pagedjs_page:nth-child(3) [data-line="${target}"]`);
-  const cursor = await page.evaluate(() => { const v = Editor.state.text.view; return v.state.doc.lineAt(v.state.selection.main.head).number; });
+  const cursor = await page.evaluate(() => { const v = Editor.state.text.view, n = v.state.doc.lineAt(v.state.selection.main.head).number;
+    const m = [...Editor.state.docMap].reverse().find((x) => x.head <= n); return n - m.first + 1; });
   check(String(cursor) === target, 'clicking a verse in the pages opens its line', `${target} → ${cursor}`);
 
   // Revert to the original: the edition file goes, the original was never touched
@@ -137,9 +156,9 @@ try {
   check(tagged === 1 && (await status()).startsWith('Saved') && !existsSync(path.join(repo, 'edits', first)) && (await page.locator('#chapters li:has(.tag)').count()) === 0,
     'Original: puts the original text back and removes the edition file', `tagged ${tagged}`);
   await page.click('#tabs button[data-tab="text"]');
-  await edit("return t + '\\n'"); await afterEdit(); await page.keyboard.press('Control+s'); await saveDone();
+  await edit("return t + '\\n// one\\n'"); await afterEdit(); await page.keyboard.press('Control+s'); await saveDone();
   writeFileSync(path.join(repo, 'edits', first), 'changed elsewhere\n');
-  await edit("return t + '\\n'"); await afterEdit();
+  await edit("return t + '\\n// two\\n'"); await afterEdit();
   await page.click('#save'); await saveDone();
   check((await status()).includes('someone else'), 'never overwrites a newer change on GitHub');
 
@@ -169,7 +188,7 @@ try {
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'readonly'));
   page.once('dialog', (d) => d.accept());
   await page.reload(); await settled();
-  await edit("return t + '\\n'"); await afterEdit();
+  await edit("return t + '\\n// three\\n'"); await afterEdit();
   await page.click('#save'); await saveDone();
   check((await status()).includes('can only read'), 'read-only key: explains how to fix it');
 } finally {

@@ -355,8 +355,25 @@ function showLine(file, line) {
   if (!best) return;
   document.querySelectorAll(`[data-file="${CSS.escape(file)}"] .block[data-line="${best.dataset.line}"]`).forEach((b) => b.classList.add("here"));
   const r = best.getBoundingClientRect();
-  if (r.top < 0 || r.bottom > innerHeight) best.scrollIntoView({ block: "center" });
+  if (r.top < 0 || r.bottom > innerHeight) { quietUntil = Date.now() + 800; best.scrollIntoView({ block: "center" }); }
 }
+
+// Scrolling the pages by hand tells the editor which verse is at the top, to mark that place in its contents list
+// (not when the editor itself scrolled them to the verse being edited)
+let quietUntil = 0, scrollTimer = null;
+if (editor) addEventListener("scroll", () => {
+  if (scrollTimer) return;
+  scrollTimer = setTimeout(() => {
+    scrollTimer = null;
+    if (Date.now() < quietUntil || !editor.previewScrolled) return;
+    for (const b of document.querySelectorAll(".pagedjs_page .block[data-line]")) {
+      if (b.getBoundingClientRect().bottom < 30) continue;
+      const sec = b.closest("[data-file]");
+      if (sec) editor.previewScrolled(window, sec.dataset.file, +b.dataset.line);
+      return;
+    }
+  }, 150);
+}, { passive: true });
 </script>
 </body>
 </html>

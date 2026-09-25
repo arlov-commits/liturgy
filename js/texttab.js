@@ -1,7 +1,8 @@
-// texttab.js — the Text tab: one CodeMirror editor, one section file at a time, coloured by FORMAT.md's rules.
+// texttab.js — the Text tab: one CodeMirror editor holding the whole booklet, coloured by FORMAT.md's rules.
 (function (root) {
   "use strict";
-  const { EditorView, EditorState, basicSetup, StreamLanguage, HighlightStyle, syntaxHighlighting, tags, linter, lintGutter } = CM;
+  const { EditorView, EditorState, basicSetup, StreamLanguage, HighlightStyle, syntaxHighlighting, tags, linter } = CM;
+  const { lintGutter } = CM;
 
   // Same line rules as js/parse.js (see FORMAT.md)
   const HAS_CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯]|[\u{20000}-\u{2ffff}]/u;
@@ -48,18 +49,6 @@
     ".cm-scroller": { fontFamily: '"Gentium Book Plus", "Noto Serif TC", "Liturgy Extra", serif', lineHeight: "1.55" },
   });
 
-  // Problems (pinyin checks from parse.js, or whatever `check` gives) as underlines + gutter marks
-  // (a problem may give from/to columns within its line; otherwise the whole line is marked)
-  const problems = (check) => linter((view) => {
-    const text = view.state.doc.toString();
-    return [...check(text), ...(check === LiturgyParse.check || check.withSuggestions ? suggestions(text) : [])].map((p) => {
-      const line = view.state.doc.line(Math.min(p.line, view.state.doc.lines));
-      const from = p.from != null ? line.from + Math.min(p.from, line.length) : line.from;
-      const to = p.to != null ? line.from + Math.min(p.to, line.length) : line.to;
-      return { from, to, severity: p.severity, message: p.message };
-    });
-  }, { delay: 400, needsRefresh: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(recheck))) });
-
   // Optional pinyin suggestions from pinyin-pro (loaded when switched on). Only shown where pinyin-pro reads a
   // character differently from the text — liturgical readings (nā mó, 土 dù, 般若 bō rě) are often deliberate.
   let suggesting = false;
@@ -88,57 +77,83 @@
     if (view) { view.dispatch({ effects: recheck.of(null) }); CM.forceLinting(view); }
   }
 
-  // One editor for several files. An entry = { name, label, text, check?(text) → problems }; the editor
-  // writes edits back into entry.text. `onChange(entry)` after each edit; `onCursor(entry, line)` when the
-  // cursor moves. Returns { setEntries(entries), show(name, line), setText(name, text), view, current() }.
-  function build(box, select, onChange, onCursor = () => {}) {
-    const states = {};
-    let entries = [];
-    let current = null;
-    const view = new EditorView({ parent: box });
-    const stateFor = (e) => states[e.name] || (states[e.name] = EditorState.create({
-      doc: e.text,
+  // The whole booklet in one editor: chapter after chapter, each starting with a header line (SEP + file name).
+  // Header lines are drawn as a title bar and can't be edited, deleted or typed before, so every chapter's
+  // text can always be told apart and saved to its own file.
+  const SEP = "\u2063§ ";
+  const isSep = (text) => text.startsWith(SEP);
+  const headerLines = (doc) => {
+    const out = [];
+    for (let i = 1; i <= doc.lines; i++) { const t = doc.line(i).text; if (isSep(t)) out.push(t); }
+    return out.join("\n");
+  };
+
+  // options: onChange(docText), onCursor(line), header(name) → element for a chapter's title bar,
+  // check(docText) → problems [{ line, from?, to?, severity, message }]
+  // Returns { setDoc(text), replace(from, to, text), goto(line), refreshHeaders(), view }.
+  function build(box, { onChange, onCursor = () => {}, header, check }) {
+    const { Decoration, WidgetType, StateField, StateEffect, RangeSetBuilder } = CM;
+    const redraw = StateEffect.define();
+    let version = 0;
+    class Header extends WidgetType {
+      constructor(name, v) { super(); this.name = name; this.v = v; }
+      eq(other) { return other.name === this.name && other.v === this.v; }
+      toDOM() { return header(this.name); }
+      ignoreEvent() { return false; }
+    }
+    const heads = (state) => {
+      const b = new RangeSetBuilder();
+      for (let i = 1; i <= state.doc.lines; i++) {
+        const l = state.doc.line(i);
+        if (isSep(l.text)) b.add(l.from, l.to, Decoration.replace({ widget: new Header(l.text.slice(SEP.length), version), block: true }));
+      }
+      return b.finish();
+    };
+    const headerField = StateField.define({
+      create: heads,
+      update: (deco, tr) => (tr.docChanged || tr.effects.some((e) => e.is(redraw)) ? heads(tr.state) : deco),
+      provide: (f) => [EditorView.decorations.from(f), EditorView.atomicRanges.of((v) => v.state.field(f))],
+    });
+    // nothing may change a header line, or put text before the first one
+    const guard = EditorState.transactionFilter.of((tr) => {
+      if (!tr.docChanged) return tr;
+      const ok = headerLines(tr.startState.doc) === headerLines(tr.newDoc) && (tr.newDoc.length === 0 || isSep(tr.newDoc.line(1).text));
+      return ok ? tr : [];
+    });
+    const lint = linter((view) => {
+      const text = view.state.doc.toString();
+      return [...check(text), ...suggestions(text)].map((p) => {
+        const line = view.state.doc.line(Math.min(p.line, view.state.doc.lines));
+        const from = p.from != null ? line.from + Math.min(p.from, line.length) : line.from;
+        const to = p.to != null ? line.from + Math.min(p.to, line.length) : line.to;
+        return { from, to, severity: p.severity, message: p.message };
+      });
+    }, { delay: 500, needsRefresh: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(recheck))) });
+    const create = (doc) => EditorState.create({
+      doc,
       extensions: [
-        basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, problems(e.check || LiturgyParse.check), lintGutter(),
+        basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, lint, lintGutter(),
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) { e.text = u.state.doc.toString(); onChange(e); }
-          if (u.docChanged || u.selectionSet) onCursor(e, u.state.doc.lineAt(u.state.selection.main.head).number);
+          if (u.docChanged) onChange(u.state.doc.toString());
+          if (u.docChanged || u.selectionSet) onCursor(u.state.doc.lineAt(u.state.selection.main.head).number);
         }),
       ],
-    }));
-    function show(name, line) {
-      const e = entries.find((x) => x.name === name) || entries[0];
-      if (e !== current) {
-        if (current) states[current.name] = view.state;
-        current = e;
-        view.setState(stateFor(e));
-        select.value = e.name;
-      }
-      if (line) {
-        const l = view.state.doc.line(Math.min(line, view.state.doc.lines));
-        view.dispatch({ selection: { anchor: l.from }, effects: EditorView.scrollIntoView(l.from, { y: "center" }) });
-        view.focus();
-      }
-    }
-    // Replace a file's whole text as one edit (so it can be undone)
-    function setText(name, text) {
-      const e = entries.find((x) => x.name === name);
-      if (e === current) return view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
-      const st = stateFor(e);
-      states[e.name] = st.update({ changes: { from: 0, to: st.doc.length, insert: text } }).state;
-      e.text = text;
-      onChange(e);
-    }
-    function setEntries(list) {
-      entries = list;
-      select.textContent = "";
-      for (const e of entries) select.append(Object.assign(document.createElement("option"), { value: e.name, textContent: e.label || e.name }));
-      if (current && entries.includes(current)) select.value = current.name;
-      else if (entries.length) show(entries[0].name);
-    }
-    select.onchange = () => show(select.value);
-    return { setEntries, show, setText, view, current: () => current };
+    });
+    const view = new EditorView({ parent: box, state: create("") });
+    return {
+      view,
+      // a new document (e.g. chapters added or removed): starts a fresh undo history
+      setDoc(text) { view.setState(create(text)); },
+      // one undoable change (e.g. a chapter back to its original text)
+      replace(from, to, text) { view.dispatch({ changes: { from, to, insert: text } }); },
+      goto(line, focus = true) {
+        const l = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
+        view.dispatch({ selection: { anchor: l.from }, effects: EditorView.scrollIntoView(l.from, { y: "start", yMargin: 40 }) });
+        if (focus) view.focus();
+      },
+      refreshHeaders() { version++; view.dispatch({ effects: redraw.of(null) }); },
+    };
   }
 
-  root.LiturgyText = { build, setSuggesting };
+  root.LiturgyText = { build, setSuggesting, SEP, isSep };
 })(window);

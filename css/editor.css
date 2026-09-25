@@ -24,10 +24,28 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #tab-text { display: flex; flex-direction: column; gap: 6px; }
 #tab-text[hidden] { display: none; }
 #tab-text .row { display: flex; align-items: center; gap: 8px; }
-#tab-text select { flex: 1; min-width: 0; font: inherit; }
+#tab-text .grow { flex: 1; }
 #tab-text .row button { white-space: nowrap; padding: 3px 10px; }
 #cm { flex: 1; min-height: 0; border: 1px solid #ccc; }
 #tab-text .hint { margin: 0; }
+/* a chapter's title bar inside the text (drawn over its header line, which can't be edited) */
+.cm-chapter-head { display: flex; align-items: baseline; gap: 8px; margin: 14px 0 4px; padding: 5px 8px; background: #efe7d6;
+  border-top: 2px solid #8a5a00; font: 600 13px/1.3 system-ui, sans-serif; color: #3a2a00; }
+.cm-line:first-child .cm-chapter-head, .cm-content > .cm-chapter-head:first-child { margin-top: 0; }
+.cm-chapter-head .t { flex: 1; min-width: 0; }
+.cm-chapter-head .f { font-weight: 400; color: #8a7a5a; font-size: 12px; }
+
+/* Contents list (left): every chapter and its headings; the place you're at is marked */
+#toc-nav { width: 220px; flex: none; overflow: auto; background: #f3f1ec; border-right: 1px solid #ccc; padding: 0 0 24px; font-size: 13px; }
+#toc-nav .nav-top { position: sticky; top: 0; background: #f3f1ec; padding: 9px 12px 7px; font-weight: 700; border-bottom: 1px solid #ddd; }
+#toc-nav a { display: block; padding: 3px 10px 3px 12px; color: #333; text-decoration: none; border-left: 3px solid transparent;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; scroll-margin: 40px 0 12px; }
+#toc-nav a:hover { background: #e9e4d8; }
+#toc-nav a.nav-l0 { font-weight: 600; margin-top: 6px; }
+#toc-nav a.nav-l1 { padding-left: 24px; }
+#toc-nav a.nav-l2 { padding-left: 36px; color: #555; font-size: 12.5px; }
+#toc-nav a.here { background: #fff0c2; border-left-color: #8a5a00; color: #000; }
+#toc-nav a .tag { margin-left: 6px; }
 
 /* Booklet tab */
 #tab-book h3 { margin: 8px 0; font-size: 15px; }
@@ -54,6 +72,8 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 .numbox input.num { width: 5em; }
 .numbox .unit { width: 1.4em; color: #666; }
 .setting select { max-width: 170px; }
+.setting-check { display: block; font-weight: 600; padding: 5px 4px 2px; }
+#settings-editor .hint { padding: 0 4px 0 28px; }
 .setting .reset { padding: 0 4px; border: 0; background: none; font-size: 16px; color: #8a5a00; }
 
 /* Print tab */
@@ -80,6 +100,7 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 @media (max-width: 900px) {
   #app { flex-direction: column; }
   #panel { width: auto; height: 55vh; border-right: 0; border-bottom: 1px solid #ccc; }
+  #toc-nav { display: none; }
   #preview { min-height: 45vh; }
   #bar { flex-wrap: wrap; }
 }

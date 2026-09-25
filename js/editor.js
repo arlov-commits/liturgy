@@ -154,7 +154,7 @@
     const known = new Set(state.settings.groups.flatMap((g) => g.items.map((i) => i.name)));
     state.settings.changes = Object.fromEntries(Object.entries(LiturgySettings.values(state.book.css)).filter(([k]) => known.has(k)));
     state.book.css = LiturgySettings.toCss(state.settings.changes, state.settings.groups);
-    LiturgySettings.build($("#tab-settings"), state.settings.groups, () => state.settings.changes, (changes) => {
+    LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, (changes) => {
       state.settings.changes = changes;
       state.book.css = LiturgySettings.toCss(changes, state.settings.groups);
       changed();
@@ -216,27 +216,153 @@
     state.known = {};   // every chapter loaded or made, by name — taking one out and back keeps its edits
     for (const s of state.book.sections) addKnown(s);
     state.contents = { text: state.book.listText };
-    state.text = LiturgyText.build($("#cm"), $("#section"), (e) => {
-      changed();
-      refresh(250);
-      if (isEdited(e) !== e.shownEdited) renderChapters();   // the "edited" tag comes or goes
-    }, (e, line) => {
-      state.cursor = { file: e.name, line };
-      clearTimeout(state.cursorTimer);
-      state.cursorTimer = setTimeout(followCursor, 250);
+    state.text = LiturgyText.build($("#cm"), {
+      onChange: docChanged,
+      onCursor: (line) => {
+        state.cursorLine = line;
+        clearTimeout(state.cursorTimer);
+        state.cursorTimer = setTimeout(() => { followCursor(); markPlace(line); }, 200);
+      },
+      header: chapterHeader,
+      check: checkDoc,
     });
-    state.text.setEntries(state.book.sections.filter((s) => !s.virtual));
+    loadDoc();
     renderChapters();
     loadLibrary();
   }
+
+  // ---- the whole booklet in one editor ----
+  // The editor holds every chapter, each after a header line (LiturgyText.SEP + file name). After each edit the
+  // text is split back into chapters by those lines, so every chapter still saves to its own file.
+  const norm = (t) => (t || "").replace(/\s+$/, "") + "\n";
+  function mapDoc(docText) {
+    const lines = docText.split("\n"), map = [];
+    lines.forEach((l, i) => { if (LiturgyText.isSep(l)) map.push({ name: l.slice(LiturgyText.SEP.length), head: i + 1, first: i + 2 }); });
+    map.forEach((m, k) => { m.last = (k + 1 < map.length ? map[k + 1].head : lines.length + 1) - 1; });
+    return { lines, map };
+  }
+  // (Re)build the editor from the chapters — after chapters are added, removed or moved
+  function loadDoc() {
+    const keep = state.docMap && chapterAt(state.cursorLine || 1);
+    const doc = state.book.sections.filter((s) => !s.virtual).map((s) => LiturgyText.SEP + s.name + "\n" + norm(s.text)).join("");
+    state.docMap = mapDoc(doc).map;
+    state.text.setDoc(doc);
+    const back = keep && state.docMap.find((m) => m.name === keep.name);
+    if (back) state.text.goto(back.first, false);
+    renderNav();
+  }
+  function docChanged(docText) {
+    const { lines, map } = mapDoc(docText);
+    state.docMap = map;
+    let flipped = false;
+    for (const m of map) {
+      const s = state.known[m.name];
+      if (!s) continue;
+      s.text = norm(lines.slice(m.first - 1, m.last).join("\n"));
+      if (isEdited(s) !== s.shownEdited) flipped = true;
+    }
+    changed();
+    refresh(250);
+    if (flipped) { renderChapters(); state.text.refreshHeaders(); }
+    clearTimeout(state.navTimer);
+    state.navTimer = setTimeout(renderNav, 400);
+  }
+  // The chapter a line of the editor belongs to
+  const chapterAt = (line) => [...(state.docMap || [])].reverse().find((m) => m.head <= line) || (state.docMap || [])[0];
+  // A chapter's title bar in the editor
+  function chapterHeader(name) {
+    const s = state.known[name];
+    const el = document.createElement("div");
+    el.className = "cm-chapter-head";
+    el.append(Object.assign(document.createElement("span"), { className: "t", textContent: s ? s.label : name }),
+      Object.assign(document.createElement("span"), { className: "f", textContent: labelOf(name) }));
+    if (isEdited(s)) el.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
+    return el;
+  }
+  // Problems in the whole editor: each chapter checked on its own, line numbers moved to where it sits
+  function checkDoc(docText) {
+    const { lines, map } = mapDoc(docText), out = [];
+    for (const m of map) {
+      const text = lines.slice(m.first - 1, m.last).join("\n");
+      for (const p of checkSection(text)) out.push({ ...p, line: p.line + m.first - 1 });
+    }
+    return out;
+  }
+
+  // ---- the contents list (left): every chapter and its headings; click to go there ----
+  function renderNav() {
+    const nav = $("#toc-nav");
+    const doc = state.text.view.state.doc;
+    const items = [];
+    for (const s of state.book.sections) {
+      if (s.virtual) { items.push({ level: 0, label: "Table of contents", line: null }); continue; }
+      const m = state.docMap.find((x) => x.name === s.name);
+      if (!m) continue;
+      items.push({ level: 0, label: s.label, line: m.first, edited: isEdited(s), name: s.name });
+      let prevTitle = false;
+      for (let i = m.first; i <= m.last && i <= doc.lines; i++) {
+        const t = doc.line(i).text.trim();
+        const toc = t.match(/^\[toc:\s*(.*?)\s*\]$/i);
+        if (/^#\s/.test(t)) {
+          const text = t.replace(/^#\s*/, "").replace(/[~\[\]]+/g, " ").replace(/\s+/g, " ").trim();
+          if (prevTitle) items[items.length - 1].label += " " + text; else if (text) items.push({ level: 1, label: text, line: i, top: m });
+          prevTitle = true;
+          continue;
+        }
+        prevTitle = false;
+        if (/^##\s/.test(t)) items.push({ level: 2, label: t.replace(/^##\s*/, "").replace(/[~\[\]]+/g, " ").trim(), line: i });
+        else if (toc && toc[1] !== "-" && i > m.first) items.push({ level: 1, label: toc[1], line: i });
+      }
+    }
+    // a chapter's first title is usually its name again: leave that one out
+    for (let k = items.length - 1; k > 0; k--) if (items[k].top && items[k - 1].level === 0 && items[k].label === items[k - 1].label) items.splice(k, 1);
+    nav.textContent = "";
+    const head = Object.assign(document.createElement("div"), { className: "nav-top", textContent: "Contents" });
+    nav.append(head);
+    for (const it of items) {
+      const a = Object.assign(document.createElement("a"), { href: "#", className: "nav-l" + it.level, textContent: it.label, title: it.label });
+      if (it.line) a.dataset.line = it.line;
+      if (it.edited) a.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
+      a.onclick = (ev) => {
+        ev.preventDefault();
+        if (!it.line) return;
+        $('#tabs button[data-tab="text"]').click();
+        state.text.goto(it.line);
+        state.cursorLine = it.line;
+        followCursor();
+        markPlace(it.line);
+      };
+      nav.append(a);
+    }
+    markPlace(state.cursorLine || 1, false);
+  }
+  // Show where you are (from the cursor, or from where the pages are scrolled) in the contents list
+  function markPlace(line, scroll = true) {
+    const links = [...document.querySelectorAll("#toc-nav a[data-line]")];
+    let here = null;
+    for (const a of links) if (+a.dataset.line <= line) here = a;
+    links.forEach((a) => a.classList.toggle("here", a === here));
+    if (here && scroll) {
+      const box = $("#toc-nav").getBoundingClientRect(), r = here.getBoundingClientRect();
+      if (r.top < box.top + 36 || r.bottom > box.bottom) here.scrollIntoView({ block: "nearest" });
+    }
+  }
+  // the pages were scrolled (preview.html): mark the place of the first verse in view
+  function previewScrolled(win, file, line) {
+    if (!frame || win !== frame.contentWindow) return;
+    const m = (state.docMap || []).find((x) => x.name === file);
+    if (m) markPlace(m.first + line - 1);
+  }
+
   // A chapter differs from its original (or has none: made in the editor)
-  const isEdited = (s) => !!s && !s.virtual && (s.original == null || s.text !== s.original);
+  const isEdited = (s) => !!s && !s.virtual && (s.original == null || norm(s.text) !== norm(s.original));
   // Put the original text back (one undoable edit; saved as removing the edition file)
   function revertChapter(name) {
-    const s = state.known[name];
-    if (!s || s.original == null) return;
-    state.text.setText(name, s.original);
-    renderChapters();
+    const s = state.known[name], m = (state.docMap || []).find((x) => x.name === name);
+    if (!s || s.original == null || !m) return;
+    const doc = state.text.view.state.doc;
+    const from = doc.line(Math.min(m.first, doc.lines)).from, to = doc.line(Math.min(m.last, doc.lines)).to;
+    state.text.replace(from, Math.max(from, to), norm(s.original).replace(/\n$/, m.last === doc.lines ? "\n" : ""));
   }
   function addKnown(s) {
     s.label = s.virtual ? "Table of contents (made automatically)" : titleOf(s.text, s.name);
@@ -280,7 +406,7 @@
       if (!sections.includes(state.known[name])) sections.push(state.known[name]);
     }
     state.book.sections = sections;
-    state.text.setEntries(sections.filter((s) => !s.virtual));
+    loadDoc();
     renderChapters();
     changed();
     refresh();
@@ -352,6 +478,7 @@
     const sel = v.state.selection.main, doc = v.state.doc;
     if (sel.empty) return setStatus(`Select the lines to ${what} first (drag over them in the text), then click again.`, true);
     const first = doc.lineAt(sel.from), last = doc.lineAt(doc.lineAt(sel.to).from === sel.to && sel.to > sel.from ? sel.to - 1 : sel.to);
+    if (chapterAt(first.number) !== chapterAt(last.number)) return setStatus(`The lines to ${what} must be in one chapter.`, true);
     v.dispatch({ changes: [{ from: first.from, insert: `[${mark}]\n` }, { from: last.to, insert: `\n[/${mark}]` }] });
     v.focus();
   }
@@ -368,12 +495,17 @@
   for (const b of document.querySelectorAll(".new-chapter")) b.onclick = () => newSection().catch((e) => setStatus("Problem: " + e.message, true));
   // keep the verse being edited in view in the pages
   function followCursor() {
-    if (frame && state.cursor && frame.contentWindow.showLine) frame.contentWindow.showLine(state.cursor.file, state.cursor.line);
+    const m = state.cursorLine && chapterAt(state.cursorLine);
+    if (frame && m && frame.contentWindow.showLine) frame.contentWindow.showLine(m.name, Math.max(1, state.cursorLine - m.first + 1));
   }
-  // a click on a verse in the pages
+  // a click on a verse in the pages (line = the line within its chapter)
   function jumpTo(file, line) {
+    const m = (state.docMap || []).find((x) => x.name === file);
+    if (!m) return;
     $('#tabs button[data-tab="text"]').click();
-    state.text.show(file, line);
+    state.text.goto(m.first + line - 1);
+    state.cursorLine = m.first + line - 1;
+    markPlace(state.cursorLine);
   }
 
   // ---- print ----
@@ -471,7 +603,7 @@
     render();
   }
 
-  window.Editor = { bookForPreview, previewDone, previewEarly, pagesNeeded, refresh, jumpTo, state };
+  window.Editor = { bookForPreview, previewDone, previewEarly, previewScrolled, pagesNeeded, refresh, jumpTo, state };
   start().catch((e) => {
     setStatus("Problem: " + e.message, true);
     $("#forget").hidden = !LiturgySource.key.get();
