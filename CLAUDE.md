@@ -41,7 +41,9 @@ Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.j
 In the UI a section file is a **chapter**; a booklet is built by adding existing chapters (shared between booklets) or new ones.
 The Text tab's colouring repeats `parse.js`'s line rules — keep them in step with FORMAT.md.
 The Text tab is **one editor holding the whole booklet**: each chapter follows a header line (`LiturgyText.SEP`
-+ file name, drawn as a title bar that can't be edited — a transaction filter guards it); after each edit the text is
++ file name, drawn as a title bar that can't be edited — a transaction filter (`guard`) reshapes any edit that would touch
+one, e.g. a paste over a selection across chapters or after Select All: the text goes where it starts, the header lines
+stay; copy/paste filters drop header lines); after each edit the text is
 split back into chapters by those lines (`editor.js mapDoc`), so every chapter still saves to its own file.
 Lines the editor reports are global; `docMap` (`{name, head, first, last}`) maps them to a chapter's own lines.
 Left of the panel, `#toc-nav` lists the chapters by file name; a click shows the chapter's first page at the top of

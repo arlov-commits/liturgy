@@ -325,12 +325,39 @@
       update: (deco, tr) => (tr.docChanged || tr.effects.some((e) => e.is(redraw)) ? heads(tr.state) : deco),
       provide: (f) => [EditorView.decorations.from(f), EditorView.atomicRanges.of((v) => v.state.field(f))],
     });
-    // nothing may change a header line, or put text before the first one
+    // Nothing may change a header line or put text before the first one. An edit that would (e.g. pasting over a
+    // selection that runs from one chapter into the next, or over everything after Select All) is done around the
+    // header lines instead: the text goes where the edit starts, and the parts of other chapters it covered are
+    // deleted, their header lines kept.
+    const headersKept = (tr) => headerLines(tr.startState.doc) === headerLines(tr.newDoc) && (tr.newDoc.length === 0 || isSep(tr.newDoc.line(1).text));
     const guard = EditorState.transactionFilter.of((tr) => {
-      if (!tr.docChanged) return tr;
-      const ok = headerLines(tr.startState.doc) === headerLines(tr.newDoc) && (tr.newDoc.length === 0 || isSep(tr.newDoc.line(1).text));
-      return ok ? tr : [];
+      if (!tr.docChanged || headersKept(tr)) return tr;
+      const doc = tr.startState.doc, spans = [];   // each header line with the line breaks on both sides
+      for (let i = 1; i <= doc.lines; i++) { const l = doc.line(i); if (isSep(l.text)) spans.push([Math.max(0, l.from - 1), Math.min(doc.length, l.to + 1)]); }
+      const changes = [];
+      tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+        const text = inserted.toString().split("\n").filter((l) => !isSep(l)).join("\n");   // (header lines copied along)
+        let pieces = [[fromA, toA]];
+        for (const [a, b] of spans) {
+          pieces = pieces.flatMap(([f, t]) => {
+            if (f === t) return [f > a && f < b || (f === 0 && a === 0) ? [b, b] : [f, t]];   // an insertion inside: just after
+            return b <= f || a >= t ? [[f, t]] : [[f, Math.min(t, a)], [Math.max(f, b), t]].filter(([x, y]) => x < y);
+          });
+        }
+        if (!pieces.length) pieces = [[Math.min(toA, doc.length), Math.min(toA, doc.length)]];
+        pieces.forEach(([f, t], k) => changes.push({ from: f, to: t, insert: k ? "" : text }));
+      });
+      const spec = { changes, annotations: [] };
+      const ev = tr.annotation(CM.Transaction.userEvent);
+      if (ev) spec.annotations.push(CM.Transaction.userEvent.of(ev));
+      const what = tr.annotation(label);
+      if (what) spec.annotations.push(label.of(what));
+      const fixed = tr.startState.update({ ...spec, filter: false });
+      return headersKept(fixed) ? spec : [];
     });
+    // copying leaves out the header lines; pasting drops any that came along
+    const dropHeaders = (text) => text.split("\n").filter((l) => !isSep(l)).join("\n");
+    const clipboard = [EditorView.clipboardOutputFilter.of(dropHeaders), EditorView.clipboardInputFilter.of(dropHeaders)];
     const lint = linter((view) => {
       const text = view.state.doc.toString();
       return [...check(text), ...suggestions(text)].map((p) => {
@@ -373,7 +400,7 @@
     const create = (doc, original) => EditorState.create({
       doc,
       extensions: [
-        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, lint, lintGutter(),
+        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, clipboard, lint, lintGutter(),
         alignSlot.of(alignExt()), groupShading,
         diffField.init((st) => { const o = CM.EditorState.create({ doc: original ?? doc }).doc; return { original: o, chunks: CM.Chunk.build(o, st.doc) }; }),
         ghostField,

@@ -44,7 +44,7 @@ const check = (ok, what, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
 const servers = [spawn('python3', ['-m', 'http.server', '8791', '-d', path.join(tmp, 'site')], { stdio: 'ignore' })];
 await new Promise((r) => setTimeout(r, 800));
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
-const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
 const sha = (b) => createHash('sha1').update(b).digest('hex');
 const rawSeen = new Set();
 await ctx.route('https://api.github.com/**', async (route) => {
@@ -180,10 +180,30 @@ try {
   const shades = await page.evaluate(() => [...document.querySelectorAll('.cm-line')].map((l) => +((l.className.match(/cm-group-(\d)/) || [0, 0])[1])));
   await page.click('#undo'); await page.click('#undo');
   check(shades.filter((d) => d === 1).length >= 5 && shades.filter((d) => d === 2).length === 5 && await dots() === '', 'Keep together / Border groups shaded in the text, darker when nested', shades.join(''));
-  // the header lines can't be edited away
-  const before = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
-  await page.evaluate(() => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: 'gone' } }); });
-  check(await page.evaluate((b) => Editor.state.text.view.state.doc.toString() === b, before), 'chapter title bars can\'t be deleted');
+  // pasting: plain text at the cursor; over a selection running into the next chapter (the title bars stay, the text
+  // goes where the selection started); copying leaves the title bars out
+  const docNow = () => page.evaluate(() => Editor.state.text.view.state.doc.toString());
+  const chapterNames = () => page.evaluate(() => Editor.state.docMap.map((m) => m.name).join());
+  const before = await docNow(), headsBefore = await chapterNames();
+  const selectLines = (a, b) => page.evaluate(([a, b]) => { const v = Editor.state.text.view, d = v.state.doc; v.dispatch({ selection: { anchor: d.line(a).from, head: d.line(b).to } }); v.focus(); }, [a, b]);
+  const [h2, f1] = await page.evaluate(() => [Editor.state.docMap[1].head, Editor.state.docMap[0].first]);
+  await selectLines(f1 + 1, f1 + 1); await page.keyboard.press('Control+c');
+  const copied1 = await page.evaluate(() => navigator.clipboard.readText());
+  await page.evaluate((n) => { const v = Editor.state.text.view; v.dispatch({ selection: { anchor: v.state.doc.line(n).to } }); v.focus(); }, f1 + 3);
+  await page.keyboard.press('Control+v');
+  const pasted = await textOf(f1 + 3);
+  await selectLines(h2 - 2, h2 + 2); await page.keyboard.press('Control+c');
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  await page.evaluate(() => navigator.clipboard.writeText('PASTED ACROSS'));
+  await page.keyboard.press('Control+v');
+  const across = [await chapterNames(), (await docNow()).includes('PASTED ACROSS'), await page.evaluate(() => { const d = Editor.state.text.view.state.doc, m = Editor.state.docMap[0]; return d.sliceString(d.line(m.first).from, d.line(m.last).to); })];
+  await page.keyboard.press('Control+a'); await page.evaluate(() => navigator.clipboard.writeText('EVERYTHING'));
+  await page.keyboard.press('Control+v');
+  const all = [await chapterNames(), await page.evaluate(() => { const d = Editor.state.text.view.state.doc, m = Editor.state.docMap[0]; return d.line(m.first).text; })];
+  await page.click('#undo'); await page.click('#undo'); await page.click('#undo');
+  check(pasted.endsWith(copied1) && across[0] === headsBefore && across[1] && across[2].endsWith('PASTED ACROSS') && !copied.includes('\u2063') &&
+    all[0] === headsBefore && all[1] === 'EVERYTHING' && await docNow() === before,
+    'paste: at the cursor, over a selection across chapters, over Select All (title bars stay); copy leaves title bars out; undo');
   // pinyin lined up under the characters in the text (off until switched on in Settings): each syllable centred under its character
   const offAtFirst = await page.locator('.cm-col').count();
   await openSettings(); await page.check('#align-pinyin'); await closeSettings();
