@@ -41,8 +41,9 @@ The Text tab is **one editor holding the whole booklet**: each chapter follows a
 + file name, drawn as a title bar that can't be edited — a transaction filter guards it); after each edit the text is
 split back into chapters by those lines (`editor.js mapDoc`), so every chapter still saves to its own file.
 Lines the editor reports are global; `docMap` (`{name, head, first, last}`) maps them to a chapter's own lines.
-Left of the panel, `#toc-nav` lists chapters and their `#`/`##` headings; the place you're at (cursor, or the pages
-scrolled by hand — `preview.html` reports it via `Editor.previewScrolled`) is marked.
+Left of the panel, `#toc-nav` lists the chapters by file name; a click shows the chapter's first page at the top of
+the pages (`preview.html showChapter`; not laid out yet → a spinner until it is) and puts the cursor there. The place
+you're at (cursor, or the pages scrolled by hand — `preview.html` reports it via `Editor.previewScrolled`) is marked.
 Pinyin is lined up under the characters in the editor by a display-only layer (`texttab.js alignDecos`: each
 character and its syllable become inline-block columns of equal, canvas-measured width; spaces in the pinyin line
 take no room; punctuation gets an empty column), so both lines wrap at the same places. The text keeps single

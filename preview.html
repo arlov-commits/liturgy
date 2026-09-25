@@ -41,12 +41,18 @@
     .embedded .block { cursor: pointer; }
     .embedded .block:hover { background: rgba(255, 220, 120, .18); }
     .block.here { background: rgba(255, 210, 90, .35); box-shadow: 0 0 0 3px rgba(255, 210, 90, .35); }
+    #jumping { position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%); z-index: 10; background: #fff; padding: 12px 18px;
+      border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.25); font: 14px system-ui, sans-serif; display: flex; align-items: center; gap: 10px; }
+    #jumping[hidden] { display: none; }
+    #jumping .spin { width: 18px; height: 18px; border: 3px solid #e3d6b8; border-top-color: #8a5a00; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .mismatch::after { content: attr(data-problem); display: block; color: #d33; font: 9px sans-serif; }
   }
 </style>
 </head>
 <body>
 <div id="status">Loading…</div>
+<div id="jumping" hidden><span class="spin"></span> Laying out the pages…</div>
 <main id="book"></main>
 <script src="js/parse.js"></script>
 <script src="js/source.js"></script>
@@ -158,6 +164,7 @@ async function render(id) {
     let shown = false;
     previewer.chunker.on("renderedPage", () => {
       if (!shown && id === runId && previewer.chunker.total >= showAt) { shown = true; editor.previewEarly(window); }
+      checkWanted(false);
     });
     pages = (await previewer.preview(src, sheets, main)).total;
     if (id !== runId) return;   // stopped: a newer layout takes over
@@ -169,6 +176,7 @@ async function render(id) {
     status.textContent = `${book.sections.length} chapters · ${problems} problem(s) · press Ctrl+P to see pages`;
   }
   document.body.dataset.ready = "1";
+  checkWanted(true);
   if (editor) editor.previewDone(window, { pages, problems, spreads: engine === "paged" && pages ? spreadReport() : [],
     blanks: document.querySelectorAll(".pagedjs_blank_page").length });
 }
@@ -350,12 +358,32 @@ function printSheets() {
 function showLine(file, line) {
   const sec = [...document.querySelectorAll("[data-file]")].filter((s) => s.dataset.file === file);
   let best = null;
-  for (const b of sec.flatMap((s) => [...s.querySelectorAll(".block[data-line]")])) if (+b.dataset.line <= line && (!best || +b.dataset.line > +best.dataset.line)) best = b;
+  const blocks = sec.flatMap((s) => [...s.querySelectorAll(".block[data-line]")]);
+  for (const b of blocks) if (+b.dataset.line <= line && (!best || +b.dataset.line > +best.dataset.line)) best = b;
+  best = best || blocks[0];   // (a line above the chapter's first verse: that verse)
   document.querySelectorAll(".block.here").forEach((b) => b.classList.remove("here"));
   if (!best) return;
   document.querySelectorAll(`[data-file="${CSS.escape(file)}"] .block[data-line="${best.dataset.line}"]`).forEach((b) => b.classList.add("here"));
   const r = best.getBoundingClientRect();
   if (r.top < 0 || r.bottom > innerHeight) { quietUntil = Date.now() + 800; best.scrollIntoView({ block: "center" }); }
+}
+
+// The editor's contents list: show the page a chapter starts on, at the top. A chapter not laid out yet (the
+// pages are still coming): show a spinner and go there as soon as it is.
+let wanted = null;
+function showChapter(file) {
+  wanted = null;
+  const start = [...document.querySelectorAll(".pagedjs_page [data-file]")].find((s) => s.dataset.file === file);
+  if (start) {
+    quietUntil = Date.now() + 800;
+    start.closest(".pagedjs_page").scrollIntoView({ block: "start" });
+  } else if (document.body.dataset.ready !== "1") wanted = file;
+  document.getElementById("jumping").hidden = !wanted;
+  return !!start;
+}
+// (called as each page is laid out, and when all are)
+function checkWanted(done) {
+  if (wanted && (showChapter(wanted) || done)) { wanted = null; document.getElementById("jumping").hidden = true; }
 }
 
 // Scrolling the pages by hand tells the editor which verse is at the top, to mark that place in its contents list

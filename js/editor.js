@@ -289,48 +289,25 @@
     return out;
   }
 
-  // ---- the contents list (left): every chapter and its headings; click to go there ----
+  // ---- the contents list (left): the chapters, by file name; click to go there (text and pages) ----
+  const navLabel = (name) => (name === LiturgySource.CONTENTS_ENTRY ? "Table of contents" : labelOf(name));
   function renderNav() {
     const nav = $("#toc-nav");
-    const doc = state.text.view.state.doc;
-    const items = [];
-    for (const s of state.book.sections) {
-      if (s.virtual) { items.push({ level: 0, label: "Table of contents", line: null }); continue; }
-      const m = state.docMap.find((x) => x.name === s.name);
-      if (!m) continue;
-      items.push({ level: 0, label: s.label, line: m.first, edited: isEdited(s), name: s.name });
-      let prevTitle = false;
-      for (let i = m.first; i <= m.last && i <= doc.lines; i++) {
-        const t = doc.line(i).text.trim();
-        const toc = t.match(/^\[toc:\s*(.*?)\s*\]$/i);
-        if (/^#\s/.test(t)) {
-          const text = t.replace(/^#\s*/, "").replace(/[~\[\]]+/g, " ").replace(/\s+/g, " ").trim();
-          if (prevTitle) items[items.length - 1].label += " " + text; else if (text) items.push({ level: 1, label: text, line: i, top: m });
-          prevTitle = true;
-          continue;
-        }
-        prevTitle = false;
-        if (/^##\s/.test(t)) items.push({ level: 2, label: t.replace(/^##\s*/, "").replace(/[~\[\]]+/g, " ").trim(), line: i });
-        else if (toc && toc[1] !== "-" && i > m.first) items.push({ level: 1, label: toc[1], line: i });
-      }
-    }
-    // a chapter's first title is usually its name again: leave that one out
-    for (let k = items.length - 1; k > 0; k--) if (items[k].top && items[k - 1].level === 0 && items[k].label === items[k - 1].label) items.splice(k, 1);
     nav.textContent = "";
-    const head = Object.assign(document.createElement("div"), { className: "nav-top", textContent: "Contents" });
-    nav.append(head);
-    for (const it of items) {
-      const a = Object.assign(document.createElement("a"), { href: "#", className: "nav-l" + it.level, textContent: it.label, title: it.label });
-      if (it.line) a.dataset.line = it.line;
-      if (it.edited) a.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
+    nav.append(Object.assign(document.createElement("div"), { className: "nav-top", textContent: "Contents" }));
+    for (const s of state.book.sections) {
+      const m = (state.docMap || []).find((x) => x.name === s.name);
+      const a = Object.assign(document.createElement("a"), { href: "#", className: "nav-l0", textContent: navLabel(s.name), title: s.label });
+      if (m) a.dataset.line = m.first;
+      if (isEdited(s)) a.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
       a.onclick = (ev) => {
         ev.preventDefault();
-        if (!it.line) return;
+        if (frame && frame.contentWindow.showChapter) frame.contentWindow.showChapter(s.name);
+        if (!m) return;
         $('#tabs button[data-tab="text"]').click();
-        state.text.goto(it.line);
-        state.cursorLine = it.line;
-        followCursor();
-        markPlace(it.line);
+        state.text.goto(m.first);
+        state.cursorLine = m.first;
+        markPlace(m.first);
       };
       nav.append(a);
     }

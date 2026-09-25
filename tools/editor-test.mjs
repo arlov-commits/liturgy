@@ -87,6 +87,8 @@ const saveDone = () => page.waitForFunction(() => /^(Saved|Not saved|Downloaded)
 const afterEdit = async () => { await page.waitForTimeout(1200); await settled(); };
 const openSettings = () => page.click('#tabs button[data-tab="settings"]');
 const closeSettings = () => page.click('#tabs button[data-tab="text"]');
+// the preview frame on show (the other one lays out the next version, hidden)
+const shownPreview = async () => { const els = await page.$$('#preview iframe:not(.loading)'); return els.length ? els[0].contentFrame() : preview(); };
 const preview = () => page.frames().find((f) => f.url().includes('preview.html'));
 // changes the text of the first chapter in the editor (which holds the whole booklet)
 const edit = (fn) => page.evaluate((fn) => {
@@ -145,8 +147,12 @@ try {
   const navCount = await page.locator('#toc-nav a.nav-l0').count();
   await page.locator('#toc-nav a.nav-l0').nth(1).click(); await page.waitForTimeout(300);
   const nav = await page.evaluate(() => { const v = Editor.state.text.view, n = v.state.doc.lineAt(v.state.selection.main.head).number;
-    const here = document.querySelector('#toc-nav a.here'); return [n, Editor.state.docMap[1].first, here && here.textContent]; });
-  check(navCount === heads[0] && nav[0] === nav[1] && nav[2], 'contents list: jumps to a chapter and marks it', nav.join(' | '));
+    const here = document.querySelector('#toc-nav a.here'); return [n, Editor.state.docMap[1].first, here && here.textContent, Editor.state.docMap[1].name.replace(/\.txt$/, '')]; });
+  check(navCount === heads[0] && nav[0] === nav[1] && nav[2] === nav[3], 'contents list: chapter file names; jumps to a chapter and marks it', nav.join(' | '));
+  const pageTop = await (await shownPreview()).evaluate((f) => { const s = [...document.querySelectorAll('.pagedjs_page [data-file]')].find((x) => x.dataset.file === f);
+    const top = Math.round(s.closest('.pagedjs_page').getBoundingClientRect().top), atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
+    return Math.abs(top) < 5 || (atEnd && top > 0 && top < innerHeight) ? 'ok' : `top at ${top}px`; }, nav[3] + '.txt');
+  check(pageTop === 'ok', '…and shows the page it starts on at the top of the pages', pageTop);
   await edit("return '// test edit\\n' + t"); await afterEdit();
   check((await page.textContent('#save')).includes('2 files'), 'unsaved changes are counted', await page.textContent('#save'));
   await page.keyboard.press('Control+s'); await saveDone();

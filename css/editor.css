@@ -41,9 +41,7 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #toc-nav a { display: block; padding: 3px 10px 3px 12px; color: #333; text-decoration: none; border-left: 3px solid transparent;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; scroll-margin: 40px 0 12px; }
 #toc-nav a:hover { background: #e9e4d8; }
-#toc-nav a.nav-l0 { font-weight: 600; margin-top: 6px; }
-#toc-nav a.nav-l1 { padding-left: 24px; }
-#toc-nav a.nav-l2 { padding-left: 36px; color: #555; font-size: 12.5px; }
+#toc-nav a.nav-l0 { padding-top: 5px; padding-bottom: 5px; }
 #toc-nav a.here { background: #fff0c2; border-left-color: #8a5a00; color: #000; }
 #toc-nav a .tag { margin-left: 6px; }
 
