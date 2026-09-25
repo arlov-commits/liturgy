@@ -48,8 +48,8 @@ qí shù jǐ gū dú yuán
 
 ## Page references
 
-`[page of <section>]` anywhere in an English or title line prints the page that section starts on (the editor shows
-the number beside it; click it to change it); `[page of <section> / <part>]` the page of a `[toc: <part>]` in that
+`[page of <section>]` anywhere in an English or title line prints the page that section starts on (the editor shows it
+as one chip, `<section> · p. 9`; click it to type a number by hand); `[page of <section> / <part>]` the page of a `[toc: <part>]` in that
 section; `[page 12 of <section>]` prints 12, a number typed by hand — the editor warns that it won't follow changes and
 offers the automatic one back. For example:
 `~~~ Proceed to Meng Shan Offering (Page [page of 05-meng-shan-offering]) ~~~`. The section is named by its

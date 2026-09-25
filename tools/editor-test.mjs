@@ -429,17 +429,25 @@ try {
     for (let i = m.first; i <= m.last; i++) { const t = d.line(i).text; if (/\[page of/.test(t)) { v.dispatch({ changes: { from: d.line(i).from, to: d.line(i).from + t.indexOf('[page'), insert: 'SHORT NAME ' } }); return; } } });
   await afterEdit();
   const aliasShown = await (await shownPreview()).evaluate(() => [...document.querySelectorAll('.toc-entry .toc-title')].map((t) => t.textContent));
+  // (the reference is one chip: typing into it or deleting it alone doesn't happen; a click sets a number)
+  await page.click('#tabs button[data-tab="text"]');
+  await page.evaluate(() => Editor.state.text.goto(Editor.state.docMap[0].first, false)); await page.waitForTimeout(200);
+  const beforeTry = await tocText();
   await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, m = Editor.state.docMap[0];
-    for (let i = m.first; i <= m.last; i++) { const t = d.line(i).text, k = t.indexOf('[page of'); if (k >= 0) { v.dispatch({ changes: { from: d.line(i).from + k, to: d.line(i).from + k + 5, insert: '[page 99' } }); return; } } });
+    for (let i = m.first; i <= m.last; i++) if (/\[page of/.test(d.line(i).text)) { v.dispatch({ selection: { anchor: d.line(i).to } }); v.focus(); return; } });
+  await page.keyboard.press('Backspace');
+  const refusedKept = (await tocText()) === beforeTry && /stay/.test(await status());
+  page.once('dialog', (d) => d.accept('99'));
+  await page.locator('.cm-pagenum').first().click();
   await afterEdit(); await page.waitForTimeout(700);
   const fixedShown = await (await shownPreview()).evaluate(() => document.querySelector('.toc-entry .toc-page').textContent);
   await page.evaluate(() => Editor.state.text.goto(Editor.state.docMap[0].first, false)); await page.waitForTimeout(200);
-  const warned = await page.locator('.cm-lintRange-warning').count();
+  const warned = await page.locator('.cm-lint-marker-warning').count();
   const handChip = await page.textContent('.cm-pagenum.fixed');
   page.once('dialog', (d) => d.accept(''));
   await page.click('.cm-pagenum.fixed'); await afterEdit();
   const tocBack = await tocText();
-  check(firstRef && /\[\/contents\]/.test(await tocText()) && chips.length >= 2 && chips.every((c) => /^p\. \d+$/.test(c)) && aliasShown[0] === 'SHORT NAME' &&
+  check(firstRef && refusedKept && /\[\/contents\]/.test(await tocText()) && chips.length >= 2 && chips.every((c) => / · p\. \d+$/.test(c)) && aliasShown[0] === 'SHORT NAME' &&
     fixedShown === '99' && warned > 0 && /set by hand/.test(handChip) && /SHORT NAME \[page of /.test(tocBack) && !/page 99/.test(tocBack),
     'table of contents written out in the text: rename an entry; a page number typed by hand is warned; one click back to the automatic number',
     `${chips.join(',')} | ${aliasShown[0]} | ${fixedShown} | ${handChip}`);

@@ -59,6 +59,10 @@ Pinyin is lined up under the characters in the editor by a display-only layer (`
 character and its syllable become inline-block columns of equal, canvas-measured width; spaces in the pinyin line
 take no room; punctuation gets an empty column), so both lines wrap at the same places. The text keeps single
 spaces. Visible lines only (~1 ms a keystroke). Off by default; switch: Settings → The text editor (per browser).
+Page references (`[page of …]`) show as one chip (`texttab.js pageDecos`, an atomic replace widget: `name · p. N`), so a
+name can't be mistyped; a click sets a number by hand. In a written-out contents, `refGuard` keeps them: deleting whole
+entry lines puts `//` in front instead, deleting just a chip is refused (status says why). `syncContents` never drops a
+line except one whose chapter was just taken out of the booklet, and changes only the lines that differ.
 Span tags are pairs (`texttab.js pairGuard`): deleting into `[border]`/`[keep together]`/`[contents]` or its closing tag removes
 both tags (one Undo step), typing beside a tag goes on its own line; the pair at the cursor is outlined (`tagPairs`).
 `[keep together]` spans are shaded amber in the editor, `[border]` spans blue, their midpoint where both apply; darker per nesting level (`texttab.js groupDecos`, lines in view only).

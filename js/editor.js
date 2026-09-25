@@ -328,6 +328,7 @@
       where: (n) => { const m = chapterAt(n); return m ? `${navLabel(m.name)}, line ${n - m.first + 1}` : `line ${n}`; },
       onHistory: showHistory,
       marked: (name) => !!state.known[name] && state.known[name].original != null,
+      refused: (why) => setStatus(why, true),
     });
     updateContents(false);
     loadDoc();
@@ -509,11 +510,15 @@
     if (start < 0) return text;
     const end = lines.findIndex((l, i) => i > start && CONTENTS_CLOSE.test(l.trim()));
     const body = end < 0 ? [] : lines.slice(start + 1, end);
-    const have = new Map(), before = new Map();   // entry lines by key; other lines, kept before the entry they preceded
+    // entry lines by key; any other line (a note, a heading, a name that matches no chapter) stays with the entry it
+    // came before; a line is dropped only when its chapter was taken out of the booklet just now
+    const keys = new Set(entries.map((e) => e.key)), gone = (k) => lastTitles.has(k) && !keys.has(k);
+    const have = new Map(), before = new Map();
     let loose = [];
     for (const l of body) {
       const k = rowKey(l);
-      if (k && !have.has(k)) { have.set(k, l); before.set(k, loose); loose = []; } else loose.push(l);
+      if (k && keys.has(k) && !have.has(k)) { have.set(k, l); before.set(k, loose); loose = []; }
+      else if (!(k && gone(k))) loose.push(l);
     }
     const out = [];
     for (const e of entries) {
@@ -523,7 +528,6 @@
       if (have.has(e.key) && was != null && was !== e.title && rowTitle(line) === was) line = line.replace(was, e.title);
       out.push(line);
     }
-    for (const [k, ls] of before) if (!entries.some((e) => e.key === k)) out.push(...ls);   // (notes above a removed entry)
     out.push(...loose);
     return [...lines.slice(0, start + 1), ...out, "[/contents]", ...lines.slice(end < 0 ? start + 1 : end + 1)].join("\n") + "\n";
   }
@@ -539,8 +543,17 @@
     if (norm(text) === norm(toc.text)) return;
     const m = inEditor && (state.docMap || []).find((x) => x.name === toc.name);
     if (!m) { toc.text = text; return; }
-    const doc = state.text.view.state.doc, last = m.last === doc.lines;
-    state.text.replaceQuietly(doc.line(m.first).from, doc.line(m.last).to, last ? text : text.replace(/\n$/, ""));
+    // only the lines that differ (so Undo of your own edits there still lines up)
+    const doc = state.text.view.state.doc, want = text.replace(/\n$/, "").split("\n");
+    const have = []; for (let i = m.first; i <= m.last; i++) have.push(doc.line(i).text);
+    if (m.last === doc.lines && have[have.length - 1] === "") have.pop();
+    let a = 0; while (a < have.length && a < want.length && have[a] === want[a]) a++;
+    let b = 0; while (b < have.length - a && b < want.length - a && have[have.length - 1 - b] === want[want.length - 1 - b]) b++;
+    const from = a < have.length - b ? doc.line(m.first + a).from : (a ? doc.line(m.first + a - 1).to : doc.line(m.first).from);
+    const to = a < have.length - b ? doc.line(m.first + have.length - b - 1).to : from;
+    const middle = want.slice(a, want.length - b).join("\n");
+    const insert = a < have.length - b ? middle : (middle ? (a ? "\n" : "") + middle + (a ? "" : "\n") : "");
+    state.text.replaceQuietly(from, to, insert);
   }
 
   // ---- the Chapters tab: which chapters, in which order ----

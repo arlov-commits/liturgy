@@ -285,6 +285,41 @@
     }
     return spec;
   });
+  // In a written-out table of contents ([contents] … [/contents]) each entry's page reference stays: deleting whole
+  // entry lines leaves them out instead ("// " in front, which also keeps them from being added back); deleting just
+  // a reference is refused (onRefused says why). Edits reaching outside the block (Select All …) are left alone.
+  const inContents = (doc, n) => {
+    for (let i = n - 1; i >= 1; i--) {
+      const t = doc.line(i).text.trim();
+      if (isSep(doc.line(i).text) || /^\[\/contents\]$/i.test(t)) return false;
+      if (/^\[contents\]$/i.test(t)) return true;
+    }
+    return false;
+  };
+  let onRefused = () => {};
+  const refGuard = EditorState.transactionFilter.of((tr) => {
+    if (!tr.docChanged || tr.annotation(CM.Transaction.addToHistory) === false) return tr;
+    const doc = tr.startState.doc;
+    let rows = [], refused = false, outside = false;
+    tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+      if (fromA === toA || /\[page(?:\s+\d+)?\s+of\s+[^\]]+\]/i.test(inserted.toString())) return;   // (a reference swapped for another: fine)
+      const first = doc.lineAt(fromA).number, last = doc.lineAt(toA).number;
+      for (let n = first; n <= last; n++) {
+        const line = doc.line(n);
+        const refs = [...line.text.matchAll(REF)].filter((m) => fromA < line.from + m.index + m[0].length && toA > line.from + m.index);
+        if (!refs.length) continue;
+        if (!inContents(doc, n) || TAG.test(doc.line(first).text.trim()) || TAG.test(doc.line(last).text.trim())) { outside = true; continue; }
+        const whole = fromA <= line.from && toA >= line.to;
+        if (whole) rows.push(n); else refused = true;
+      }
+    });
+    if (outside || (!rows.length && !refused)) return tr;
+    if (refused) { onRefused("The page references in the table of contents stay. To leave an entry out, delete its whole line (or put // in front)."); return []; }
+    // whole entry lines deleted: left out instead
+    const changes = [...new Set(rows)].filter((n) => !doc.line(n).text.trim().startsWith("//")).map((n) => ({ from: doc.line(n).from, insert: "// " }));
+    return changes.length ? { changes, annotations: [label.of("Left out of the table of contents"), CM.Transaction.userEvent.of("delete")] } : [];
+  });
+
   // the tag at the cursor and its partner: marked
   const tagPairLine = CM.Decoration.line({ class: "cm-tag-pair" });
   const tagPairs = CM.ViewPlugin.fromClass(class {
@@ -305,24 +340,27 @@
   const refText = (name, entry, fixed) => `[page${fixed ? " " + fixed : ""} of ${name.trim()}${entry ? " / " + entry.trim() : ""}]`;
   let pageNumbers = {};
   const newPages = CM.StateEffect.define();
+  // A page reference is shown as one chip in place of its tag ("11-3-three-refuges · p. 9"): it can't be typed into
+  // (a changed name would point nowhere), Backspace takes it out whole, and a click sets the number by hand.
   class PageNum extends CM.WidgetType {
-    constructor(auto, fixed) { super(); this.auto = auto; this.fixed = fixed; }
-    eq(o) { return o.auto === this.auto && o.fixed === this.fixed; }
+    constructor(key, auto, fixed) { super(); this.key = key; this.auto = auto; this.fixed = fixed; }
+    eq(o) { return o.key === this.key && o.auto === this.auto && o.fixed === this.fixed; }
     toDOM(view) {
       const auto = this.auto ?? "?";
       const el = Object.assign(document.createElement("span"), { className: "cm-pagenum" + (this.fixed ? " fixed" : ""),
-        textContent: this.fixed ? `p. ${this.fixed} set by hand · automatic ${auto}` : `p. ${auto}`,
-        title: "The page number printed here — click to type one by hand, or to go back to the automatic one" });
+        textContent: `${this.key} · ` + (this.fixed ? `p. ${this.fixed} set by hand (automatic ${auto})` : `p. ${auto}`),
+        title: `The page of “${this.key}” — click to type a number by hand, or to go back to the automatic one` });
       el.onmousedown = (ev) => {
         ev.preventDefault();
         const pos = view.posAtDOM(el), line = view.state.doc.lineAt(pos);
-        const m = [...line.text.matchAll(REF)].find((r) => line.from + r.index + r[0].length === pos);
+        const m = [...line.text.matchAll(REF)].find((r) => line.from + r.index <= pos && pos <= line.from + r.index + r[0].length);
         if (!m) return;
+        const start = line.from + m.index;
         const answer = prompt(`Page number to print here (the automatic one is ${auto}).\nLeave it empty to use the automatic number, which follows any changes.`, this.fixed || "");
         if (answer === null) return;
         const n = answer.trim();
         if (n && !/^\d+$/.test(n)) return alert("Please type a page number (digits only), or leave it empty.");
-        view.dispatch({ changes: { from: line.from + m.index, to: pos, insert: refText(m[2], m[3], n) },
+        view.dispatch({ changes: { from: start, to: start + m[0].length, insert: refText(m[2], m[3], n) },
           annotations: label.of(n ? `Page number ${n} set by hand` : "Back to the automatic page number") });
       };
       return el;
@@ -336,8 +374,8 @@
         const line = doc.line(n);
         if (line.text.trim().startsWith("//")) continue;
         for (const m of line.text.matchAll(REF)) {
-          b.add(line.from + m.index + m[0].length, line.from + m.index + m[0].length,
-            CM.Decoration.widget({ widget: new PageNum(pageNumbers[refKey(m[2], m[3])], m[1]), side: 1 }));
+          const key = refKey(m[2], m[3]);
+          b.add(line.from + m.index, line.from + m.index + m[0].length, CM.Decoration.replace({ widget: new PageNum(key, pageNumbers[key], m[1]) }));
         }
       }
     }
@@ -346,7 +384,7 @@
   const pageNums = CM.ViewPlugin.fromClass(class {
     constructor(view) { this.decorations = pageDecos(view); }
     update(u) { if (u.docChanged || u.viewportChanged || u.transactions.some((t) => t.effects.some((e) => e.is(newPages)))) this.decorations = pageDecos(u.view); }
-  }, { decorations: (p) => p.decorations });
+  }, { decorations: (p) => p.decorations, provide: (plugin) => EditorView.atomicRanges.of((view) => view.plugin(plugin)?.decorations || CM.Decoration.none) });
 
   // ---- changed lines: a dot beside each line that differs from the original text ----
   // The original is a second document (same chapter header lines); @codemirror/merge's Chunk works out which lines
@@ -461,7 +499,8 @@
   // Returns { setDoc(text, original), replace(from, to, text, label), goto(line), refreshHeaders(), undo(n), redo(n),
   // history() → { undo: [text…], redo: [text…] } (next first), label, view }.
   // marked(name) → false for a chapter whose changed lines get no dots (one made in the editor: it has no original)
-  function build(box, { onChange, onCursor = () => {}, header, check, where = (n) => "line " + n, onHistory = () => {}, marked = () => true }) {
+  function build(box, { onChange, onCursor = () => {}, header, check, where = (n) => "line " + n, onHistory = () => {}, marked = () => true, refused = () => {} }) {
+    onRefused = refused;
     const { Decoration, WidgetType, StateField, StateEffect, RangeSetBuilder } = CM;
     const redraw = StateEffect.define();
     let version = 0;
@@ -560,7 +599,7 @@
     const create = (doc, original) => EditorState.create({
       doc,
       extensions: [
-        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, pairGuard, tagPairs, clipboard, lint, lintGutter(),
+        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, pairGuard, refGuard, tagPairs, clipboard, lint, lintGutter(),
         alignSlot.of(alignExt()), groupShading, pageNums,
         diffField.init((st) => { const o = CM.EditorState.create({ doc: original ?? doc }).doc; return { original: o, chunks: CM.Chunk.build(o, st.doc) }; }),
         ghostField,
