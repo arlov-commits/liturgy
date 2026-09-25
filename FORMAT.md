@@ -48,17 +48,31 @@ qí shù jǐ gū dú yuán
 
 ## Page references
 
-`[page of <section>]` anywhere in an English or title line prints the page that section starts on, e.g.
+`[page of <section>]` anywhere in an English or title line prints the page that section starts on (the editor shows
+the number beside it; click it to change it); `[page of <section> / <part>]` the page of a `[toc: <part>]` in that
+section; `[page 12 of <section>]` prints 12, a number typed by hand — the editor warns that it won't follow changes and
+offers the automatic one back. For example:
 `~~~ Proceed to Meng Shan Offering (Page [page of 05-meng-shan-offering]) ~~~`. The section is named by its
 file name without `.txt` (as in the editor's Section list) and must be in the same booklet — otherwise it
 prints `?` and is flagged.
 
 ## Table of contents
 
-- In the editor, **Add table of contents** (Chapters tab) inserts a contents page made automatically (the line
-  `[contents]` in the booklet list; its heading is the “contents title” setting). It shows in the text like a
-  chapter and can be edited (a title, a note above or below the list); the edited text is kept for that booklet in
-  `books/contents/<booklet>.txt`, and **Original** puts back the automatic one.
+- In the editor, **Add table of contents** (Chapters tab) inserts a contents page (the line `[contents]` in the
+  booklet list; its heading is the “contents title” setting). It shows in the text like a chapter, with its entries
+  written out between `[contents]` and `[/contents]`, one line each:
+  ```
+  [contents]
+  Amitabha Sutra [page of 03-amitabha-sutra]
+    Incense Praise [page of 10-meal-offering / Incense Praise]
+  [/contents]
+  ```
+  The text before the reference is what's printed — change it freely (e.g. a shorter name). The editor keeps the
+  lines in step with the booklet: a chapter added gets a line, a chapter taken out loses it, and a line whose text is
+  still the chapter's own title follows it when the title changes. A line without a page reference prints as a small
+  heading. The edited text is kept for that booklet in `books/contents/<booklet>.txt`; **Original** (Chapters tab)
+  puts back the automatic one.
+- `[contents]` alone (no `[/contents]`) prints the list made automatically.
 - `[contents]` on its own line in a chapter prints a table of contents there: one line per section of the booklet
   (except the section it's in), with the page each starts on — filled in automatically.
 - A chapter is listed under its first `#` title. To list it under another name, put `[toc: Name]` on a line

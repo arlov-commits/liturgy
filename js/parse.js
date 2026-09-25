@@ -11,16 +11,29 @@
   const SPANS = { "keep together": "keep", "one page": "keep", border: "bordered" };
   const SPAN_MARK = /^\[(\/?)(keep together|one page|border)\]$/i;
   const BLANK_PAGE = /^\[blank page\]$/i;
-  const CONTENTS = /^\[contents\]$/i, TOC_TITLE = /^\[toc:\s*(.*?)\s*\]$/i;
+  const CONTENTS = /^\[contents\]$/i, CONTENTS_END = /^\[\/contents\]$/i, TOC_TITLE = /^\[toc:\s*(.*?)\s*\]$/i;
   // ASCII punctuation inside a Chinese line is shown as its full-width form
   const FULL_WIDTH = { ",": "，", ".": "。", "!": "！", "?": "？", ":": "：", ";": "；" };
 
   // A section's anchor, from its file name: "05-meng-shan.txt" → "s-05-meng-shan"
   const anchor = (name) => "s-" + String(name).replace(/\.txt$/i, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
   // [page of <section>] inside a line → the page that section starts on (filled in by the page engine)
-  const PAGE_REF = /\[page of ([^\]]+)\]/gi;
-  const inline = (html) => html.replace(PAGE_REF, (m, name) => `<a class="pageref" href="#${anchor(name.trim())}"></a>`);
-  const pageRefs = (text) => [...text.matchAll(PAGE_REF)].map((m) => m[1].trim().replace(/\.txt$/i, ""));
+  //   [page of <section> / <entry>] → the page of a [toc: <entry>] partway through that section
+  //   [page 12 of <section>] → 12, typed by hand (the editor warns: it won't follow changes)
+  const PAGE_REF = /\[page(?:\s+(\d+))?\s+of\s+([^\]\/]+?)(?:\s*\/\s*([^\]]+?))?\s*\]/gi;
+  const pageLink = (cls, fixed, name, entry) => (fixed ? `<span class="${cls} fixed">${fixed}</span>`
+    : `<a class="${cls}" href="#${anchor(name.trim())}"${entry ? ` data-entry="${entry}"` : ""}></a>`);
+  const inline = (html) => html.replace(PAGE_REF, (m, fixed, name, entry) => pageLink("pageref", fixed, name, entry));
+  const pageRefs = (text) => [...text.matchAll(PAGE_REF)].map((m) => m[2].trim().replace(/\.txt$/i, ""));
+  // A line of a written-out table of contents: its text, then (usually) a page reference
+  function contentsRow(line) {
+    const refs = [...line.matchAll(PAGE_REF)];
+    if (!refs.length) return `<div class="toc-entry toc-heading"><span class="toc-title">${esc(line)}</span></div>`;
+    const ref = refs[refs.length - 1], [m, fixed, name, entry] = ref;
+    const title = line.slice(0, ref.index) + line.slice(ref.index + m.length);
+    return `<div class="toc-entry${entry ? " toc-sub" : ""}"><span class="toc-title">${esc(title.replace(/[\s.·…]+$/, "").trim())}</span>` +
+      `<span class="toc-dots"></span>${pageLink("toc-page", fixed, name, entry && esc(entry))}</div>`;
+  }
 
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -83,7 +96,18 @@
       if (!line) { close(); blankRun++; mostBlank = Math.max(mostBlank, blankRun); continue; }
       if (mostBlank > 1 && out.length) for (let k = 1; k < mostBlank; k++) out.push('<div class="blank-line"></div>');
       blankRun = mostBlank = 0;
-      if (CONTENTS.test(line)) { close(); out.push('<nav class="toc"></nav>'); continue; }
+      // [contents] … [/contents]: the table of contents written out, one line per entry (see FORMAT.md);
+      // [contents] alone: made automatically
+      if (CONTENTS.test(line)) {
+        close();
+        const end = lines.findIndex((l, i) => i > n && CONTENTS_END.test(l.trim()));
+        if (end < 0) { out.push('<nav class="toc auto"></nav>'); continue; }
+        const rows = lines.slice(n + 1, end).map((l) => l.trim()).filter((l) => l && !l.startsWith("//"));
+        out.push(`<nav class="toc">${rows.map(contentsRow).join("")}</nav>`);
+        n = end;
+        continue;
+      }
+      if (CONTENTS_END.test(line)) continue;
       const toc = line.match(TOC_TITLE);
       if (toc) {
         // at the top: the chapter's name in the contents; further down: an extra entry for the next block

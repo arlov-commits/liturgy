@@ -356,6 +356,31 @@ try {
   const tocFile = path.join(repo, 'books', 'contents', 'test-booklet.txt');
   check(tocDoc === '[contents]' && tocShown && existsSync(tocFile) && readFileSync(tocFile, 'utf8').startsWith('# OUR CONTENTS') && readFileSync(path.join(repo, 'books', 'test-booklet.txt'), 'utf8').includes('[contents]'),
     'table of contents: shown and edited in the text, saved with the booklet');
+  // …its entries are written out in the text: one line per chapter, "title [page of chapter]", with the page shown
+  const tocText = () => page.evaluate(() => { const d = Editor.state.text.view.state.doc, m = Editor.state.docMap[0]; return d.sliceString(d.line(m.first).from, d.line(m.last).to); });
+  const firstRef = (await tocText()).match(/\[page of ([^\]]+)\]/);
+  await page.click('#tabs button[data-tab="text"]');
+  await page.evaluate(() => Editor.state.text.goto(Editor.state.docMap[0].first, false)); await page.waitForTimeout(200);
+  const chips = await page.$$eval('.cm-pagenum', (l) => l.map((x) => x.textContent));
+  // a shorter title (an alias), then a page number typed by hand (warned), then back to the automatic one with a click
+  await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, m = Editor.state.docMap[0];
+    for (let i = m.first; i <= m.last; i++) { const t = d.line(i).text; if (/\[page of/.test(t)) { v.dispatch({ changes: { from: d.line(i).from, to: d.line(i).from + t.indexOf('[page'), insert: 'SHORT NAME ' } }); return; } } });
+  await afterEdit();
+  const aliasShown = await (await shownPreview()).evaluate(() => [...document.querySelectorAll('.toc-entry .toc-title')].map((t) => t.textContent));
+  await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, m = Editor.state.docMap[0];
+    for (let i = m.first; i <= m.last; i++) { const t = d.line(i).text, k = t.indexOf('[page of'); if (k >= 0) { v.dispatch({ changes: { from: d.line(i).from + k, to: d.line(i).from + k + 5, insert: '[page 99' } }); return; } } });
+  await afterEdit(); await page.waitForTimeout(700);
+  const fixedShown = await (await shownPreview()).evaluate(() => document.querySelector('.toc-entry .toc-page').textContent);
+  await page.evaluate(() => Editor.state.text.goto(Editor.state.docMap[0].first, false)); await page.waitForTimeout(200);
+  const warned = await page.locator('.cm-lintRange-warning').count();
+  const handChip = await page.textContent('.cm-pagenum.fixed');
+  page.once('dialog', (d) => d.accept(''));
+  await page.click('.cm-pagenum.fixed'); await afterEdit();
+  const tocBack = await tocText();
+  check(firstRef && /\[\/contents\]/.test(await tocText()) && chips.length >= 2 && chips.every((c) => /^p\. \d+$/.test(c)) && aliasShown[0] === 'SHORT NAME' &&
+    fixedShown === '99' && warned > 0 && /set by hand/.test(handChip) && /SHORT NAME \[page of /.test(tocBack) && !/page 99/.test(tocBack),
+    'table of contents written out in the text: rename an entry; a page number typed by hand is warned; one click back to the automatic number',
+    `${chips.join(',')} | ${aliasShown[0]} | ${fixedShown} | ${handChip}`);
   // autosave: switched on in the Save ▾ menu, it saves a few seconds after the last change
   await page.click('#save-more'); await page.check('#autosave'); await page.keyboard.press('Escape');
   await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0]; v.dispatch({ changes: { from: v.state.doc.line(m.first).from, insert: '> autosaved note\n' } }); });

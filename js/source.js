@@ -229,5 +229,5 @@
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, loadContents, contentsFile };
+  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile };
 })(window);

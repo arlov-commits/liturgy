@@ -81,6 +81,8 @@
     if (!wasEarly) swapIn();
     $("#print").disabled = !!info.error;
     state.pageCount = info.pages;
+    state.pageMap = info.pageMap || {};
+    state.text.setPages(state.pageMap);
     showBinding();
     if (info.error) setStatus("Problem: " + info.error, true);
     else setStatus(`${state.book.sections.length} chapter${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
@@ -323,6 +325,7 @@
       onHistory: showHistory,
       marked: (name) => !!state.known[name] && state.known[name].original != null,
     });
+    updateContents(false);
     loadDoc();
     renderChapters();
     loadLibrary();
@@ -362,6 +365,8 @@
     }
     changed();
     refresh(250);
+    clearTimeout(state.contentsTimer);
+    state.contentsTimer = setTimeout(() => updateContents(true), 800);
     if (flipped) { renderChapters(); state.text.refreshHeaders(); }
     clearTimeout(state.navTimer);
     state.navTimer = setTimeout(renderNav, 400);
@@ -443,7 +448,7 @@
   function addKnown(s) {
     // a chapter made in the editor has no original: its changed lines are marked from how it was when opened
     if (s.original == null && s.baseline == null) s.baseline = s.text;
-    s.label = s.virtual ? "Table of contents (made automatically)" : titleOf(s.text, s.name);
+    s.label = s.virtual ? "Table of contents" : titleOf(s.text, s.name);
     s.check = checkSection;
     state.known[s.name] = s;
     return s;
@@ -454,11 +459,82 @@
     const here = new Set(state.book.sections.map((s) => labelOf(s.name)));
     const problems = LiturgyParse.check(text);
     text.split("\n").forEach((line, i) => {
+      if (line.trim().startsWith("//")) return;
       for (const ref of LiturgyParse.pageRefs(line)) {
         if (!here.has(ref)) problems.push({ line: i + 1, severity: "error", message: `“${ref}” is not a chapter of this booklet, so its page can't be found. Add that chapter in the Chapters tab, or check the name.` });
       }
+      // a page number typed by hand: warn, and offer the automatic one back
+      for (const m of line.matchAll(LiturgyText.REF)) {
+        if (!m[1]) continue;
+        const auto = (state.pageMap || {})[LiturgyText.refKey(m[2], m[3])];
+        problems.push({ line: i + 1, from: m.index, to: m.index + m[0].length, severity: "warning",
+          message: `Page number ${m[1]} typed by hand — it stays ${m[1]} even when the pages move.${auto ? ` The automatic number is ${auto}.` : ""}`,
+          fix: { name: "Use the automatic page number", insert: LiturgyText.refText(m[2], m[3]) } });
+      }
     });
     return problems;
+  }
+
+  // ---- the table of contents, written out in the text: [contents], one line per entry, [/contents] ----
+  // Each line is "title [page of chapter]" (or "chapter / part" for a [toc: part] partway through a chapter).
+  // The lines follow the booklet: a new chapter gets a line, a removed one loses it, and a line whose title is still
+  // the chapter's own follows a change of it; titles you've changed and numbers set by hand stay.
+  const CONTENTS_OPEN = /^\[contents\]$/i, CONTENTS_CLOSE = /^\[\/contents\]$/i;
+  function contentsEntries() {
+    const out = [];
+    for (const s of state.book.sections) {
+      if (s.virtual) continue;
+      const sec = new DOMParser().parseFromString(LiturgyParse.parse(s.text || "", s.name), "text/html").querySelector("section");
+      const name = labelOf(s.name);
+      if (sec && sec.dataset.toc) out.push({ key: name, title: sec.dataset.toc, line: `${sec.dataset.toc} ${LiturgyText.refText(name)}` });
+      for (const e of sec ? sec.querySelectorAll("[data-toc-entry]") : []) {
+        const part = e.dataset.tocEntry;
+        out.push({ key: `${name} / ${part}`, title: part, line: `  ${part} ${LiturgyText.refText(name, part)}` });
+      }
+    }
+    return out;
+  }
+  const rowKey = (line) => { const m = [...line.matchAll(LiturgyText.REF)].pop(); return m ? LiturgyText.refKey(m[2], m[3]) : null; };
+  const rowTitle = (line) => { const m = [...line.matchAll(LiturgyText.REF)].pop(); return (m ? line.slice(0, m.index) + line.slice(m.index + m[0].length) : line).replace(/[\s.·…]+$/, "").trim(); };
+  // the contents chapter's text with its lines brought up to date (lastTitles: each entry's title before, to follow changes)
+  function syncContents(text, entries, lastTitles = new Map()) {
+    const lines = text.replace(/\n$/, "").split("\n");
+    const start = lines.findIndex((l) => CONTENTS_OPEN.test(l.trim()));
+    if (start < 0) return text;
+    const end = lines.findIndex((l, i) => i > start && CONTENTS_CLOSE.test(l.trim()));
+    const body = end < 0 ? [] : lines.slice(start + 1, end);
+    const have = new Map(), before = new Map();   // entry lines by key; other lines, kept before the entry they preceded
+    let loose = [];
+    for (const l of body) {
+      const k = rowKey(l);
+      if (k && !have.has(k)) { have.set(k, l); before.set(k, loose); loose = []; } else loose.push(l);
+    }
+    const out = [];
+    for (const e of entries) {
+      out.push(...(before.get(e.key) || []));
+      let line = have.get(e.key) ?? e.line;
+      const was = lastTitles.get(e.key);
+      if (have.has(e.key) && was != null && was !== e.title && rowTitle(line) === was) line = line.replace(was, e.title);
+      out.push(line);
+    }
+    for (const [k, ls] of before) if (!entries.some((e) => e.key === k)) out.push(...ls);   // (notes above a removed entry)
+    out.push(...loose);
+    return [...lines.slice(0, start + 1), ...out, "[/contents]", ...lines.slice(end < 0 ? start + 1 : end + 1)].join("\n") + "\n";
+  }
+  // Bring the table of contents up to date: before the editor is (re)built (text only), or after edits (in the editor)
+  function updateContents(inEditor) {
+    const toc = state.book.sections.find((s) => s.virtual);
+    if (!toc) return;
+    const entries = contentsEntries();
+    const lastTitles = new Map((state.contentsEntries || []).map((e) => [e.key, e.title]));
+    state.contentsEntries = entries;
+    toc.original = syncContents(LiturgySource.CONTENTS_TEXT, entries);
+    const text = syncContents(toc.text, entries, lastTitles);
+    if (norm(text) === norm(toc.text)) return;
+    const m = inEditor && (state.docMap || []).find((x) => x.name === toc.name);
+    if (!m) { toc.text = text; return; }
+    const doc = state.text.view.state.doc, last = m.last === doc.lines;
+    state.text.replaceQuietly(doc.line(m.first).from, doc.line(m.last).to, last ? text : text.replace(/\n$/, ""));
   }
 
   // ---- the Chapters tab: which chapters, in which order ----
@@ -488,6 +564,7 @@
       if (!sections.includes(state.known[name])) sections.push(state.known[name]);
     }
     state.book.sections = sections;
+    updateContents(false);
     loadDoc();
     renderChapters();
     changed();

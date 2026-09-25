@@ -131,11 +131,15 @@ async function render(id) {
   const order = getComputedStyle(document.documentElement).getPropertyValue("--verse-order").trim();
   if (order) main.querySelectorAll("section").forEach((sec) => sec.classList.add("order-" + order));
   fillContents(main);
-  // page references to sections that aren't in this booklet can't be numbered: show "?" and flag them
-  for (const a of main.querySelectorAll("a.pageref")) {
-    if (!document.getElementById(a.getAttribute("href").slice(1))) {
-      a.replaceWith(Object.assign(document.createElement("span"), { className: "pageref-missing", textContent: "?" }));
+  // page references: "<section> / <entry>" points at that [toc: entry] in the section; a section (or entry) not in
+  // this booklet can't be numbered: show "?" and flag it
+  for (const a of main.querySelectorAll("a.pageref, a.toc-page")) {
+    let target = document.getElementById(a.getAttribute("href").slice(1));
+    if (target && a.dataset.entry) {
+      target = [...target.querySelectorAll("[data-toc-entry]")].find((e) => e.dataset.tocEntry === a.dataset.entry) || null;
+      if (target) a.setAttribute("href", "#" + target.id);
     }
+    if (!target) a.replaceWith(Object.assign(document.createElement("span"), { className: a.className + " pageref-missing", textContent: "?" }));
   }
   const problems = main.querySelectorAll(".mismatch").length + main.querySelectorAll(".pageref-missing").length;
   await document.fonts.ready;
@@ -185,7 +189,7 @@ async function render(id) {
   }
   document.body.dataset.ready = "1";
   checkWanted(true);
-  if (editor) editor.previewDone(window, { pages, problems, spreads: engine === "paged" && pages ? spreadReport() : [],
+  if (editor) editor.previewDone(window, { pages, problems, pageMap: pageMap(), spreads: engine === "paged" && pages ? spreadReport() : [],
     blanks: document.querySelectorAll(".pagedjs_blank_page").length });
 }
 
@@ -226,7 +230,7 @@ rerender();
 // [contents] → one line per chapter of the booklet (except the one holding the list), plus any extra entries
 // ([toc: …] partway through a chapter), in book order: name ..... page
 function fillContents(main) {
-  for (const nav of main.querySelectorAll("nav.toc")) {
+  for (const nav of main.querySelectorAll("nav.toc.auto")) {
     const own = nav.closest("section");
     for (const el of main.querySelectorAll("section[data-toc], [data-toc-entry]")) {
       if (el.closest("section") === own) continue;
@@ -238,6 +242,18 @@ function fillContents(main) {
       nav.append(row);
     }
   }
+}
+
+// The page each chapter (and each [toc: …] part of one) starts on, for the editor to show beside page references:
+// { "03-amitabha-sutra": 3, "10-meal-offering / Incense Praise": 57 }
+function pageMap() {
+  const out = {};
+  for (const el of document.querySelectorAll(".pagedjs_page [data-file], .pagedjs_page [data-toc-entry]")) {
+    const sec = el.closest("[data-file]"), file = sec && sec.dataset.file.replace(/\.txt$/, "");
+    const key = el.dataset.tocEntry ? `${file} / ${el.dataset.tocEntry}` : file;
+    if (file && !(key in out)) out[key] = +el.closest(".pagedjs_page").dataset.pageNumber;
+  }
+  return out;
 }
 
 // Paged.js can leave an invisible copy of a moved block in a page's overflow (off to the side of the page).

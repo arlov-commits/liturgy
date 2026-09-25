@@ -65,11 +65,13 @@
 .toc-entry { display: flex; align-items: baseline; gap: 0.3em; margin-bottom: var(--contents-spacing); break-inside: avoid; }
 .toc-dots { flex: 1; min-width: 1em; border-bottom: 1px dotted currentColor; }
 .toc-page { color: inherit; text-decoration: none; }
-.toc-page::after { content: target-counter(attr(href), page); }
+a.toc-page::after { content: target-counter(attr(href), page); }
+.toc-sub { padding-left: 1em; }
+.toc-heading { font-weight: 600; margin-top: calc(var(--contents-spacing) * 2); }
 
 /* [page of <section>] → that section's first page number */
 .pageref { color: inherit; text-decoration: none; }
-.pageref::after { content: target-counter(attr(href), page); }
+a.pageref::after { content: target-counter(attr(href), page); }
 
 .block {
   break-inside: avoid;

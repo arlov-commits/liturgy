@@ -7,12 +7,12 @@
   // Same line rules as js/parse.js (see FORMAT.md)
   const HAS_CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯]|[\u{20000}-\u{2ffff}]/u;
   const REPEAT = /^x\d+$/i;
-  const PAGE_REF = /\[page of [^\]]+\]/i, PAGE_REF_AT = /^\[page of [^\]]+\]/i;
+  const PAGE_REF = /\[page(?:\s+\d+)?\s+of\s+[^\]]+\]/i, PAGE_REF_AT = /^\[page(?:\s+\d+)?\s+of\s+[^\]]+\]/i;
   function lineKind(line, state) {
     const afterChinese = state.afterChinese;
     state.afterChinese = false;
     if (line.startsWith("//")) return "comment";
-    if (line === "---" || /^\[(\/?one page|\/?keep together|\/?border|blank page|contents|toc:.*)\]$/i.test(line)) return "pageBreak";
+    if (line === "---" || /^\[(\/?one page|\/?keep together|\/?border|blank page|\/?contents|toc:.*)\]$/i.test(line)) return "pageBreak";
     if (REPEAT.test(line)) return "repeat";
     if (line.includes("|") && HAS_CJK.test(line)) return "mantra";
     if (HAS_CJK.test(line)) { state.afterChinese = true; return "chinese"; }
@@ -51,6 +51,9 @@
     ".cm-group-2": { backgroundColor: "rgba(138, 90, 0, 0.14)" },
     ".cm-group-3": { backgroundColor: "rgba(138, 90, 0, 0.21)" },
     ".cm-group-4": { backgroundColor: "rgba(138, 90, 0, 0.28)" },
+    ".cm-pagenum": { margin: "0 4px", padding: "0 5px", borderRadius: "8px", background: "#e7f0f3", color: "#0a6b8a",
+      font: "11px system-ui, sans-serif", cursor: "pointer", whiteSpace: "nowrap" },
+    ".cm-pagenum.fixed": { background: "#fff0c2", color: "#8a5a00" },
     ".cm-scroller": { fontFamily: '"Gentium Book Plus", "Noto Serif TC", "Liturgy Extra", serif', lineHeight: "1.55" },
   });
 
@@ -195,6 +198,56 @@
   const groupShading = CM.ViewPlugin.fromClass(class {
     constructor(view) { this.decorations = groupDecos(view); }
     update(u) { if (u.docChanged || u.viewportChanged) this.decorations = groupDecos(u.view); }
+  }, { decorations: (p) => p.decorations });
+
+  // ---- page references: the page number each one prints, shown after it (from the last layout of the pages).
+  // A click sets a number by hand ([page 12 of …]) or, left empty, goes back to the automatic one. ----
+  const REF = /\[page(?:\s+(\d+))?\s+of\s+([^\]\/]+?)(?:\s*\/\s*([^\]]+?))?\s*\]/gi;
+  const refKey = (name, entry) => name.trim().replace(/\.txt$/i, "") + (entry ? " / " + entry.trim() : "");
+  const refText = (name, entry, fixed) => `[page${fixed ? " " + fixed : ""} of ${name.trim()}${entry ? " / " + entry.trim() : ""}]`;
+  let pageNumbers = {};
+  const newPages = CM.StateEffect.define();
+  class PageNum extends CM.WidgetType {
+    constructor(auto, fixed) { super(); this.auto = auto; this.fixed = fixed; }
+    eq(o) { return o.auto === this.auto && o.fixed === this.fixed; }
+    toDOM(view) {
+      const auto = this.auto ?? "?";
+      const el = Object.assign(document.createElement("span"), { className: "cm-pagenum" + (this.fixed ? " fixed" : ""),
+        textContent: this.fixed ? `p. ${this.fixed} set by hand · automatic ${auto}` : `p. ${auto}`,
+        title: "The page number printed here — click to type one by hand, or to go back to the automatic one" });
+      el.onmousedown = (ev) => {
+        ev.preventDefault();
+        const pos = view.posAtDOM(el), line = view.state.doc.lineAt(pos);
+        const m = [...line.text.matchAll(REF)].find((r) => line.from + r.index + r[0].length === pos);
+        if (!m) return;
+        const answer = prompt(`Page number to print here (the automatic one is ${auto}).\nLeave it empty to use the automatic number, which follows any changes.`, this.fixed || "");
+        if (answer === null) return;
+        const n = answer.trim();
+        if (n && !/^\d+$/.test(n)) return alert("Please type a page number (digits only), or leave it empty.");
+        view.dispatch({ changes: { from: line.from + m.index, to: pos, insert: refText(m[2], m[3], n) },
+          annotations: label.of(n ? `Page number ${n} set by hand` : "Back to the automatic page number") });
+      };
+      return el;
+    }
+    ignoreEvent() { return true; }
+  }
+  function pageDecos(view) {
+    const b = new CM.RangeSetBuilder(), doc = view.state.doc;
+    for (const { from, to } of view.visibleRanges) {
+      for (let n = doc.lineAt(from).number; n <= doc.lineAt(to).number; n++) {
+        const line = doc.line(n);
+        if (line.text.trim().startsWith("//")) continue;
+        for (const m of line.text.matchAll(REF)) {
+          b.add(line.from + m.index + m[0].length, line.from + m.index + m[0].length,
+            CM.Decoration.widget({ widget: new PageNum(pageNumbers[refKey(m[2], m[3])], m[1]), side: 1 }));
+        }
+      }
+    }
+    return b.finish();
+  }
+  const pageNums = CM.ViewPlugin.fromClass(class {
+    constructor(view) { this.decorations = pageDecos(view); }
+    update(u) { if (u.docChanged || u.viewportChanged || u.transactions.some((t) => t.effects.some((e) => e.is(newPages)))) this.decorations = pageDecos(u.view); }
   }, { decorations: (p) => p.decorations });
 
   // ---- changed lines: a dot beside each line that differs from the original text ----
@@ -372,7 +425,8 @@
         const line = view.state.doc.line(Math.min(p.line, view.state.doc.lines));
         const from = p.from != null ? line.from + Math.min(p.from, line.length) : line.from;
         const to = p.to != null ? line.from + Math.min(p.to, line.length) : line.to;
-        return { from, to, severity: p.severity, message: p.message };
+        const actions = p.fix ? [{ name: p.fix.name, apply: (v, a, b) => v.dispatch({ changes: { from: a, to: b, insert: p.fix.insert } }) }] : undefined;
+        return { from, to, severity: p.severity, message: p.message, actions };
       });
     }, { delay: 500, needsRefresh: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(recheck))) });
     const changeGutter = CM.Prec.high(CM.gutter({
@@ -409,7 +463,7 @@
       doc,
       extensions: [
         changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, clipboard, lint, lintGutter(),
-        alignSlot.of(alignExt()), groupShading,
+        alignSlot.of(alignExt()), groupShading, pageNums,
         diffField.init((st) => { const o = CM.EditorState.create({ doc: original ?? doc }).doc; return { original: o, chunks: CM.Chunk.build(o, st.doc) }; }),
         ghostField,
         EditorView.updateListener.of((u) => {
@@ -430,6 +484,10 @@
       replace(from, to, text, what) {
         view.dispatch({ changes: { from, to, insert: text }, annotations: what ? [label.of(what), CM.isolateHistory.of("full")] : [] });
       },
+      // the page numbers from the latest layout ({ "chapter": 3, "chapter / part": 7 }): shown after page references
+      setPages(map) { pageNumbers = map || {}; view.dispatch({ effects: [newPages.of(null), recheck.of(null)] }); CM.forceLinting(view); },
+      // a change that isn't a step of its own in Undo (the table of contents following the chapters)
+      replaceQuietly(from, to, text) { view.dispatch({ changes: { from, to, insert: text }, annotations: CM.Transaction.addToHistory.of(false) }); },
       undo(n = 1) { for (let i = 0; i < n; i++) CM.undo(view); },
       redo(n = 1) { for (let i = 0; i < n; i++) CM.redo(view); },
       history: () => ({ undo: steps.undo.map(stepText).reverse(), redo: steps.redo.map(stepText).reverse() }),
@@ -442,5 +500,5 @@
     };
   }
 
-  root.LiturgyText = { build, setSuggesting, setAligning, SEP, isSep };
+  root.LiturgyText = { build, setSuggesting, setAligning, SEP, isSep, REF, refKey, refText };
 })(window);
