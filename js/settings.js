@@ -21,6 +21,9 @@
       "py-zh-en": "pinyin, Chinese, English", "en-py-zh": "English, pinyin, Chinese" },
     "--chapter-start": { page: "on a new page", right: "on a new right-hand page", auto: "straight after the chapter before" },
     "--border-style": { solid: "a single line", double: "a double line (needs thickness 2pt or more)", dashed: "dashes", dotted: "dots" },
+    "--binding": { perfect: "perfect bound: cut into quarters and glued", signatures: "signatures: letter sheets folded in half, nested, sewn or stapled" },
+    "--signature-sheets": { auto: "automatic — split evenly, at most 8 sheets (32 pages) each", all: "one signature (all sheets folded together)",
+      2: "2 sheets (8 pages)", 3: "3 sheets (12 pages)", 4: "4 sheets (16 pages)", 5: "5 sheets (20 pages)", 6: "6 sheets (24 pages)", 7: "7 sheets (28 pages)", 8: "8 sheets (32 pages)" },
     "--blank-page": { before: "just before the span", "chapter-end": "at the end of the chapter before" },
   };
   const STEP = { in: 0.05, pt: 0.1, em: 0.02, px: 1, mm: 1, cm: 0.1 };

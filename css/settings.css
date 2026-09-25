@@ -6,10 +6,14 @@
    automatically from the bundled "Liturgy Extra" font.
    =================================================================== */
 :root {
-  /* ---- Page (quarter of a letter sheet) ---- */
+  /* ---- Binding ---- */
+  --binding: perfect;         /* how the booklet is made up (the Print panel explains the steps) */
+  --signature-sheets: auto;   /* folded signatures only: letter sheets folded together in each signature (4 pages a sheet) */
+
+  /* ---- Page (4.25 × 5.5 in = a quarter of a letter sheet; folded signatures: 5.5 × 8.5 in) ---- */
   --page-width: 4.25in;
   --page-height: 5.5in;
-  --margin-binding: 0.45in;   /* edge that gets glued — keep generous */
+  --margin-binding: 0.45in;   /* edge that gets glued or folded — keep generous */
   --margin-outside: 0.25in;  /* edge you hold */
   --margin-top: 0.3in;
   --margin-bottom: 0.45in;

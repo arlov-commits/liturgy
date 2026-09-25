@@ -80,10 +80,13 @@
     if (!info.error && improveLayout(info.spreads || [])) return void setTimeout(render);   // another pass, hidden
     if (!wasEarly) swapIn();
     $("#print").disabled = !!info.error;
+    state.pageCount = info.pages;
+    showBinding();
     if (info.error) setStatus("Problem: " + info.error, true);
     else setStatus(`${state.book.sections.length} chapter${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
       (info.problems ? ` · ${info.problems} problem(s) — marked in red, and underlined in the text` : "") +
-      (info.blanks ? ` · ${info.blanks} blank page(s) added for facing pages` : ""));
+      (info.blanks ? ` · ${info.blanks} blank page(s) added for facing pages` : "") +
+      (!$("#signature-warning").hidden ? " · one signature is too thick to fold — see Print" : ""));
   }
   function bookForPreview() {
     return { sections: state.book.sections.map((s) => ({ name: s.name, text: s.text })), css: state.book.css, plan: state.layout };
@@ -158,12 +161,16 @@
     const known = new Set(state.settings.groups.flatMap((g) => g.items.map((i) => i.name)));
     state.settings.changes = Object.fromEntries(Object.entries(LiturgySettings.values(state.book.css)).filter(([k]) => known.has(k)));
     state.book.css = LiturgySettings.toCss(state.settings.changes, state.settings.groups);
-    LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, (changes) => {
-      state.settings.changes = changes;
-      state.book.css = LiturgySettings.toCss(changes, state.settings.groups);
-      changed();
-      refresh(150);
-    });
+    startSettings.rebuild = () => LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, applySettings);
+    startSettings.rebuild();
+  }
+
+  function applySettings(changes) {
+    state.settings.changes = changes;
+    state.book.css = LiturgySettings.toCss(changes, state.settings.groups);
+    changed();
+    refresh(150);
+    showBinding();
   }
 
   // ---- booklets: books/<name>.txt, shown in the order kept in booklets.txt (others after, A–Z) ----
@@ -647,6 +654,35 @@
   }
   window.addEventListener("resize", fitDrawers);
   window.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && openDrawer()) showDrawer(null); });
+
+  // ---- how the booklet is bound (Settings → Binding): the Print panel shows the steps, and for folded signatures
+  // how the sheets are split into signatures (js/impose.js) ----
+  const setting = (name) => state.settings.changes[name] ?? defaultSetting(name);
+  function showBinding() {
+    const folded = setting("--binding") === "signatures";
+    $("#print-perfect").hidden = folded;
+    $("#print-folded").hidden = !folded;
+    if (!folded || !state.pageCount) return;
+    const perSig = setting("--signature-sheets") || "auto", pages = state.pageCount;
+    const plan = LiturgyImpose.signaturePlan(pages, perSig), sheets = plan.reduce((a, b) => a + b, 0), blanks = sheets * 4 - pages;
+    const list = (xs) => (xs.length > 1 ? xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1] : String(xs[0]));
+    $("#signature-plan").textContent = `${pages} pages → ${plan.length === 1 ? "one signature" : plan.length + " signatures"} of ` +
+      `${list(plan)} sheet${sheets === 1 ? "" : "s"} (${list(plan.map((n) => n * 4))} pages)` +
+      (blanks ? ` · ${blanks} blank page${blanks === 1 ? "" : "s"} at the end` : "") + ".";
+    const thick = Math.max(...plan) > LiturgyImpose.MAX_SHEETS;
+    $("#signature-warning").hidden = !thick;
+    $("#signature-warning").textContent = thick ? `One signature of ${Math.max(...plan)} sheets (${Math.max(...plan) * 4} pages) is too thick to fold neatly. ` +
+      `Split it into several: Settings → Binding → Signature sheets → automatic.` : "";
+    const [w, h] = [setting("--page-width"), setting("--page-height")];
+    $("#page-size-note").hidden = w === "5.5in" && h === "8.5in";
+    $("#page-size-note span").textContent = `The pages are ${w.replace("in", "")} × ${h.replace("in", "")} in; half a letter sheet is 5.5 × 8.5 in (they are placed against the fold). `;
+  }
+  $("#use-half-letter").onclick = () => {
+    const changes = { ...state.settings.changes, "--page-width": "5.5in", "--page-height": "8.5in" };
+    for (const k of ["--page-width", "--page-height"]) if (changes[k] === defaultSetting(k)) delete changes[k];
+    applySettings(changes);
+    startSettings.rebuild();
+  };
 
   // ---- print ----
   // Letter sheets, 4 pages a side (preview.html printSheets), or just the pages as shown

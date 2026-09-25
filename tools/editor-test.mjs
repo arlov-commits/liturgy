@@ -40,6 +40,26 @@ const check = (ok, what, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
   }
   const s1 = layout(8)[0];
   check(ok && s1.front.join() === '2,3,6,7' && s1.back.join() === '4,1,8,5', 'letter sheets: front 2 3 / 6 7, back 4 1 / 8 5; pieces stack in page order');
+  // folded signatures: split evenly (at most 8 sheets each, sizes differ by one at most); folding and nesting the
+  // sheets of a signature gives the pages in order (the back of each page is the next one)
+  const { signaturePlan, signatures } = require('../js/impose.js');
+  let sigOk = true;
+  for (let n = 1; n <= 140; n++) {
+    const plan = signaturePlan(n, 'auto'), sheetsN = Math.ceil(n / 4);
+    sigOk = sigOk && plan.reduce((a, b) => a + b, 0) === sheetsN && Math.max(...plan) <= 8 && Math.max(...plan) - Math.min(...plan) <= 1 && plan.length === Math.ceil(sheetsN / 8);
+    // read each signature: sheet k outside → spread order: front right (recto), back left (verso) … then inner halves
+    const got = [];
+    let base = 0;
+    for (const [sig, count] of plan.entries()) {
+      const sh = signatures(n, 'auto').filter((x) => x.signature === sig);
+      const order = [...sh.flatMap((x) => [x.front[1], x.back[0]]), ...sh.slice().reverse().flatMap((x) => [x.back[1], x.front[0]])];
+      got.push(...order.map((p, i) => p || base + i + 1));
+      base += count * 4;
+    }
+    sigOk = sigOk && got.every((p, i) => p === i + 1);
+  }
+  check(sigOk && signaturePlan(134, 'auto').join() === '7,7,7,7,6' && signaturePlan(40, 'all').join() === '10',
+    'signatures: split evenly (at most 32 pages each), pages in order once folded and nested');
 }
 
 const servers = [spawn('python3', ['-m', 'http.server', '8791', '-d', path.join(tmp, 'site')], { stdio: 'ignore' })];
@@ -156,6 +176,13 @@ try {
   check(await page.isVisible('#print-panel #print-pages') && await page.isVisible('#print-panel #print-sheets') && !(await page.isVisible('#settings')) && Math.abs(edge[0] - edge[1]) < 3,
     'Print panel: letter sheets, just the pages, instructions; reaches the text panel\'s edge', edge.join(' / '));
   await page.keyboard.press('Escape');
+  // Settings → Binding → signatures: the Print panel shows the split and the folding steps; one thick signature is warned about
+  await openSettings(); await page.selectOption('#set--binding', 'signatures'); await page.selectOption('#set--signature-sheets', 'all'); await afterEdit();
+  await page.click('#print');
+  const sig = [await page.isVisible('#print-folded'), await page.isVisible('#print-perfect'), await page.textContent('#signature-plan'), await page.isVisible('#signature-warning'), await status()];
+  await page.keyboard.press('Escape');
+  await openSettings(); await page.selectOption('#set--binding', 'perfect'); await page.selectOption('#set--signature-sheets', 'auto'); await closeSettings(); await afterEdit();
+  check(sig[0] && !sig[1] && /one signature of \d+ sheets/.test(sig[2]) && sig[3] && /too thick/.test(sig[4]), 'signatures: Print panel shows the split, warns about a signature over 32 pages', sig.slice(2).join(' | '));
   const first = await page.evaluate(() => Editor.state.docMap[0].name);
   const heads = await page.evaluate(() => [Editor.state.docMap.length, document.querySelectorAll('.cm-chapter-head').length, Editor.state.book.sections.filter((s) => !s.virtual).length]);
   check(heads[0] > 1 && heads[0] === heads[2] && heads[1] > 0, 'the text holds the whole booklet, a title bar per chapter', heads.join());

@@ -19,6 +19,12 @@
   /* each slot is also a "pagedjs_pages": some of Paged.js's page rules (which corner a page number goes in) only
      apply inside one — without it the right-hand pages' numbers printed in the left corner */
   #sheets .slot { position: relative; overflow: hidden; display: block !important; }
+  /* folded signatures: a landscape sheet, two pages side by side, each against the fold in the middle */
+  #sheets .sheet.folded { width: 11in; height: 8.5in; grid-template: 8.5in / 5.5in 5.5in; }
+  #sheets .sheet.folded .slot { display: flex !important; align-items: center; }
+  #sheets .sheet.folded .slot > .pagedjs_page { flex: none; }
+  #sheets .sheet.folded .slot:first-child { justify-content: flex-end; }
+  #sheets .sheet.folded .slot:first-child .pagedjs_page { transform-origin: top right; }
   #sheets .pagedjs_page { margin: 0 !important; box-shadow: none !important; border: 0 !important; transform-origin: top left;
     height: var(--pagedjs-height) !important; min-height: 0 !important; max-height: none !important; break-after: auto !important; }
   #sheets .pagedjs_sheet { height: var(--pagedjs-height) !important; min-height: 0 !important; max-height: none !important; }
@@ -321,35 +327,44 @@ function spreadReport() {
 
 // Print on letter sheets, 4 pages a side (see js/impose.js for the order). Each copied page keeps its own
 // page number (Paged.js counts pages in the order they appear, so it's set on each copy).
+// The binding setting: "perfect" (cut into quarters, glued) or "signatures" (folded letter sheets)
+const binding = () => {
+  const st = getComputedStyle(document.documentElement);
+  return { folded: st.getPropertyValue("--binding").trim() === "signatures", sheets: st.getPropertyValue("--signature-sheets").trim() || "auto" };
+};
 function buildSheets() {
   document.getElementById("sheets")?.remove();
   const pages = [...document.querySelectorAll(".pagedjs_pages > .pagedjs_page")];
   const box = Object.assign(document.createElement("div"), { id: "sheets" });
+  const { folded, sheets: perSignature } = binding();
+  // perfect: 2 × 2 quarters of a portrait sheet; signatures: 2 halves of a landscape sheet (pages against the fold)
   const inch = 96, first = pages[0] && pages[0].getBoundingClientRect();
-  const scale = first ? Math.min(1, (4.25 * inch) / first.width, (5.5 * inch) / first.height) : 1;   // other page sizes: shrink to fit
-  for (const sheet of LiturgyImpose.layout(pages.length)) {
-    for (const side of [sheet.front, sheet.back]) {
-      const el = Object.assign(document.createElement("div"), { className: "sheet" });
-      for (const n of side) {
-        const slot = Object.assign(document.createElement("div"), { className: "slot pagedjs_pages" });
-        if (n) {
-          const copy = pages[n - 1].cloneNode(true);
-          copy.removeAttribute("id");
-          copy.style.counterReset = `page ${n - 1}`;
-          if (scale < 1) copy.style.transform = `scale(${scale})`;
-          slot.append(copy);
-        }
-        el.append(slot);
+  const [w, h] = folded ? [5.5, 8.5] : [4.25, 5.5];
+  const scale = first ? Math.min(1, (w * inch) / first.width, (h * inch) / first.height) : 1;   // bigger pages: shrink to fit
+  const sides = folded
+    ? LiturgyImpose.signatures(pages.length, perSignature).flatMap((s) => [s.front, s.back])
+    : LiturgyImpose.layout(pages.length).flatMap((s) => [s.front, s.back]);
+  for (const side of sides) {
+    const el = Object.assign(document.createElement("div"), { className: "sheet" + (folded ? " folded" : "") });
+    for (const n of side) {
+      const slot = Object.assign(document.createElement("div"), { className: "slot pagedjs_pages" });
+      if (n) {
+        const copy = pages[n - 1].cloneNode(true);
+        copy.removeAttribute("id");
+        copy.style.counterReset = `page ${n - 1}`;
+        if (scale < 1) copy.style.transform = `scale(${scale})`;
+        slot.append(copy);
       }
-      box.append(el);
+      el.append(slot);
     }
+    box.append(el);
   }
   document.body.append(box);
-  return LiturgyImpose.layout(pages.length).length;
+  return sides.length / 2;
 }
 function printSheets() {
   buildSheets();
-  const size = Object.assign(document.createElement("style"), { textContent: "@page { size: 8.5in 11in; margin: 0; }" });
+  const size = Object.assign(document.createElement("style"), { textContent: `@page { size: ${binding().folded ? "11in 8.5in" : "8.5in 11in"}; margin: 0; }` });
   document.head.append(size);
   document.documentElement.classList.add("print-sheets");
   addEventListener("afterprint", () => { size.remove(); document.documentElement.classList.remove("print-sheets"); }, { once: true });

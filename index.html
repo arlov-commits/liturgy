@@ -114,17 +114,35 @@
   <aside id="print-panel" class="drawer" hidden aria-label="Print">
     <div class="drawer-head"><b>Print</b> <button type="button" class="drawer-close" title="Close (Esc)">✕</button></div>
     <p><button type="button" id="print-sheets" class="primary">Print on letter paper…</button></p>
-    <p class="hint">4 booklet pages on each side of a letter sheet.</p>
-    <h3>Printing on letter paper</h3>
-    <ol class="steps">
-      <li>In the print window: choose your printer (or <b>Save as PDF</b>), paper <b>Letter</b>,
-        <b>print on both sides</b> → <b>flip on long edge</b>, scale <b>100%</b> / “Default” (not “fit”).</li>
-      <li><b>Cut</b> each sheet into four: across the middle, then down the middle.</li>
-      <li><b>Stack</b> the pieces in page order — each piece has an odd page on one side and the next even
-        page on the other: 1–2, 3–4, 5–6, 7–8, then the next sheet's 9–10 … Ready to glue.</li>
-    </ol>
-    <p class="hint">Page order on each sheet — front: 2 3 / 6 7, back: 4 1 / 8 5 (then 9–16 on the next sheet).
-      The front of each half is a pair of facing pages. Blank pages fill up the last sheet.</p>
+    <div id="print-perfect">
+      <p class="hint">Perfect bound (Settings → Binding): 4 booklet pages on each side of a letter sheet.</p>
+      <h3>Printing on letter paper</h3>
+      <ol class="steps">
+        <li>In the print window: choose your printer (or <b>Save as PDF</b>), paper <b>Letter</b>,
+          <b>print on both sides</b> → <b>flip on long edge</b>, scale <b>100%</b> / “Default” (not “fit”).</li>
+        <li><b>Cut</b> each sheet into four: across the middle, then down the middle.</li>
+        <li><b>Stack</b> the pieces in page order — each piece has an odd page on one side and the next even
+          page on the other: 1–2, 3–4, 5–6, 7–8, then the next sheet's 9–10 … Ready to glue.</li>
+      </ol>
+      <p class="hint">Page order on each sheet — front: 2 3 / 6 7, back: 4 1 / 8 5 (then 9–16 on the next sheet).
+        The front of each half is a pair of facing pages. Blank pages fill up the last sheet.</p>
+    </div>
+    <div id="print-folded" hidden>
+      <p class="hint">Signatures (Settings → Binding): letter sheets printed sideways, two pages a side, folded in half.</p>
+      <p id="signature-plan"></p>
+      <p id="signature-warning" class="warning" hidden></p>
+      <p id="page-size-note" class="hint" hidden><span></span>
+        <button type="button" id="use-half-letter">Make the pages 5.5 × 8.5 in</button></p>
+      <h3>Printing and folding</h3>
+      <ol class="steps">
+        <li>In the print window: paper <b>Letter</b>, <b>landscape</b>, <b>print on both sides</b> →
+          <b>flip on short edge</b>, scale <b>100%</b> / “Default” (not “fit”).</li>
+        <li><b>Fold</b> each sheet in half, the printed page 1 side outwards.</li>
+        <li>For each signature, <b>nest</b> its sheets in the order they came out of the printer: the first one is the
+          outside, each next one goes inside it. Then the next signature, and so on.</li>
+        <li><b>Stack</b> the signatures in order and sew, staple or glue them at the fold.</li>
+      </ol>
+    </div>
     <h3>For checking</h3>
     <p><button type="button" id="print-pages">Print just the pages…</button></p>
     <p class="hint">one booklet page per sheet of paper, in order</p>
@@ -151,6 +169,7 @@
 <script src="vendor/codemirror.min.js"></script>
 <script src="vendor/split.min.js"></script>
 <script src="js/parse.js"></script>
+<script src="js/impose.js"></script>
 <script src="vendor/idb-keyval.min.js"></script>
 <script src="js/source.js"></script>
 <script src="js/texttab.js"></script>
