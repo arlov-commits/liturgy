@@ -35,7 +35,8 @@
   });
   const colours = HighlightStyle.define([
     { tag: tags.comment, color: "#8a8a8a", fontStyle: "italic" },
-    { tag: tags.processingInstruction, color: "#b00", fontWeight: "bold", backgroundColor: "#fde8e8" },
+    // (a see-through background: a selection over a tag must show)
+    { tag: tags.processingInstruction, color: "#b00", fontWeight: "bold", backgroundColor: "rgba(210, 40, 40, 0.09)" },
     { tag: tags.heading, color: "#8a5a00", fontWeight: "bold" },
     { tag: tags.keyword, color: "#0a6b8a", fontWeight: "bold" },
     { tag: tags.string, color: "#222" },
@@ -46,6 +47,7 @@
   ]);
   const theme = EditorView.theme({
     "&": { height: "100%", fontSize: "15px", backgroundColor: "#fff" },
+    ".cm-tag-pair": { outline: "2px solid rgba(190, 30, 30, 0.8)", outlineOffset: "-2px", borderRadius: "3px", backgroundColor: "rgba(210, 40, 40, 0.12)" },
     ".cm-pagenum": { margin: "0 4px", padding: "0 5px", borderRadius: "8px", background: "#e7f0f3", color: "#0a6b8a",
       font: "11px system-ui, sans-serif", cursor: "pointer", whiteSpace: "nowrap" },
     ".cm-pagenum.fixed": { background: "#fff0c2", color: "#8a5a00" },
@@ -206,6 +208,94 @@
   const groupShading = CM.ViewPlugin.fromClass(class {
     constructor(view) { this.decorations = groupDecos(view); }
     update(u) { if (u.docChanged || u.viewportChanged) this.decorations = groupDecos(u.view); }
+  }, { decorations: (p) => p.decorations });
+
+  // ---- span tags come in pairs: [keep together] … [/keep together], [border] … [/border], [contents] … [/contents].
+  // Deleting into one (Backspace, Delete, a selection over part of it) removes both tags of the pair, leaving the lines
+  // between; typing next to one goes on a line of its own. With the cursor on a tag, it and its partner are marked.
+  const TAG = /^\[(\/?)(keep together|one page|border|contents)\]$/i;
+  const tagAt = (doc, n) => { const m = doc.line(n).text.trim().match(TAG); return m && { close: !!m[1], kind: m[2].toLowerCase() === "one page" ? "keep together" : m[2].toLowerCase() }; };
+  // the line of the other tag of the pair (within the chapter), or null
+  function partnerOf(doc, n) {
+    const me = tagAt(doc, n);
+    if (!me) return null;
+    const step = me.close ? -1 : 1;
+    let depth = 0;
+    for (let i = n + step; i >= 1 && i <= doc.lines && !isSep(doc.line(i).text); i += step) {
+      const t = tagAt(doc, i);
+      if (!t) continue;
+      if (t.close === me.close) depth++;
+      else if (depth) depth--;
+      else return t.kind === me.kind ? i : null;
+    }
+    return null;
+  }
+  const lineRange = (doc, n) => { const l = doc.line(n); return l.to < doc.length ? [l.from, l.to + 1] : [Math.max(0, l.from - 1), l.to]; };
+  const pairGuard = EditorState.transactionFilter.of((tr) => {
+    if (!tr.docChanged || tr.annotation(CM.Transaction.addToHistory) === false) return tr;
+    const doc = tr.startState.doc, tags = new Set();
+    tr.changes.iterChangedRanges((from, to) => {
+      const a = doc.lineAt(Math.max(0, from - 1)).number, b = doc.lineAt(Math.min(doc.length, to + 1)).number;
+      for (let n = a; n <= b; n++) if (tagAt(doc, n)) tags.add(n);
+    });
+    if (!tags.size) return tr;
+    // typing next to (or inside) a tag: on a line of its own
+    let changes = [], cursorAfter = null;   // (typing moved to a line of its own: the cursor goes after it)
+    tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+      let text = inserted.toString(), at = fromA;
+      if (fromA === toA && text) {
+        const line = doc.lineAt(fromA);
+        if (tags.has(line.number)) {
+          if (fromA === line.from && !text.endsWith("\n")) { text += "\n"; cursorAfter = [at, text.length - 1]; }
+          else if (fromA > line.from && !(fromA === line.to && text.startsWith("\n"))) {
+            at = line.to;
+            if (!text.startsWith("\n")) text = "\n" + text;
+            cursorAfter = [at, text.length];
+          }
+        }
+      }
+      changes.push({ from: at, to: at === fromA ? toA : at, insert: text });
+    });
+    // a tag no longer whole on its line afterwards (or gone): remove it and its partner, whole lines
+    const test = tr.startState.update({ changes, filter: false });
+    const extra = [];
+    for (const n of tags) {
+      const l = doc.line(n), pos = test.changes.mapPos(l.from, 1), nl = test.newDoc.lineAt(pos);
+      if (nl.from === pos && nl.text === l.text) continue;
+      extra.push(lineRange(doc, n));
+      const p = partnerOf(doc, n);
+      if (p) extra.push(lineRange(doc, p));
+    }
+    if (!extra.length && test.newDoc.eq(tr.newDoc)) return tr;
+    // merge the deletions with the edit's own changes (ranges in one spec must not overlap)
+    const all = [...changes, ...extra.map(([from, to]) => ({ from, to, insert: "" }))].sort((x, y) => x.from - y.from || x.to - y.to);
+    const merged = [];
+    for (const c of all) {
+      const last = merged[merged.length - 1];
+      if (last && c.from < last.to) { last.to = Math.max(last.to, c.to); last.insert += c.insert; } else merged.push({ ...c });
+    }
+    const annotations = [];
+    const ev = tr.annotation(CM.Transaction.userEvent);
+    if (ev) annotations.push(CM.Transaction.userEvent.of(ev));
+    if (extra.length) annotations.push(label.of(`Tags taken out — ${[...tags].map((n) => doc.line(n).text.trim()).filter((t) => !t.startsWith("[/")).join(", ") || [...tags].map((n) => doc.line(n).text.trim()).join(", ")}`));
+    const spec = { changes: merged, annotations };
+    if (cursorAfter && !extra.length) {
+      const [at, len] = cursorAfter, cs = tr.startState.update({ changes: merged, filter: false }).changes;
+      spec.selection = { anchor: cs.mapPos(at, -1) + len };
+    }
+    return spec;
+  });
+  // the tag at the cursor and its partner: marked
+  const tagPairLine = CM.Decoration.line({ class: "cm-tag-pair" });
+  const tagPairs = CM.ViewPlugin.fromClass(class {
+    constructor(view) { this.decorations = this.find(view.state); }
+    update(u) { if (u.docChanged || u.selectionSet) this.decorations = this.find(u.state); }
+    find(state) {
+      const doc = state.doc, n = doc.lineAt(state.selection.main.head).number;
+      if (!tagAt(doc, n)) return CM.Decoration.none;
+      const lines = [n, partnerOf(doc, n)].filter(Boolean).sort((a, b) => a - b);
+      return CM.Decoration.set(lines.map((i) => tagPairLine.range(doc.line(i).from)));
+    }
   }, { decorations: (p) => p.decorations });
 
   // ---- page references: the page number each one prints, shown after it (from the last layout of the pages).
@@ -470,7 +560,7 @@
     const create = (doc, original) => EditorState.create({
       doc,
       extensions: [
-        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, clipboard, lint, lintGutter(),
+        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, pairGuard, tagPairs, clipboard, lint, lintGutter(),
         alignSlot.of(alignExt()), groupShading, pageNums,
         diffField.init((st) => { const o = CM.EditorState.create({ doc: original ?? doc }).doc; return { original: o, chunks: CM.Chunk.build(o, st.doc) }; }),
         ghostField,

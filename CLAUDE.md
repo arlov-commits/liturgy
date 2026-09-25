@@ -59,6 +59,8 @@ Pinyin is lined up under the characters in the editor by a display-only layer (`
 character and its syllable become inline-block columns of equal, canvas-measured width; spaces in the pinyin line
 take no room; punctuation gets an empty column), so both lines wrap at the same places. The text keeps single
 spaces. Visible lines only (~1 ms a keystroke). Off by default; switch: Settings → The text editor (per browser).
+Span tags are pairs (`texttab.js pairGuard`): deleting into `[border]`/`[keep together]`/`[contents]` or its closing tag removes
+both tags (one Undo step), typing beside a tag goes on its own line; the pair at the cursor is outlined (`tagPairs`).
 `[keep together]` spans are shaded amber in the editor, `[border]` spans blue, their midpoint where both apply; darker per nesting level (`texttab.js groupDecos`, lines in view only).
 Undo/Redo in the top bar use CodeMirror's history; `texttab.js track()` keeps a description of each step in step with
 it (`undoDepth`/`redoDepth`) for the ▾ lists; programmatic edits pass a `label` annotation. Adding, removing or

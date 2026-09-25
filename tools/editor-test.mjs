@@ -236,6 +236,27 @@ try {
   check(shades.filter((x) => x[0] === 'keep').length >= 5 && shades.filter((x) => x[0] === 'both' && x[1] === '2').length === 5 && alone.length === 5 &&
     new Set([keepBg[2], bothBg[2], alone[0]]).size === 3 && await dots() === '',
     'Keep together (amber) and Border (blue) groups shaded differently in the text; overlap blended and darker', `${keepBg[2]} | ${alone[0]} | ${bothBg[2]}`);
+  // span tags come in pairs: Backspace at the end of [/border] takes out both tags (not the lines between); one Undo
+  // puts both back; typing next to a tag goes on a line of its own
+  {
+    const f = await page.evaluate(() => Editor.state.docMap[0].first);
+    const body = await page.evaluate((f) => { const d = Editor.state.text.view.state.doc; return [f + 12, f + 13, f + 14].map((n) => d.line(n).text).join('\n'); }, f);
+    await page.evaluate((f) => { const v = Editor.state.text.view, d = v.state.doc; v.dispatch({ selection: { anchor: d.line(f + 12).from, head: d.line(f + 14).to }, scrollIntoView: true }); }, f);
+    await page.click('#add-border');
+    const wrapped = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
+    await page.evaluate((f) => { const v = Editor.state.text.view; v.dispatch({ selection: { anchor: v.state.doc.line(f + 16).to } }); v.focus(); }, f);
+    const marked = await page.$$eval('.cm-tag-pair', (l) => l.map((x) => x.textContent).join());
+    await page.keyboard.press('Backspace');
+    const after = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
+    await page.keyboard.press('Control+z');
+    const undone = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
+    await page.evaluate((f) => { const v = Editor.state.text.view; v.dispatch({ selection: { anchor: v.state.doc.line(f + 12).to } }); v.focus(); }, f);
+    await page.keyboard.type('Hi');
+    const typed = await page.evaluate((f) => { const d = Editor.state.text.view.state.doc; return [d.line(f + 12).text, d.line(f + 13).text]; }, f);
+    await page.click('#undo'); await page.click('#undo');
+    check(marked === '[border],[/border]' && !after.includes('[border]') && after.includes(body) && undone === wrapped && typed.join('|') === '[border]|Hi' && await dots() === '',
+      'span tags: Backspace takes out the pair (lines between stay), Undo puts both back, typing beside a tag gets its own line; the pair is marked', `${marked} | ${typed.join('|')}`);
+  }
   // pasting: plain text at the cursor; over a selection running into the next chapter (the title bars stay, the text
   // goes where the selection started); copying leaves the title bars out
   const docNow = () => page.evaluate(() => Editor.state.text.view.state.doc.toString());
