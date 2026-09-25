@@ -91,6 +91,8 @@
   margin-top: var(--space-english-to-chinese);
   white-space: nowrap;
   display: flex;             /* one character (with its pinyin) after another */
+  flex-wrap: wrap;           /* a line too long for the page goes on below */
+  row-gap: 0.35em;
   align-items: flex-start;
 }
 .zh .c {
