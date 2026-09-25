@@ -736,9 +736,11 @@
   // how the sheets are split into signatures (js/impose.js) ----
   const setting = (name) => state.settings.changes[name] ?? defaultSetting(name);
   function showBinding() {
-    const folded = setting("--binding") === "signatures";
-    $("#print-perfect").hidden = folded;
+    const binding = setting("--binding"), folded = binding === "signatures";
+    $("#print-perfect").hidden = binding !== "perfect";
+    $("#print-inorder").hidden = binding !== "in-order";
     $("#print-folded").hidden = !folded;
+    $("#print-sheets").textContent = binding === "in-order" ? "Print the pages…" : "Print on letter paper…";
     if (!folded || !state.pageCount) return;
     const perSig = setting("--signature-sheets") || "auto", pages = state.pageCount;
     const plan = LiturgyImpose.signaturePlan(pages, perSig), sheets = plan.reduce((a, b) => a + b, 0), blanks = sheets * 4 - pages;
@@ -763,7 +765,8 @@
 
   // ---- print ----
   // Letter sheets, 4 pages a side (preview.html printSheets), or just the pages as shown
-  const printSheets = () => frame && frame.contentWindow.printSheets();
+  // pages in order: just the pages as laid out; otherwise the letter sheets (4 a side, or folded signatures)
+  const printSheets = () => frame && (setting("--binding") === "in-order" ? frame.contentWindow.print() : frame.contentWindow.printSheets());
   $("#print-sheets").onclick = printSheets;
   $("#print-pages").onclick = () => frame && frame.contentWindow.print();
 

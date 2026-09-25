@@ -181,6 +181,10 @@ try {
   await page.click('#print');
   const sig = [await page.isVisible('#print-folded'), await page.isVisible('#print-perfect'), await page.textContent('#signature-plan'), await page.isVisible('#signature-warning'), await status()];
   await page.keyboard.press('Escape');
+  await openSettings(); await page.selectOption('#set--binding', 'in-order'); await closeSettings(); await page.click('#print');
+  const inOrder = [await page.isVisible('#print-inorder'), await page.isVisible('#print-perfect'), await page.isVisible('#print-folded'), await page.textContent('#print-sheets')];
+  await page.keyboard.press('Escape');
+  check(inOrder[0] && !inOrder[1] && !inOrder[2] && inOrder[3] === 'Print the pages…', 'binding: perfect bound, pages in order (not imposed): its own print steps');
   await openSettings(); await page.selectOption('#set--binding', 'perfect'); await page.selectOption('#set--signature-sheets', 'auto'); await closeSettings(); await afterEdit();
   check(sig[0] && !sig[1] && /one signature of \d+ sheets/.test(sig[2]) && sig[3] && /too thick/.test(sig[4]), 'signatures: Print panel shows the split, warns about a signature over 32 pages', sig.slice(2).join(' | '));
   const first = await page.evaluate(() => Editor.state.docMap[0].name);
