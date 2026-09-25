@@ -46,11 +46,6 @@
   ]);
   const theme = EditorView.theme({
     "&": { height: "100%", fontSize: "15px", backgroundColor: "#fff" },
-    // groups ([keep together], [border]): darker the deeper they're nested
-    ".cm-group-1": { backgroundColor: "rgba(138, 90, 0, 0.07)" },
-    ".cm-group-2": { backgroundColor: "rgba(138, 90, 0, 0.14)" },
-    ".cm-group-3": { backgroundColor: "rgba(138, 90, 0, 0.21)" },
-    ".cm-group-4": { backgroundColor: "rgba(138, 90, 0, 0.28)" },
     ".cm-pagenum": { margin: "0 4px", padding: "0 5px", borderRadius: "8px", background: "#e7f0f3", color: "#0a6b8a",
       font: "11px system-ui, sans-serif", cursor: "pointer", whiteSpace: "nowrap" },
     ".cm-pagenum.fixed": { background: "#fff0c2", color: "#8a5a00" },
@@ -171,26 +166,39 @@
     return out.join("\n");
   };
 
-  // ---- groups: the lines of a [keep together] or [border] span (markers included) get a shaded background,
-  // a shade darker for each span they're inside. Spans end with their chapter (the header line). Only the lines in
-  // view are shaded; the depth is worked out from the chapter's start.
+  // ---- groups: the lines of a [keep together] or [border] span (markers included) get a shaded background: amber for
+  // keep together, blue for a border, their midpoint where both apply; a shade darker for each span they're inside.
+  // Spans end with their chapter (the header line). Only the lines in view are shaded; the nesting is worked out from
+  // the chapter's start.
   const SPAN_LINE = /^\[(\/?)(keep together|one page|border)\]$/i;
-  const groupLine = [1, 2, 3, 4].map((d) => CM.Decoration.line({ class: "cm-group cm-group-" + d }));
+  const KEEP_RGB = [138, 90, 0], BORDER_RGB = [30, 100, 170], SHADE = 0.07;
+  const groupLine = new Map();   // "keeps,borders" → line decoration
+  function groupDeco(keeps, borders) {
+    const key = keeps + "," + borders;
+    if (!groupLine.has(key)) {
+      const rgb = keeps && borders ? KEEP_RGB.map((c, i) => Math.round((c + BORDER_RGB[i]) / 2)) : keeps ? KEEP_RGB : BORDER_RGB;
+      const alpha = Math.min(0.35, SHADE * (keeps + borders));
+      groupLine.set(key, CM.Decoration.line({ class: `cm-group cm-group-${keeps && borders ? "both" : keeps ? "keep" : "border"}`,
+        attributes: { style: `background-color: rgba(${rgb.join(", ")}, ${alpha})`, "data-depth": String(keeps + borders) } }));
+    }
+    return groupLine.get(key);
+  }
   function groupDecos(view) {
     const doc = view.state.doc, b = new CM.RangeSetBuilder();
     for (const { from, to } of view.visibleRanges) {
       let n = doc.lineAt(from).number;
       while (n > 1 && !isSep(doc.line(n).text)) n--;   // back to the chapter's header line
-      const last = doc.lineAt(to).number;
-      let depth = 0;
+      const last = doc.lineAt(to).number, open = [];   // kinds of the spans open: "keep" / "border"
       for (; n <= last; n++) {
         const text = doc.line(n).text, m = text.trim().match(SPAN_LINE);
-        if (isSep(text)) depth = 0;
-        let here = depth;
-        if (m && !m[1]) here = ++depth;          // an opening marker: the span starts with it
-        else if (m && m[1] && depth) depth--;    // a closing marker: the span ends with it (shaded at its depth)
+        if (isSep(text)) open.length = 0;
+        const kind = m && (m[2].toLowerCase() === "border" ? "border" : "keep");
+        if (m && !m[1]) open.push(kind);                 // an opening marker: the span starts with it
+        const count = (k) => open.filter((x) => x === k).length;
+        const keeps = count("keep"), borders = count("border");
+        if (m && m[1] && open.length) open.pop();        // a closing marker: the span ends with it (shaded as inside)
         const line = doc.line(n);
-        if (here && line.from >= from && line.from <= to) b.add(line.from, line.from, groupLine[Math.min(here, 4) - 1]);
+        if (keeps + borders && line.from >= from && line.from <= to) b.add(line.from, line.from, groupDeco(keeps, borders));
       }
     }
     return b.finish();

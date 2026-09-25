@@ -226,9 +226,16 @@ try {
   await page.click('#keep-together');
   await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, f = Editor.state.docMap[0].first; v.dispatch({ selection: { anchor: d.line(f + 16).from, head: d.line(f + 18).to } }); });
   await page.click('#add-border');
-  const shades = await page.evaluate(() => [...document.querySelectorAll('.cm-line')].map((l) => +((l.className.match(/cm-group-(\d)/) || [0, 0])[1])));
-  await page.click('#undo'); await page.click('#undo');
-  check(shades.filter((d) => d === 1).length >= 5 && shades.filter((d) => d === 2).length === 5 && await dots() === '', 'Keep together / Border groups shaded in the text, darker when nested', shades.join(''));
+  const shades = await page.evaluate(() => [...document.querySelectorAll('.cm-line.cm-group')].map((l) => [(l.className.match(/cm-group-(keep|border|both)/) || [])[1], l.dataset.depth, getComputedStyle(l).backgroundColor]));
+  // and a border on its own
+  await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, f = Editor.state.docMap[0].first; v.dispatch({ selection: { anchor: d.line(f + 40).from, head: d.line(f + 42).to }, scrollIntoView: true }); });
+  await page.click('#add-border'); await page.waitForTimeout(200);
+  const alone = await page.evaluate(() => [...document.querySelectorAll('.cm-line.cm-group-border')].map((l) => getComputedStyle(l).backgroundColor));
+  await page.click('#undo'); await page.click('#undo'); await page.click('#undo');
+  const keepBg = shades.find((x) => x[0] === 'keep'), bothBg = shades.find((x) => x[0] === 'both');
+  check(shades.filter((x) => x[0] === 'keep').length >= 5 && shades.filter((x) => x[0] === 'both' && x[1] === '2').length === 5 && alone.length === 5 &&
+    new Set([keepBg[2], bothBg[2], alone[0]]).size === 3 && await dots() === '',
+    'Keep together (amber) and Border (blue) groups shaded differently in the text; overlap blended and darker', `${keepBg[2]} | ${alone[0]} | ${bothBg[2]}`);
   // pasting: plain text at the cursor; over a selection running into the next chapter (the title bars stay, the text
   // goes where the selection started); copying leaves the title bars out
   const docNow = () => page.evaluate(() => Editor.state.text.view.state.doc.toString());
