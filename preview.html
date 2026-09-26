@@ -101,6 +101,9 @@ let bookCss = null;       // the book's own stylesheets (settings.css, book.css)
 let previewer = null;     // the Paged.js run on show (or still going)
 let running = null, runId = 0;
 let standaloneBook = null;
+// "warm": the editor's second frame, made ready in the background (fonts and Paged.js loaded) but not laid out until
+// the first change comes — so the first change shows as quickly as the ones after it
+let warming = !!editor && q.has("warm");
 
 // Lay the book out (again). A newer call stops an older one that's still going.
 function rerender() {
@@ -168,6 +171,18 @@ async function render(id) {
   const problems = main.querySelectorAll(".mismatch").length + main.querySelectorAll(".pageref-missing").length;
   await document.fonts.ready;
   timing.push(["fonts", performance.now()]);
+  if (warming) {
+    warming = false;
+    if (typeof PagedModule === "undefined") {
+      await new Promise((res) => { const s = document.createElement("script"); s.src = "vendor/paged.min.js"; s.onload = res; document.head.appendChild(s); });
+    }
+    main.innerHTML = "";
+    raw.forEach((st) => st.remove());
+    status.textContent = "Ready";
+    // (a change came while this frame was still loading: lay out its version now — unless the editor already asked)
+    if (editor.isPending && editor.isPending(window) && id === runId) setTimeout(rerender);
+    return;
+  }
   planKeeps(main, book.plan || {});
 
   let pages = 0;

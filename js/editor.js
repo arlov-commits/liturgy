@@ -41,19 +41,17 @@
     $("#busy").hidden = false;
     if (early && early === frame.contentWindow && early.stopLayout) early.stopLayout();   // outdated now
     early = null;
+    // the frame to lay the new version out in: the one not on show (kept from the last time, or made ready in the
+    // background after the first layout — warmSpare); a new one only when there is none. A frame still loading lays
+    // the book out as soon as it's ready (preview.html: its first layout, or isPending after warming up).
+    if (!pending) pending = [...$("#preview").querySelectorAll("iframe")].find((f) => f !== frame) || null;
     if (!pending) {
-      const spare = [...$("#preview").querySelectorAll("iframe")].find((f) => f !== frame);
-      if (spare && spare.contentWindow && spare.contentWindow.rerender) pending = spare;
-    }
-    if (pending && pending.contentWindow && pending.contentWindow.rerender) pending.contentWindow.rerender();
-    else {
-      if (pending) pending.remove();
       pending = document.createElement("iframe");
       pending.className = "loading";
       pending.title = "Booklet pages";
       pending.src = "preview.html" + location.search;
       $("#preview").append(pending);
-    }
+    } else if (pending.contentWindow && pending.contentWindow.rerender) pending.contentWindow.rerender();
     setStatus("Updating pages…");
   }
   // How many pages a new layout must have before it can be shown in place of the current one:
@@ -70,10 +68,20 @@
     if (old) {
       frame.contentWindow.scrollTo(old.contentWindow.scrollX, old.contentWindow.scrollY);
       old.classList.add("loading");   // kept (hidden) for the next layout
-    }
+    } else setTimeout(warmSpare, 300);
     frame.classList.remove("loading");
     followCursor();
     requestAnimationFrame(fitZoom);
+  }
+  // After the first layout: the second frame is made ready in the background (fonts, Paged.js), so the first change
+  // doesn't wait ~2 s for a fresh frame to load them (preview.html "warm")
+  function warmSpare() {
+    if (pending || [...$("#preview").querySelectorAll("iframe")].some((f) => f !== frame)) return;
+    const spare = document.createElement("iframe");
+    spare.className = "loading";
+    spare.title = "Booklet pages";
+    spare.src = "preview.html" + (location.search ? location.search + "&" : "?") + "warm";
+    $("#preview").append(spare);
   }
   // called by preview.html as pages get laid out, once the pages in view are done (the rest is still coming).
   // Swaps in as soon as the new pages reach the place the current ones are scrolled to; returns true then.
@@ -1152,7 +1160,8 @@
     render();
   }
 
-  window.Editor = { bookForPreview, previewDone, previewEarly, previewScrolled, pagesNeeded, refresh, jumpTo, shortcut, state, view: () => view };
+  const isPending = (win) => !!pending && win === pending.contentWindow;
+  window.Editor = { bookForPreview, previewDone, previewEarly, previewScrolled, pagesNeeded, refresh, jumpTo, shortcut, isPending, state, view: () => view };
   start().catch((e) => {
     setStatus("Problem: " + e.message, true);
     $("#forget").hidden = !LiturgySource.key.get();

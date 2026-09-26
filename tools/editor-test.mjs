@@ -122,6 +122,7 @@ await ctx.route('https://api.github.com/**', async (route) => {
 // autosave off for these checks (each one saves when it means to); it is checked on its own below
 await ctx.addInitScript(() => localStorage.setItem('liturgy.autosave', '0'));
 const page = await ctx.newPage();
+
 page.on('pageerror', (e) => check(false, 'no script errors', e.message));
 const status = () => page.textContent('#status');
 const settled = () => page.waitForFunction(() => { const s = document.querySelector('#status').textContent; return !/Updating|Loading|Saving/.test(s) && s.length > 0; }, null, { timeout: 60000 });
@@ -150,6 +151,12 @@ try {
   await page.fill('#signin input', 'good'); await Promise.all([page.waitForNavigation(), page.click('#signin button')]); await settled();
   const pages = +((await status()).match(/(\d+) pages/) || [])[1];
   check(pages > 0 && !(await status()).includes('problem'), 'good key: booklet renders', await status());
+  // the second frame gets ready in the background (fonts and Paged.js loaded), and the first change is laid out in it
+  const warmed = await page.waitForFunction(() => { const f = document.querySelectorAll('#preview iframe'); return f.length === 2 && f[1].src.includes('warm') && f[1].contentDocument?.getElementById('status')?.textContent === 'Ready'; }, null, { timeout: 20000 }).then(() => true, () => false);
+  await edit("return t + '\\n// a first change\\n'"); await afterEdit();
+  const framesAfter = await page.evaluate(() => [...document.querySelectorAll('#preview iframe')].map((f) => (f.classList.contains('loading') ? 'hidden' : 'shown') + (f.src.includes('warm') ? '+warm' : '')).join(','));
+  check(warmed && framesAfter === 'hidden,shown+warm', 'the second page frame is made ready in the background, and the first change shows in it', framesAfter);
+  await page.click('#undo'); await afterEdit();
 
   // feedback: notes about the app, saved to FEEDBACK.md with the text
   await page.click('#feedback-btn'); await page.click('#feedback-new');
