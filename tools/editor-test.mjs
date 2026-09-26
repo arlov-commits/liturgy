@@ -164,6 +164,18 @@ try {
     return out;
   });
   check(sides.length > 4 && sides.every((x) => x === 'ok'), 'letter sheets: page numbers in the outside corner (right-hand pages on the right)', sides.join(' '));
+  // …and each page on the sheets looks like the page itself, only scaled: the same margins, relative to its width
+  const sameLook = await (await shownPreview()).evaluate(() => {
+    const look = (p) => { const r = p.getBoundingClientRect(), a = p.querySelector('.pagedjs_area').getBoundingClientRect();
+      return [a.left - r.left, r.right - a.right, a.top - r.top, r.bottom - a.bottom, r.height].map((v) => v / r.width); };
+    const own = new Map([...document.querySelectorAll('.pagedjs_pages > .pagedjs_page')].map((p) => [p.dataset.pageNumber, look(p)]));
+    buildSheets(); document.documentElement.classList.add('print-sheets');
+    const off = [...document.querySelectorAll('#sheets .slot .pagedjs_page')].filter((p) => own.has(p.dataset.pageNumber))
+      .map((p) => Math.max(...look(p).map((v, i) => Math.abs(v - own.get(p.dataset.pageNumber)[i]))));
+    document.documentElement.classList.remove('print-sheets'); document.getElementById('sheets').remove();
+    return [off.length, Math.max(...off)];
+  });
+  check(sameLook[0] > 4 && sameLook[1] < 0.005, 'print layout: every page has the same margins as on its own (only scaled)', `${sameLook[0]} pages, largest difference ${sameLook[1].toFixed(4)} of the width`);
 
   // a # title further down a chapter starts a new page (default); "straight after the text before" lets it run on
   const titleTops = async () => (await shownPreview()).evaluate(() => [...document.querySelectorAll('.pagedjs_page')].filter((p) => p.querySelector('.pagedjs_page_content .title-break')).length);
