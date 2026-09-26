@@ -393,7 +393,10 @@ try {
   const unnamed = await page.evaluate(() => Editor.state.contents.text);
   check(renamed[0] === 'My short name' && /03-amitabha-sutra\.txt = My short name/.test(renamed[1]) && renamed[2] === 'My short name' && !/=/.test(unnamed),
     'contents list: rename a chapter for this booklet (and back)', renamed[0]);
-  await edit("return '// test edit\\n' + t"); await afterEdit();
+  await edit("return '// test edit\\n' + t");
+  const busyNow = await page.isVisible('#busy');
+  await afterEdit();
+  check(busyNow && !(await page.isVisible('#busy')), 'a spinner shows under the pages until a change is in');
   check((await page.textContent('#save')).includes('2 files'), 'unsaved changes are counted', await page.textContent('#save'));
   const printX = await page.evaluate(() => Math.round(document.querySelector('#print').getBoundingClientRect().left));
   await page.keyboard.press('Control+s'); await saveDone();

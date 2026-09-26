@@ -22,12 +22,20 @@
 
   // ---- preview ----
   // Every change starts the page layout afresh (see previewDone for the extra passes facing pages may need)
+  // A small spinner at the bottom left of the pages shows while a change is still on its way (from the change itself
+  // until its layout is fully in), so it's clear it hasn't been missed.
+  let asked = 0, drawing = 0;
+  const showBusy = () => { $("#busy").hidden = drawing === asked && !pending && !early; };
   function refresh(delay = 0) {
+    asked++;
+    $("#busy").hidden = false;
     clearTimeout(timer);
     timer = setTimeout(() => { state.layout = { pages: {}, flip: {}, hard: [], passes: 0 }; render(); }, delay);
   }
   let early = null;     // a frame shown before its layout was finished (the rest still coming)
   function render() {
+    drawing = asked;
+    $("#busy").hidden = false;
     if (early && early === frame.contentWindow && early.stopLayout) early.stopLayout();   // outdated now
     early = null;
     if (!pending) {
@@ -81,6 +89,7 @@
     early = null;
     if (!info.error && improveLayout(info.spreads || [])) return void setTimeout(render);   // another pass, hidden
     if (!wasEarly) swapIn();
+    showBusy();
     requestAnimationFrame(fitZoom);   // (the finished layout — e.g. the print layout's sheets — may need another size)
     $("#print").disabled = !!info.error;
     state.pageCount = info.pages;
