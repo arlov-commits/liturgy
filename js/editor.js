@@ -255,7 +255,11 @@
   const ORDER_FILE = LiturgySource.ORDER_FILE;
   const bookNames = () => LiturgySource.bookNames(state.source);
   const saveOrder = (names) => state.source.put(ORDER_FILE, "// The booklets, in the order the editor lists them (one per line)\n" + names.join("\n") + "\n", "Change the order of the booklets (from the editor)");
-  const openBook = (name) => { const u = new URLSearchParams(location.search); u.set("book", name); location.search = u; };
+  // (with autosave on, what isn't saved yet is saved first, instead of the browser asking about leaving the page)
+  const openBook = async (name) => {
+    if (autosaveOn() && state.source.canSave && unsaved().length) await save(true);
+    const u = new URLSearchParams(location.search); u.set("book", name); location.search = u;
+  };
   async function startBookPicker() {
     const names = await bookNames();
     if (!names.includes(state.bookName)) names.push(state.bookName);
@@ -271,7 +275,7 @@
       pick.value = state.bookName;
       if (v === "@new") return newBook(names).catch((e) => setStatus("Problem: " + e.message, true));
       if (v === "@edit") return editBooks().catch((e) => setStatus("Problem: " + e.message, true));
-      openBook(v);   // the unsaved-changes question comes from beforeunload
+      openBook(v);   // (unsaved changes: saved first with autosave on, else the browser asks about leaving)
     };
   }
   const slug = (title, fallback) => title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || fallback;
@@ -1114,6 +1118,8 @@
     return false;
   }
   window.addEventListener("beforeunload", (ev) => { if (state.book && unsaved().length) { ev.preventDefault(); ev.returnValue = ""; } });
+  // leaving the tab (another tab, the window minimised): with autosave on, save now rather than in a few seconds
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && state.book && unsaved().length) save(true); });
 
   $("#forget").onclick = async (ev) => {
     ev.preventDefault();

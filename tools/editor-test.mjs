@@ -700,6 +700,13 @@ try {
   await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0]; v.dispatch({ changes: { from: v.state.doc.line(m.first).from, insert: '> autosaved note\n' } }); });
   await page.waitForFunction(() => document.querySelector('#save').textContent === 'Saved', null, { timeout: 15000 }).catch(() => {});
   check(readFileSync(tocFile, 'utf8').startsWith('> autosaved note') && await page.textContent('#save-more') === 'auto ▾', 'autosave: saves by itself a few seconds after a change');
+  // …and leaving the tab (another tab, minimised) saves at once
+  await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0]; v.dispatch({ changes: { from: v.state.doc.line(m.first).from, insert: '> saved on leaving\n' } }); });
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+  await page.waitForTimeout(1500);
+  const savedOnHide = readFileSync(tocFile, 'utf8').startsWith('> saved on leaving');
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); });
+  check(savedOnHide, 'autosave: leaving the tab saves at once');
   await page.click('#save-more'); await page.uncheck('#autosave'); await page.keyboard.press('Escape');
   await (await shownPreview()).evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
   await page.locator('#toc-nav a.nav-l0').first().click(); await page.waitForTimeout(300);
