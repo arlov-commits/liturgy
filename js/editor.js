@@ -7,7 +7,10 @@
   const q = new URLSearchParams(location.search);
   const $ = (sel) => document.querySelector(sel);
 
-  const state = { source: null, bookName: q.get("book") || "test", book: null, saved: {}, settings: { groups: [], changes: {} },
+  // the booklet: the one in the address, else the one opened last in this browser (start() checks it's there)
+  const LAST_BOOK = "liturgy.lastBook";
+  const lastBook = () => { try { return localStorage.getItem(LAST_BOOK) || ""; } catch { return ""; } };
+  const state = { source: null, bookName: q.get("book") || lastBook(), book: null, saved: {}, settings: { groups: [], changes: {} },
     layout: { pages: {}, flip: {}, hard: [], passes: 0 } };
   // Two preview frames take turns: one on show, the other lays the next version out hidden. Each keeps its
   // fonts loaded between layouts (a fresh frame spends up to ~2 s loading them), so redraws are quicker.
@@ -96,8 +99,11 @@
     state.pageMap = info.pageMap || {};
     state.text.setPages(state.pageMap);
     showBinding();
+    // (a note about opening the booklet goes in front, the first time)
+    const note = state.note ? state.note + " · " : "";
+    state.note = "";
     if (info.error) setStatus("Problem: " + info.error, true);
-    else setStatus(`${state.book.sections.length} chapter${state.book.sections.length === 1 ? "" : "s"} · ${info.pages} pages` +
+    else setStatus(note + `${plural(state.book.sections.length, "chapter")} · ${plural(info.pages, "page")}` +
       (info.problems ? ` · ${info.problems} problem(s) — marked in red, and underlined in the text` : "") +
       (info.blanks ? ` · ${info.blanks} blank page(s) added for facing pages` : "") +
       (state.bindingWarning ? " · a signature is too thick to fold — see Settings → Format and binding" : ""));
@@ -219,12 +225,8 @@
   }
 
   // ---- booklets: books/<name>.txt, shown in the order kept in booklets.txt (others after, A–Z) ----
-  const ORDER_FILE = "booklets.txt";
-  async function bookNames() {
-    const names = (await state.source.list("books")).filter((n) => n.endsWith(".txt")).map((n) => n.slice(0, -4)).sort();
-    const order = LiturgySource.listNames((await state.source.get(ORDER_FILE, true)) || "");
-    return [...order.filter((n) => names.includes(n)), ...names.filter((n) => !order.includes(n))];
-  }
+  const ORDER_FILE = LiturgySource.ORDER_FILE;
+  const bookNames = () => LiturgySource.bookNames(state.source);
   const saveOrder = (names) => state.source.put(ORDER_FILE, "// The booklets, in the order the editor lists them (one per line)\n" + names.join("\n") + "\n", "Change the order of the booklets (from the editor)");
   const openBook = (name) => { const u = new URLSearchParams(location.search); u.set("book", name); location.search = u; };
   async function startBookPicker() {
@@ -1073,8 +1075,19 @@
       return askForKey(q.get("repo") || LiturgySource.DEFAULT_REPO, e.message);
     }
     $("#forget").hidden = !state.source.usesKey && !state.source.isPickedFolder;
+    // a booklet that isn't there (renamed, deleted, mistyped — or none asked for): the last one opened, else the first
+    const names = await bookNames(), asked = state.bookName;
+    if (names.length && !names.includes(asked)) {
+      state.bookName = names.includes(lastBook()) ? lastBook() : names[0];
+      const u = new URLSearchParams(location.search);
+      u.set("book", state.bookName);
+      history.replaceState(null, "", "?" + u);
+    }
+    if (!state.bookName) throw new Error(`No booklets found in ${state.source.where}.`);
+    if (asked && asked !== state.bookName) state.note = `There is no booklet called “${asked}” — this is “${state.bookName}”`;
     startBookPicker();
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
+    try { localStorage.setItem(LAST_BOOK, state.bookName); } catch {}
     await startSettings();
     await startText();
     await startFeedback();

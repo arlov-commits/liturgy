@@ -125,8 +125,12 @@ async function render(id) {
   if (editor) book = editor.bookForPreview();
   else {
     if (!standaloneBook) {
-      const bookName = q.get("book") || "test";
-      standaloneBook = await LiturgySource.loadBook(await LiturgySource.open(q, bookName), bookName);
+      // the booklet asked for (?book=), else the first there is
+      const source = await LiturgySource.open(q, q.get("book") || ""), names = await LiturgySource.bookNames(source);
+      const bookName = q.get("book") || names[0];
+      if (!bookName) throw new Error(`No booklets found in ${source.where}`);
+      if (names.length && !names.includes(bookName)) throw new Error(`There is no booklet called “${bookName}” (there are: ${names.join(", ")})`);
+      standaloneBook = await LiturgySource.loadBook(source, bookName);
     }
     book = standaloneBook;
   }
@@ -169,7 +173,7 @@ async function render(id) {
   let pages = 0;
   if (!book.sections.length) {
     // (Paged.js would lay out the whole page instead)
-    main.innerHTML = '<p class="empty">This booklet has no chapters yet. In the Booklet tab, add a chapter or make a new one.</p>';
+    main.innerHTML = '<p class="empty">This booklet has no chapters yet. In the Chapters tab, add a chapter or make a new one.</p>';
     raw.forEach((st) => st.remove());
     status.textContent = "No chapters";
   } else if (engine === "paged") {
@@ -202,7 +206,7 @@ async function render(id) {
     if (id !== runId) return;   // stopped: a newer layout takes over
     timing.push(["layout", performance.now()]);
     removeOverflow();
-    status.textContent = `${book.sections.length} chapters · ${pages} pages · ${problems} problem(s)`;
+    status.textContent = `${book.sections.length} chapter${book.sections.length === 1 ? "" : "s"} · ${pages} page${pages === 1 ? "" : "s"} · ${problems} problem(s)`;
   } else {
     raw.forEach((st) => st.remove());
     status.textContent = `${book.sections.length} chapters · ${problems} problem(s) · press Ctrl+P to see pages`;

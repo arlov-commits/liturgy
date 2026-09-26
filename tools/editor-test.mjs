@@ -141,7 +141,7 @@ const edit = (fn) => page.evaluate((fn) => {
 }, fn);
 
 try {
-  await page.goto('http://localhost:8791/liturgy/index.html'); await settled();
+  await page.goto('http://localhost:8791/liturgy/index.html?book=test'); await settled();
   check(await page.isVisible('#signin'), 'online without a key: asks for one');
 
   await page.fill('#signin input', 'bad'); await Promise.all([page.waitForNavigation(), page.click('#signin button')]); await settled();
@@ -627,6 +627,10 @@ try {
     booksDir.includes('renamed-booklet.txt') && !booksDir.includes('test-booklet.txt') && existsSync(path.join(repo, 'books', 'contents', 'renamed-booklet.txt')) &&
     !booksDir.includes(other + '.txt') && new URL(page.url()).searchParams.get('book') === 'renamed-booklet' && /\d+ pages/.test(await status()),
     'Edit booklets: reorder, rename (with its table of contents), delete', `${order.join(',')} | ${booksDir.join(',')}`);
+  // a booklet that isn't there (deleted, renamed, mistyped): the one opened last instead, and the status says so
+  await page.goto('http://localhost:8791/liturgy/index.html?book=no-such-booklet'); await settled();
+  check(new URL(page.url()).searchParams.get('book') === 'renamed-booklet' && (await status()).startsWith('There is no booklet called “no-such-booklet” — this is “renamed-booklet”'),
+    'a booklet that is not there: opens the last one instead, and says so', await status());
 
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'readonly'));
   page.once('dialog', (d) => d.accept());

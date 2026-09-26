@@ -151,7 +151,8 @@ The pages swap in early only once the new layout reaches the place the current p
 ```
 npm install                                  # playwright, esbuild, CodeMirror sources (dev only)
 npm run vendor                               # rebuild vendor/codemirror.min.js
-python3 -m http.server -d ..                 # then open /liturgy/index.html?book=test  (preview only: preview.html)
+python3 -m http.server -d ..                 # then open /liturgy/index.html?book=<name>  (preview only: preview.html)
+                                             # (no ?book, or one that isn't there: the booklet opened last, else the first)
                                              # (no ../liturgy-text folder, e.g. on github.io → asks for a GitHub key
                                              #  and reads the private repo; ?repo=owner/name to point elsewhere)
 node tools/render-test.mjs native out        # PDF via Chrome print (CHROMIUM=<path> to use another Chromium)

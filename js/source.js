@@ -182,9 +182,10 @@
   // Returns a source (see above). Throws SourceError with needKey = true when a key is needed.
   async function open(q, bookName) {
     if (q.get("text")) return folder(q.get("text"));
+    // the dev setup: its books folder answers (a dev server lists it) — or at least the booklet asked for
     const local = folder("../liturgy-text/");
-    const probe = await fetch(local.where + `books/${bookName}.txt`, { method: "HEAD", cache: "no-cache" }).catch(() => null);
-    if (probe && probe.ok) return local;
+    const answers = async (path) => { const r = await fetch(local.where + path, { method: "HEAD", cache: "no-cache" }).catch(() => null); return !!(r && r.ok); };
+    if ((await answers("books/")) || (bookName && (await answers(`books/${bookName}.txt`)))) return local;
 
     if (pickedFolder.available()) {
       const handle = await pickedFolder.get();
@@ -200,6 +201,15 @@
     const source = github(repo, token);
     await source.check();
     return source;
+  }
+
+  // The booklets there are (books/<name>.txt), in the order kept in booklets.txt (others after it, A–Z);
+  // [] when the source can't list its folders
+  const ORDER_FILE = "booklets.txt";
+  async function bookNames(source) {
+    const names = (await source.list("books")).filter((n) => n.endsWith(".txt")).map((n) => n.slice(0, -4)).sort();
+    const order = listNames((await source.get(ORDER_FILE, true)) || "");
+    return [...order.filter((n) => names.includes(n)), ...names.filter((n) => !order.includes(n))];
   }
 
   // A booklet = books/<name>.txt, a list of chapter files in order (// lines are comments)
@@ -254,5 +264,5 @@
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile, settingsFile, loadSettings, SETTINGS_VERSION };
+  root.LiturgySource = { open, bookNames, ORDER_FILE, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile, settingsFile, loadSettings, SETTINGS_VERSION };
 })(window);
