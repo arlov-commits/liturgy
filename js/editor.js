@@ -996,11 +996,11 @@
     if (!saving) $("#save").textContent = n ? `Save (${n} file${n > 1 ? "s" : ""})` : "Saved";
     if (edited) autosavePaused = false;
     clearTimeout(autosaveTimer);
-    if (n && autosaveOn() && !autosavePaused) autosaveTimer = setTimeout(() => save(true), AUTOSAVE_AFTER);
+    if (n && autosaveOn() && !autosavePaused && !autosaveBlocked) autosaveTimer = setTimeout(() => save(true), AUTOSAVE_AFTER);
   }
   // ---- autosave: on unless switched off (per browser); only where Save writes straight to the text ----
   const AUTOSAVE_AFTER = 4000;
-  let autosaveTimer = null, autosavePaused = false, saving = false;
+  let autosaveTimer = null, autosavePaused = false, autosaveBlocked = false, saving = false;
   const autosaveOn = () => { try { return localStorage.getItem("liturgy.autosave") !== "0"; } catch { return true; } } ;
   function showAutosave() {
     const can = !state.source || state.source.canSave, on = autosaveOn() && can;
@@ -1045,8 +1045,14 @@
       for (const path of paths) {
         if (state.source.canSave) {
           $("#save").textContent = "Saving…";
-          if (files[path] === null) await state.source.remove(path, commitMessage(path));
-          else await state.source.put(path, files[path], commitMessage(path));
+          const write = (opts) => (files[path] === null ? state.source.remove(path, commitMessage(path), opts) : state.source.put(path, files[path], commitMessage(path), opts));
+          try { await write(); }
+          catch (e) {
+            // changed there since it was read (another tab or computer): an automatic save stops and says so; Save asks
+            if (!e.conflict || auto || !confirm(`${e.message}.\n\nSave your version over it? The other version stays in GitHub's history.\n\n` +
+              "Cancel: nothing is saved now; your changes stay here in the editor.")) throw e;
+            await write({ over: true });
+          }
         } else if (files[path] === null) {
           continue;   // (nothing to hand over: the edition file just isn't needed any more)
         } else {
@@ -1057,9 +1063,11 @@
       }
       // (an automatic save just shows "Saved" on the button, and leaves the status line to the pages)
       if (!auto) setStatus(state.source.canSave ? `Saved to ${state.source.usesKey ? "GitHub" : state.source.where}` : `Downloaded ${paths.map((p) => p.split("/").pop()).join(", ")} — put ${paths.length > 1 ? "them" : "it"} in ${state.source.where}`);
+      autosaveBlocked = false;
     } catch (e) {
-      setStatus("Not saved: " + e.message, true);
+      setStatus("Not saved: " + e.message + (e.conflict ? " — click Save to choose what to do. Your changes are still here." : ""), true);
       autosavePaused = true;   // (until you change something: no retrying every few seconds)
+      if (e.conflict) autosaveBlocked = true;   // (not until Save sorted it out: it would only fail again)
     }
     saving = false;
     changed(false);

@@ -19,6 +19,11 @@
   class SourceError extends Error {
     constructor(message, needKey, needFolder) { super(message); this.needKey = needKey; this.needFolder = needFolder; }
   }
+  // a save refused because the file changed there since it was read (another tab or computer): put(…, { over: true })
+  // saves over it (GitHub keeps the other version in its history)
+  class ConflictError extends SourceError {
+    constructor(path) { super(`${path} was changed on GitHub since you opened it (in another tab, or on another computer?)`); this.conflict = true; this.path = path; }
+  }
 
   // A folder picked on this computer, remembered between visits (the browser asks again before reuse)
   const FOLDER_KEY = "liturgy.folder";
@@ -117,7 +122,7 @@
     const call = (url, init = {}) => fetch("https://api.github.com/repos/" + repo + url, {
       cache: "no-store", ...init,
       headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28", ...init.headers },
-    });
+    }).catch(() => { throw new SourceError("GitHub can't be reached — is this computer online? Nothing is lost: it's still here in the editor."); });
     const contents = (path) => "/contents/" + path.split("/").map(encodeURIComponent).join("/");
     // a file's version: known from reading it, else asked for (e.g. it was read as plain text, see get)
     async function version(path) {
@@ -156,22 +161,24 @@
         const files = r.ok ? parseJson(await r.text()) : null;
         return Array.isArray(files) ? files.filter((f) => f.type === "file").map((f) => f.name) : [];
       },
-      // Saves one file as a commit on the repo's main branch
-      async put(path, text, message) {
+      // Saves one file as a commit on the repo's main branch (over: over a version changed there since it was read)
+      async put(path, text, message, { over = false } = {}) {
+        if (over) delete shas[path];   // (its version as it is there now)
         const body = { message, content: b64encode(text) };
         if (await version(path)) body.sha = shas[path];
         const r = await call(contents(path), { method: "PUT", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
-        if (r.status === 409 || r.status === 422) throw new SourceError(`${path} was changed on GitHub by someone else since you opened it. Copy your changes somewhere, reload the page, and make them again.`);
+        if (r.status === 409 || r.status === 422) throw new ConflictError(path);
         if (r.status === 403 || r.status === 404) throw new SourceError("Your key can only read. Make a new key with Contents set to “Read and write”, click “Disconnect” at the top, and connect with the new one.");
         if (r.status === 401) throw new SourceError("GitHub did not accept the key — it may have expired. Click “Disconnect” at the top and connect with a new one.");
         if (!r.ok) throw new SourceError(`GitHub said ${r.status} while saving ${path}`);
         shas[path] = (await r.json()).content.sha;
       },
       // Deletes one file as a commit (nothing to do if it isn't there)
-      async remove(path, message) {
+      async remove(path, message, { over = false } = {}) {
+        if (over) delete shas[path];
         if (!(await version(path))) return;
         const r = await call(contents(path), { method: "DELETE", body: JSON.stringify({ message, sha: shas[path] }), headers: { "Content-Type": "application/json" } });
-        if (r.status === 409 || r.status === 422) throw new SourceError(`${path} was changed on GitHub by someone else since you opened it. Reload the page and try again.`);
+        if (r.status === 409 || r.status === 422) throw new ConflictError(path);
         if (r.status === 403) throw new SourceError("Your key can only read. Make a new key with Contents set to “Read and write”, click “Disconnect” at the top, and connect with the new one.");
         if (!r.ok && r.status !== 404) throw new SourceError(`GitHub said ${r.status} while removing ${path}`);
         shas[path] = null;

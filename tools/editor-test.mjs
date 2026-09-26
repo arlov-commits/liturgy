@@ -486,11 +486,16 @@ try {
   await edit("return t + '\\n// one\\n'"); await afterEdit(); await page.keyboard.press('Control+s'); await saveDone();
   writeFileSync(path.join(repo, 'edits', first), 'changed elsewhere\n');
   await edit("return t + '\\n// two\\n'"); await afterEdit();
+  let asked = '';
+  page.once('dialog', (d) => { asked = d.message(); d.dismiss(); });
   await page.click('#save'); await saveDone();
-  check((await status()).includes('someone else'), 'never overwrites a newer change on GitHub');
+  const refused = (await status()).includes('changed on GitHub since you opened it') && readFileSync(path.join(repo, 'edits', first), 'utf8') === 'changed elsewhere\n';
+  page.once('dialog', (d) => d.accept());
+  await page.click('#save'); await page.waitForFunction(() => document.querySelector('#status').textContent.startsWith('Saved'), null, { timeout: 15000 }).catch(() => {});
+  check(refused && /Save your version over it\?/.test(asked) && (await status()).startsWith('Saved') && readFileSync(path.join(repo, 'edits', first), 'utf8').includes('// two'),
+    'a newer change on GitHub: never overwritten unasked; Save asks, and can save over it', await status());
 
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'rawcache'));
-  page.once('dialog', (d) => d.accept());
   await page.reload(); await settled();
   check(/\d+ pages/.test(await status()), 'plain-text answers from GitHub (stale cache) still load', await status());
   await edit("return '// after raw read\\n' + t"); await afterEdit();
