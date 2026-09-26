@@ -576,6 +576,15 @@ try {
     fixedShown === '99' && warned > 0 && /set by hand/.test(handChip) && /SHORT NAME \[page of /.test(tocBack) && !/page 99/.test(tocBack),
     'table of contents written out in the text: rename an entry; a page number typed by hand is warned; one click back to the automatic number',
     `${chips.join(',')} | ${aliasShown[0]} | ${fixedShown} | ${handChip}`);
+  // Select All + paste with a written-out contents: the paste happens (it used to be taken for deleting the entries)
+  const docAll = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
+  await page.evaluate(() => Editor.state.text.view.focus());
+  await page.keyboard.press('Control+a'); await page.evaluate(() => navigator.clipboard.writeText('ALL OF IT'));
+  await page.keyboard.press('Control+v');
+  const allPasted = await page.evaluate(() => { const d = Editor.state.text.view.state.doc, m = Editor.state.docMap[0]; return [d.line(m.first).text, d.toString().includes('// ')]; });
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(300);
+  check(allPasted[0] === 'ALL OF IT' && !allPasted[1] && await page.evaluate(() => Editor.state.text.view.state.doc.toString()) === docAll,
+    'Select All + paste in a booklet with a written-out contents: pasted (not turned into // lines); undo', JSON.stringify(allPasted));
   // every chapter gets a line (even one marked [toc: -]); "//" in front leaves one out, and it stays out as chapters are added
   await page.evaluate(() => { const v = Editor.state.text.view, d = v.state.doc, m = Editor.state.docMap[0];
     for (let i = m.last; i >= m.first; i--) { const t = d.line(i).text; if (/\[page of/.test(t)) { v.dispatch({ changes: { from: d.line(i).from, insert: '// ' } }); return; } } });

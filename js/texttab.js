@@ -288,13 +288,20 @@
   // In a written-out table of contents ([contents] … [/contents]) each entry's page reference stays: deleting whole
   // entry lines leaves them out instead ("// " in front, which also keeps them from being added back); deleting just
   // a reference is refused (onRefused says why). Edits reaching outside the block (Select All …) are left alone.
-  const inContents = (doc, n) => {
-    for (let i = n - 1; i >= 1; i--) {
+  // the [contents] … [/contents] block around line n: { open, close } (line numbers of the two tags), or null
+  const contentsBlock = (doc, n) => {
+    let open = 0, close = 0;
+    for (let i = n - 1; i >= 1 && !open; i--) {
       const t = doc.line(i).text.trim();
-      if (isSep(doc.line(i).text) || /^\[\/contents\]$/i.test(t)) return false;
-      if (/^\[contents\]$/i.test(t)) return true;
+      if (isSep(doc.line(i).text) || /^\[\/contents\]$/i.test(t)) return null;
+      if (/^\[contents\]$/i.test(t)) open = i;
     }
-    return false;
+    for (let i = n + 1; i <= doc.lines && !close; i++) {
+      const t = doc.line(i).text.trim();
+      if (isSep(doc.line(i).text) || /^\[contents\]$/i.test(t)) break;
+      if (/^\[\/contents\]$/i.test(t)) close = i;
+    }
+    return open ? { open, close: close || doc.lines + 1 } : null;
   };
   let onRefused = () => {};
   const refGuard = EditorState.transactionFilter.of((tr) => {
@@ -308,7 +315,9 @@
         const line = doc.line(n);
         const refs = [...line.text.matchAll(REF)].filter((m) => fromA < line.from + m.index + m[0].length && toA > line.from + m.index);
         if (!refs.length) continue;
-        if (!inContents(doc, n) || TAG.test(doc.line(first).text.trim()) || TAG.test(doc.line(last).text.trim())) { outside = true; continue; }
+        // (an edit that reaches a tag of the block, or past it — Select All … — isn't one of these)
+        const block = contentsBlock(doc, n);
+        if (!block || first <= block.open || last >= block.close) { outside = true; continue; }
         const whole = fromA <= line.from && toA >= line.to;
         if (whole) rows.push(n); else refused = true;
       }
