@@ -347,7 +347,6 @@
   // A booklet is a list of chapter files (books/<name>.txt → text/*.txt). A chapter can be in several booklets;
   // editing it changes it in all of them.
   const labelOf = (name) => name.replace(/\.txt$/, "");
-  // A chapter's title for lists: its [toc: …] name, else its first title
   // A chapter's title for lists: its [toc: …] name, else its first title line, else its file name
   const titleOf = (text, name) => {
     const m = LiturgyParse.parse(text || "", name).match(/data-toc="([^"]*)"/);
@@ -863,8 +862,7 @@
     });
   }
 
-  // ---- settings: a drawer over the left side ----
-  // ---- Settings and Print: panels over the left side, reaching the right edge of the text panel (at least 420 px) ----
+  // ---- Settings, Print and Feedback: panels over the left side, reaching the right edge of the text panel (at least 420 px) ----
   const drawers = { settings: ["#settings", "#settings-btn"], print: ["#print-panel", "#print"], feedback: ["#feedback-panel", "#feedback-btn"] };
   function fitDrawers() {
     const w = Math.max(420, Math.round($("#panel").getBoundingClientRect().right - $("#app").getBoundingClientRect().left));
@@ -913,8 +911,6 @@
     else parts.push("No cutting; can be stapled");
     const html = parts.join("<br>") + (thick ? `<div class="warning">A signature of ${Math.max(...p.plan)} sheets (${Math.max(...p.plan) * 4} pages) is too thick to fold neatly — choose “automatic” to split it into several.</div>` : "");
     for (const box of document.querySelectorAll("#binding-metrics, #signature-plan")) box.innerHTML = html;
-    $("#signature-warning").hidden = true;
-    $("#signature-warning").textContent = thick ? "too thick" : "";
     state.bindingWarning = thick;
   }
 

@@ -49,7 +49,7 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 .cm-dot-ghost { border: 1.5px solid #b0a58c; }
 .cm-dot:hover { box-shadow: 0 0 0 3px rgba(224, 138, 0, .3); }
 
-/* Contents list (left): every chapter and its headings; the place you're at is marked */
+/* Contents list (left): the chapters of the booklet; the place you're at is marked */
 #toc-nav { width: 220px; flex: none; display: flex; flex-direction: column; overflow: hidden; background: #f3f1ec; border-right: 1px solid #ccc; font-size: 13px; }
 #toc-list { flex: 1; overflow: auto; padding: 0 0 24px; }
 #feedback-btn { flex: none; margin: 6px; border: 1px solid #ccc; background: #fff; border-radius: 6px; padding: 6px; font-size: 13px; }
@@ -68,7 +68,7 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
   font-size: 13px; color: #8a5a00; opacity: 0; }
 #toc-nav a:hover .rename, #toc-nav a .rename:focus { opacity: 1; }
 
-/* Booklet tab */
+/* Chapters tab */
 #tab-book h3 { margin: 8px 0; font-size: 15px; }
 #chapters { padding-left: 24px; margin: 0 0 16px; }
 #chapters li { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid #eee; }
@@ -80,7 +80,7 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 #tab-book .add .row { display: flex; gap: 6px; margin-top: 4px; }
 #tab-book .add select { flex: 1; min-width: 0; font: inherit; }
 
-/* Settings: a drawer over the left side (the pages stay in view, to see each change) */
+/* Settings, Print, Feedback: drawers over the left side (the pages stay in view, to see each change) */
 #app { position: relative; }
 .drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 500px; max-width: 100%; z-index: 20; overflow: auto; box-sizing: border-box;
   background: #fafaf8; border-right: 1px solid #bbb; box-shadow: 4px 0 16px rgba(0,0,0,.18); padding: 0 14px 24px; }

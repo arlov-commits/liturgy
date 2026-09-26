@@ -258,7 +258,7 @@ function fillContents(main) {
   for (const nav of main.querySelectorAll("nav.toc.auto")) {
     const own = nav.closest("section");
     for (const el of main.querySelectorAll("section[data-toc], [data-toc-entry]")) {
-      if (el.closest("section") === own) continue;
+      if (el.closest("section") === own || el.dataset.tocEntry === "-") continue;   // ([toc: -] further down: no entry)
       const row = document.createElement("div");
       row.className = "toc-entry" + (el.dataset.tocEntry ? " toc-sub" : "");
       row.append(Object.assign(document.createElement("span"), { className: "toc-title", textContent: el.dataset.toc || el.dataset.tocEntry }),

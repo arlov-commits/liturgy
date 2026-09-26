@@ -107,8 +107,8 @@
       if (g.items.some((i) => i.name in get())) d.classList.add("has-changes");
     }
 
-    // Format and binding: one nested choice (format → binding → sheets per signature). Picking a format also sets
-    // the page size. The numbers below it (pages printed, sheets, signatures) are filled in by the editor.
+    // Format and binding: one nested choice (format → binding → sheets per signature). The page size stays as it is
+    // (printing fits the page to the format). The numbers below it (pages printed, sheets, signatures) are filled in by the editor.
     function formatControl(items) {
       const dflt = Object.fromEntries(items.map((i) => [i.name, i.value]));
       const now = () => LiturgyImpose.mode({ format: get()["--format"] ?? dflt["--format"], binding: get()["--binding"] ?? dflt["--binding"], sheets: get()["--signature-sheets"] ?? dflt["--signature-sheets"] });
