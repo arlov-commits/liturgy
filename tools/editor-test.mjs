@@ -264,6 +264,28 @@ try {
   const first = await page.evaluate(() => Editor.state.docMap[0].name);
   const heads = await page.evaluate(() => [Editor.state.docMap.length, document.querySelectorAll('.cm-chapter-head').length, Editor.state.book.sections.filter((s) => !s.virtual).length]);
   check(heads[0] > 1 && heads[0] === heads[2] && heads[1] > 0, 'the text holds the whole booklet, a title bar per chapter', heads.join());
+  // below a title bar, ↓ goes one line at a time and a click lands on the line under the mouse (the bar's spacing
+  // used to be margins CodeMirror couldn't see: ↓ skipped every other line); a long status message doesn't make the
+  // top bar taller (that moved the text under the mouse)
+  {
+    const start = await page.evaluate(() => { const v = Editor.state.text.view, n = Editor.state.docMap[1].first;
+      v.dispatch({ selection: { anchor: v.state.doc.line(n).from }, effects: CM.EditorView.scrollIntoView(v.state.doc.line(n).from, { y: 'start' }) }); v.focus(); return n; });
+    await page.waitForTimeout(100);
+    const lineAt = () => page.evaluate(() => { const v = Editor.state.text.view; return v.state.doc.lineAt(v.state.selection.main.head).number; });
+    const steps = [];
+    for (let i = 0, prev = start; i < 12; i++) { await page.keyboard.press('ArrowDown'); const n = await lineAt(); steps.push(n - prev); prev = n; }
+    // a line further down whose end leaves room for the click inside the editor
+    const at = await page.evaluate((n) => { const v = Editor.state.text.view, right = v.scrollDOM.getBoundingClientRect().right;
+      for (;; n++) { const l = v.state.doc.line(n), c = v.coordsAtPos(l.to); if (l.text && c.right + 60 < right) return { x: c.right + 30, y: (c.top + c.bottom) / 2, to: l.to }; } }, start + 6);
+    const barH = await page.evaluate(() => document.querySelector('#bar').offsetHeight);
+    const barLong = await page.evaluate(() => { const s = document.querySelector('#status'), was = s.textContent; s.textContent = 'a long message '.repeat(30);
+      const h = document.querySelector('#bar').offsetHeight; s.textContent = was; return h; });
+    await page.mouse.click(at.x, at.y);
+    const head = await page.evaluate(() => Editor.state.text.view.state.selection.main.head);
+    check(steps.every((d) => d === 0 || d === 1) && steps.filter((d) => d === 1).length >= 8 && head === at.to && barLong === barH,
+      '↓ goes one line at a time below a chapter title bar; a click past a line\'s end puts the cursor at its end; the top bar keeps its height',
+      `${steps.join(',')} | ${head} vs ${at.to} | bar ${barH} → ${barLong}`);
+  }
   // changed lines get a dot; clicking it puts the original back (a hollow dot stays: click it to have the change again)
   const textOf = (n) => page.evaluate((n) => Editor.state.text.view.state.doc.line(n).text, n);
   const dots = () => page.evaluate(() => [...document.querySelectorAll('.cm-changes .cm-dot:not(.cm-dot-spacer)')].map((d) => d.className.replace('cm-dot cm-dot-', '')).join());

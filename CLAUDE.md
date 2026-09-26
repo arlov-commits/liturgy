@@ -142,6 +142,9 @@ The pages swap in early only once the new layout reaches the place the current p
   generic `serif` — that would win before the fallback). Run `python3 tools/check_glyphs.py ../liturgy-text/text`
   after any text or font change — it must report 0. Renders in a dev
   container can hide gaps if it has system CJK fonts; trust `check_glyphs.py`, not the render.
+- CodeMirror can't see a block widget's (or line's) vertical **margins**: its height map drifts, ↓ skips lines and clicks
+  land a line off. Space around the chapter title bars is padding of an outer box (`.cm-chapter-head` > `.bar`). The
+  top bar keeps one height (only `#status` shrinks, cut short with “…”), so the editor never moves under the mouse.
 - Page 1 is a right-hand page: binding margin on the left for odd pages, right for even.
 
 ## Dev loop

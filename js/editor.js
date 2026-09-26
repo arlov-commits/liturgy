@@ -16,7 +16,7 @@
   let timer = null;
 
   function setStatus(text, isError) {
-    $("#status").textContent = text;
+    $("#status").textContent = $("#status").title = text;   // (one line in the bar; the whole message on hover)
     $("#status").classList.toggle("error", !!isError);
   }
 
@@ -425,12 +425,16 @@
   // A chapter's title bar in the editor
   function chapterHeader(name) {
     const s = state.known[name];
-    const el = document.createElement("div");
+    // (the space around the bar is padding of an outer box: CodeMirror can't see a block widget's margins, and
+    // clicks and the arrow keys would then land a line or two off)
+    const el = document.createElement("div"), bar = document.createElement("div");
     el.className = "cm-chapter-head";
     el.dataset.name = name;
-    el.append(Object.assign(document.createElement("span"), { className: "t", textContent: chapterAliases()[name] || (s ? s.label : name) }),
+    bar.className = "bar";
+    bar.append(Object.assign(document.createElement("span"), { className: "t", textContent: chapterAliases()[name] || (s ? s.label : name) }),
       Object.assign(document.createElement("span"), { className: "f", textContent: s && s.virtual ? "kept with this booklet" : labelOf(name) }));
-    if (isEdited(s)) el.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
+    if (isEdited(s)) bar.append(Object.assign(document.createElement("span"), { className: "tag", textContent: "edited" }));
+    el.append(bar);
     return el;
   }
   // Problems in the whole editor: each chapter checked on its own, line numbers moved to where it sits
