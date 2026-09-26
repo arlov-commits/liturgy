@@ -61,6 +61,7 @@
     }
     frame.classList.remove("loading");
     followCursor();
+    requestAnimationFrame(fitZoom);
   }
   // called by preview.html as pages get laid out, once the pages in view are done (the rest is still coming).
   // Swaps in as soon as the new pages reach the place the current ones are scrolled to; returns true then.
@@ -764,24 +765,50 @@
       menu.style.right = Math.max(8, innerWidth - r.right) + "px";
     });
   }
-  // ---- zoom of the pages (per browser): the frames are scaled from outside, and the page at the top stays in view ----
+  // ---- how the pages are shown (per browser): the view (single pages, side by side, print layout), fitted to the
+  // width of the pane unless zoomed by hand. The frames are scaled from outside; the page at the top stays in view. ----
   const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
-  let zoom = 1;
-  try { zoom = ZOOMS.includes(+localStorage.getItem("liturgy.zoom")) ? +localStorage.getItem("liturgy.zoom") : 1; } catch {}
-  function setZoom(z) {
+  const VIEWS = ["single", "spread", "sheets"];
+  const stored = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+  const store = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  let view = VIEWS.includes(stored("liturgy.view", "single")) ? stored("liturgy.view", "single") : "single";
+  let zoom = 1, fitting = stored("liturgy.zoom", "fit") === "fit";
+  if (!fitting) zoom = +stored("liturgy.zoom", 1) || 1;
+  function setZoom(z, fit = false) {
     const w = frame && frame.contentWindow, top = w && w.pageAtTop ? w.pageAtTop() : 0;
     zoom = z;
+    fitting = fit;
     $("#preview").style.setProperty("--zoom", z);
     $("#zoom-reset").textContent = Math.round(z * 100) + "%";
-    $("#zoom-out").disabled = z === ZOOMS[0];
-    $("#zoom-in").disabled = z === ZOOMS[ZOOMS.length - 1];
-    try { localStorage.setItem("liturgy.zoom", z); } catch {}
+    $("#zoom-reset").title = fit ? "Fitted to the width of the pane" : "Fit to the width of the pane";
+    $("#zoom-reset").classList.toggle("fitting", fit);
+    $("#zoom-out").disabled = z <= ZOOMS[0];
+    $("#zoom-in").disabled = z >= ZOOMS[ZOOMS.length - 1];
+    store("liturgy.zoom", fit ? "fit" : z);
     if (top && w.showPage) requestAnimationFrame(() => w.showPage(top));
   }
-  $("#zoom-in").onclick = () => setZoom(ZOOMS.find((z) => z > zoom) ?? zoom);
-  $("#zoom-out").onclick = () => setZoom([...ZOOMS].reverse().find((z) => z < zoom) ?? zoom);
-  $("#zoom-reset").onclick = () => setZoom(1);
-  setZoom(zoom);
+  // fit the view's width to the pane (a little room for the scroll bar)
+  function fitZoom() {
+    if (!fitting) return;
+    const w = frame && frame.contentWindow, need = w && w.contentWidth ? w.contentWidth() : 0;
+    if (!need) return;
+    const z = Math.round(Math.min(3, Math.max(0.3, ($("#preview").clientWidth - 18) / need)) * 100) / 100;
+    if (Math.abs(z - zoom) > 0.005) setZoom(z, true);
+  }
+  function setView(v) {
+    view = v;
+    store("liturgy.view", v);
+    for (const b of document.querySelectorAll("#views button")) b.classList.toggle("on", b.dataset.view === v);
+    for (const f of document.querySelectorAll("#preview iframe")) if (f.contentWindow && f.contentWindow.setView) f.contentWindow.setView(v);
+    requestAnimationFrame(fitZoom);
+  }
+  $("#zoom-in").onclick = () => setZoom(ZOOMS.find((z) => z > zoom + 0.001) ?? zoom);
+  $("#zoom-out").onclick = () => setZoom([...ZOOMS].reverse().find((z) => z < zoom - 0.001) ?? zoom);
+  $("#zoom-reset").onclick = () => { fitting = true; fitZoom(); };
+  for (const b of document.querySelectorAll("#views button")) b.onclick = () => { fitting = true; setView(b.dataset.view); };
+  window.addEventListener("resize", () => fitZoom());
+  setZoom(zoom, fitting);
+  for (const b of document.querySelectorAll("#views button")) b.classList.toggle("on", b.dataset.view === view);
 
   // ---- Undo / Redo (top bar), each with a list of the next steps: pick one to undo (redo) up to there ----
   function showHistory() {
@@ -1018,7 +1045,7 @@
     $("#app").classList.add("split");
     Split(["#toc-nav", "#panel", "#preview"], {
       sizes, minSize: [120, 300, 250], gutterSize: 7, snapOffset: 0,
-      onDrag: fitDrawers,
+      onDrag: () => { fitDrawers(); fitZoom(); },
       onDragEnd: (s) => { fitDrawers(); try { localStorage.setItem("liturgy.panelSizes", JSON.stringify(s)); } catch {} },
     });
   }
@@ -1048,7 +1075,7 @@
     render();
   }
 
-  window.Editor = { bookForPreview, previewDone, previewEarly, previewScrolled, pagesNeeded, refresh, jumpTo, state };
+  window.Editor = { bookForPreview, previewDone, previewEarly, previewScrolled, pagesNeeded, refresh, jumpTo, state, view: () => view };
   start().catch((e) => {
     setStatus("Problem: " + e.message, true);
     $("#forget").hidden = !LiturgySource.key.get();

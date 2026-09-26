@@ -175,13 +175,24 @@ try {
   await page.click('#undo'); await afterEdit();
   check(breaksOn > 0 && firstOnPage && !firstRunOn, '# titles start a new page (setting: or run on)', `${breaksOn} title page(s) of ${pagesBreaking}; first on page: ${firstOnPage} / run on: ${firstRunOn}`);
 
-  // zoom: the pages get bigger or smaller, the layout (page count) stays the same, and a new layout keeps the zoom
+  // views: single pages (fitted to the pane's width), side by side, print layout (the letter sheets, labelled);
+  // zoom by hand, and back to fitting; the layout (page count) never changes
+  const fitted = await page.textContent('#zoom-reset');
   await page.click('#zoom-in'); await page.click('#zoom-in');
-  const zoomed = [await page.textContent('#zoom-reset'), await page.evaluate(() => Math.round(document.querySelector('#preview iframe:not(.loading)').getBoundingClientRect().width / document.querySelector('#preview').clientWidth * 100))];
+  const zoomedBy = await page.textContent('#zoom-reset');
   await page.evaluate(() => Editor.refresh()); await afterEdit();
   const zoomPages = +((await status()).match(/(\d+) pages/) || [])[1];
-  await page.click('#zoom-reset');
-  check(zoomed[0] === '150%' && zoomed[1] === 100 && zoomPages === pages && await page.textContent('#zoom-reset') === '100%', 'zoom the pages in and out (the layout doesn\'t change)', zoomed.join(' / '));
+  await page.click('#zoom-reset'); await page.waitForTimeout(300);
+  const refit = await page.textContent('#zoom-reset');
+  const width = (v) => page.evaluate(async (v) => { document.querySelector(`#views button[data-view=${v}]`).click(); await new Promise((r) => setTimeout(r, 400));
+    const f = document.querySelector('#preview iframe:not(.loading)'); return [f.contentWindow.contentWidth(), document.querySelector('#zoom-reset').textContent]; }, v);
+  const [single, spread] = [await width('single'), await width('spread')];
+  await width('sheets');
+  const sheetsView = await (await shownPreview()).evaluate(() => [document.querySelectorAll('#sheets .sheet').length, getComputedStyle(document.getElementById('book')).display, document.querySelector('#sheets .sheet-label')?.textContent]);
+  await width('single');
+  check(fitted === refit && zoomedBy !== fitted && zoomPages === pages && spread[0] > 1.8 * single[0] && parseInt(spread[1]) < parseInt(single[1]) &&
+    sheetsView[0] === Math.ceil(pages / 8) * 2 && sheetsView[1] === 'none' && /^Sheet 1 · front/.test(sheetsView[2]),
+    'views: single pages and side by side fitted to the pane, print layout shows the labelled sheets; zoom by hand and back to fit', `${single[1]} / ${spread[1]} / ${sheetsView[0]} sheets`);
 
   // the contents list and the panel can be dragged wider
   const widths = () => page.evaluate(() => ['#toc-nav', '#panel'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().width)));

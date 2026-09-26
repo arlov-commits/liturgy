@@ -73,8 +73,11 @@ Feedback (button at the bottom of the contents list): a plain notes panel saved 
 for every booklet; readable on GitHub) — for the person testing the app to record wanted changes and problems.
 Autosave (Save ▾, on by default, per browser): `save(true)` 4 s after the last change, only where the source can save;
 a failed save pauses it until the next change.
-Zoom (magnifier buttons over the pages, per browser): the preview iframes are scaled from outside (`transform` + size ÷ zoom), so
-Paged.js always lays out at 100% and zoom can't change page breaks; `preview.html pageAtTop/showPage` keep the place.
+Views (buttons under the pages, per browser): single pages (default), side by side, print layout (`preview.html setView`;
+the print layout shows `buildSheets()` — the letter sheets as they print, labelled, with a bar where each signature
+starts; clicks and jumps work there too via `pagesRoot()`). Each view is fitted to the pane's width (`contentWidth`,
+`editor.js fitZoom`) unless zoomed by hand (magnifiers; the % goes back to fitting). The preview iframes are scaled
+from outside (`transform` + size ÷ zoom), so Paged.js always lays out at 100% and zoom can't change page breaks.
 The pages swap in early only once the new layout reaches the place the current pages are scrolled to (`previewEarly`).
 
 ## Pages
