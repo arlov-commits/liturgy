@@ -107,8 +107,12 @@ The pages swap in early only once the new layout reaches the place the current p
 - `books/settings/<booklet>.css` **in liturgy-text** — each booklet's saved changes (only the values that differ), loaded
   after the app's defaults; a booklet without one starts from the shared `settings.css` there (`source.js loadSettings`).
   Settings → “Copy all settings from another booklet” replaces them (after a warning). Files carry
-  `--settings-version: 2`; an older file (from when the defaults were quarto-sized: 4.25 × 5.5 page, 8.2pt English…)
-  gets the old defaults added for what it didn't set (`source.js upgradeSettings`), so it keeps its look. Saving goes to the text repo so one key (Contents: read and write, that repo only) covers everything.
+  `--settings-version: 2`. An older file (version 1: none written — from when the defaults were quarto-sized: 4.25 ×
+  5.5 page, 8.2pt English…) keeps its look: the old defaults (`source.js OLD_DEFAULTS`) are *that booklet's* defaults —
+  for what it doesn't set, for the yellow “changed” marks and for ↺ (`editor.js defaultSetting`, `readSettings`); the editor
+  writes it back as version 1 with those defaults in a second block (`settingsCss`), which `upgradeSettings` also adds
+  for readers without the editor. Settings shows a note with **Use letter-size pages** (→ version 2: page, sizes, margins
+  and spacing to the defaults, other choices kept); “Set everything back to the defaults” also goes to version 2. Saving goes to the text repo so one key (Contents: read and write, that repo only) covers everything.
 - `css/book.css` — layout rules that read those variables.
 - `FORMAT.md` — the text-file format. `js/parse.js` must match it exactly; update both together.
 

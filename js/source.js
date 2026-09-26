@@ -236,9 +236,10 @@
   // Each booklet's settings (only the ones changed from the app's defaults) are kept in books/settings/<booklet>.css.
   // A booklet without its own starts from the shared settings.css (where all booklets' settings used to be kept).
   const settingsFile = (bookName) => `books/settings/${bookName}.css`;
-  // Settings saved before 2026-09-26 were for a 4.25 × 5.5 in page with the text sizes of that time. Since then the page
-  // is designed at letter size (printing scales it to the format) and the defaults are twice as big. An older file
-  // ("--settings-version: 2" missing) is read with the old defaults for anything it doesn't set, so it looks as before.
+  // Settings saved before 2026-09-26 ("version 1") were for a 4.25 × 5.5 in page with the text sizes of that time. Since
+  // then the page is designed at letter size (printing scales it to the format) and the defaults are twice as big
+  // ("--settings-version: 2"). A version 1 booklet keeps its look: the old defaults stand in for the new ones (the
+  // editor's "Use letter-size pages" moves it to version 2).
   const SETTINGS_VERSION = 2;
   const OLD_DEFAULTS = {
     "--page-width": "4.25in", "--page-height": "5.5in", "--margin-binding": "0.45in", "--margin-outside": "0.25in",
@@ -247,11 +248,17 @@
     "--space-between-verses": "6pt", "--border-width": "0.75pt", "--border-padding": "5pt", "--border-space": "6pt",
     "--contents-size": "9pt", "--contents-spacing": "4pt",
   };
+  // a settings file's version: as it says; an older file (it doesn't say) is 1; no file at all: the current one
+  const settingsVersion = (css) => { const m = (css || "").match(/--settings-version\s*:\s*(\d+)/); return m ? +m[1] : (css || "").trim() ? 1 : SETTINGS_VERSION; };
+  // the old defaults, as a stylesheet (after a version 1 booklet's own settings: entries = [[name, value], …])
+  const oldDefaultsCss = (entries) => "\n/* This booklet's settings are from before 2026-09-26, when pages were designed at 4.25 × 5.5 in: " +
+    "the defaults of that time, for what it doesn't set itself */\n:root {\n" + entries.map(([k, v]) => `  ${k}: ${v};`).join("\n") + "\n}\n";
+  // a version 1 file, with the old defaults for anything it doesn't set: it reads as it did before
   function upgradeSettings(css) {
-    if (!css.trim() || /--settings-version\s*:\s*2\b/.test(css)) return css;
+    if (settingsVersion(css) !== 1) return css;
     const set = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
-    const add = Object.entries(OLD_DEFAULTS).filter(([k]) => !set.has(k)).map(([k, v]) => `  ${k}: ${v};  /* (from before 2026-09-26) */`);
-    return css + `\n/* read as it was before 2026-09-26 */\n:root {\n${add.join("\n")}\n  --settings-version: ${SETTINGS_VERSION};\n}\n`;
+    const add = Object.entries(OLD_DEFAULTS).filter(([k]) => !set.has(k));
+    return add.length ? css + oldDefaultsCss(add) : css;
   }
   const loadSettings = async (source, bookName) =>
     upgradeSettings((await source.get(settingsFile(bookName), true)) ?? (await source.get(SETTINGS_FILE, true)) ?? "");
@@ -264,5 +271,5 @@
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, bookNames, ORDER_FILE, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile, settingsFile, loadSettings, SETTINGS_VERSION };
+  root.LiturgySource = { open, bookNames, ORDER_FILE, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile, settingsFile, loadSettings, SETTINGS_VERSION, OLD_DEFAULTS, settingsVersion, oldDefaultsCss };
 })(window);

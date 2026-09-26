@@ -10,7 +10,7 @@
   // the booklet: the one in the address, else the one opened last in this browser (start() checks it's there)
   const LAST_BOOK = "liturgy.lastBook";
   const lastBook = () => { try { return localStorage.getItem(LAST_BOOK) || ""; } catch { return ""; } };
-  const state = { source: null, bookName: q.get("book") || lastBook(), book: null, saved: {}, settings: { groups: [], changes: {} },
+  const state = { source: null, bookName: q.get("book") || lastBook(), book: null, saved: {}, settings: { groups: [], changes: {}, version: LiturgySource.SETTINGS_VERSION },
     layout: { pages: {}, flip: {}, hard: [], passes: 0 } };
   // Two preview frames take turns: one on show, the other lays the next version out hidden. Each keeps its
   // fonts loaded between layouts (a fresh frame spends up to ~2 s loading them), so redraws are quicker.
@@ -132,7 +132,11 @@
     if (again) L.passes++;
     return again;
   }
-  const defaultSetting = (name) => (state.settings.groups.flatMap((g) => g.items).find((i) => i.name === name) || {}).value;
+  // A setting's value when not changed: the app's default — or, for a booklet whose settings are from before pages
+  // were designed at letter size (version 1, see source.js), the default of that time
+  const appDefault = (name) => (state.settings.groups.flatMap((g) => g.items).find((i) => i.name === name) || {}).value;
+  const defaultFor = (name, version) => (version === 1 && name in LiturgySource.OLD_DEFAULTS ? LiturgySource.OLD_DEFAULTS[name] : appDefault(name));
+  const defaultSetting = (name) => defaultFor(name, state.settings.version);
 
   // ---- connecting ----
   function askForKey(repo, why) {
@@ -175,26 +179,40 @@
   }
 
   // ---- settings ----
-  // a settings file → the changes it makes that the app knows (the older single "binding" setting read as the new ones:
-  // pages in order → regular letter size; signatures → folio signatures)
+  // a settings file → { changes: what it sets differently from the booklet's defaults (only settings the app knows),
+  // version } (the older single "binding" setting read as the new ones: pages in order → regular letter size;
+  // signatures → folio signatures)
   function readSettings(css) {
-    const known = new Set(state.settings.groups.flatMap((g) => g.items.map((i) => i.name)));
+    const known = new Set(state.settings.groups.flatMap((g) => g.items.map((i) => i.name))), version = LiturgySource.settingsVersion(css);
     const c = Object.fromEntries(Object.entries(LiturgySettings.values(css)).filter(([k]) => known.has(k)));
     if (c["--binding"] === "in-order") { c["--format"] = "letter"; delete c["--binding"]; }
     else if (c["--binding"] === "signatures" && !c["--format"]) c["--format"] = "folio";
-    return c;
+    for (const k of Object.keys(c)) if (c[k] === defaultFor(k, version)) delete c[k];
+    return { changes: c, version };
+  }
+  // this booklet's settings as a stylesheet (saved as its settings file; the pages read it too): its changes, and for
+  // a version 1 booklet the old defaults for the rest
+  function settingsCss() {
+    const { changes, groups, version } = state.settings;
+    const older = version === 1 ? Object.entries(LiturgySource.OLD_DEFAULTS).filter(([k]) => !(k in changes)) : [];
+    return LiturgySettings.toCss(changes, groups, version) + (older.length ? LiturgySource.oldDefaultsCss(older) : "");
   }
   async function startSettings() {
     const css = await (await fetch("css/settings.css", { cache: "no-cache" })).text();
     state.settings.groups = LiturgySettings.parse(css);
-    state.settings.changes = readSettings(state.book.css);
-    state.book.css = LiturgySettings.toCss(state.settings.changes, state.settings.groups);
+    Object.assign(state.settings, readSettings(state.book.css));
+    state.book.css = settingsCss();
     // which sections of the Settings panel are open: remembered for each booklet (in this browser)
     const openKey = "liturgy.openSettings." + state.bookName;
     const openList = () => { try { return JSON.parse(localStorage.getItem(openKey)) || []; } catch { return []; } };
     const sections = { isOpen: (t) => openList().includes(t),
       setOpen: (t, open) => { const l = openList().filter((x) => x !== t); if (open) l.push(t); try { localStorage.setItem(openKey, JSON.stringify(l)); } catch {} } };
-    startSettings.rebuild = () => LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, applySettings, sections);
+    const options = { ...sections, defaultOf: defaultSetting, resetAll: () => { applySettings({}, LiturgySource.SETTINGS_VERSION); startSettings.rebuild(); } };
+    // a booklet with sizes from before letter-size pages: a note, and the way to move it to letter-size pages (the
+    // page, text sizes, margins and spacing go to the defaults; fonts, format and other choices stay)
+    const older = () => state.settings.version === 1 && { page: `${setting("--page-width").replace("in", "")} × ${setting("--page-height").replace("in", "")} in`,
+      upgrade: () => { applySettings(Object.fromEntries(Object.entries(state.settings.changes).filter(([k]) => !(k in LiturgySource.OLD_DEFAULTS))), LiturgySource.SETTINGS_VERSION); startSettings.rebuild(); } };
+    startSettings.rebuild = () => LiturgySettings.build($("#settings-book"), state.settings.groups, () => state.settings.changes, (c) => applySettings(c), { ...options, older: older() });
     startSettings.rebuild();
     fillCopyFrom().catch(() => {});
   }
@@ -204,8 +222,8 @@
     const pick = $("#copy-from"), from = pick.value;
     if (!from) return;
     if (!confirm(`Replace ALL the settings of the booklet “${state.bookName}” with those of “${from}”?\n\nThe settings it has now are overwritten (Undo won't bring them back; not saving and reloading the page does).`)) { pick.value = ""; return; }
-    const css = await LiturgySource.loadSettings(state.source, from);
-    applySettings(readSettings(css));
+    const { changes, version } = readSettings(await LiturgySource.loadSettings(state.source, from));
+    applySettings(changes, version);
     startSettings.rebuild();
     setStatus(`Settings copied from “${from}”`);
   }
@@ -216,9 +234,10 @@
     for (const n of (await bookNames()).filter((n) => n !== state.bookName)) pick.append(Object.assign(document.createElement("option"), { value: n, textContent: n }));
     pick.onchange = () => copySettings().catch((e) => setStatus("Problem: " + e.message, true));
   }
-  function applySettings(changes) {
+  function applySettings(changes, version = state.settings.version) {
     state.settings.changes = changes;
-    state.book.css = LiturgySettings.toCss(changes, state.settings.groups);
+    state.settings.version = version;
+    state.book.css = settingsCss();
     changed();
     refresh(150);
     showBinding();
@@ -262,7 +281,7 @@
     }
     await state.source.put(path, text, `Add booklet ${name} (from the editor)`);
     // its own settings, from the app's defaults (letter-size pages)
-    await state.source.put(LiturgySource.settingsFile(name), LiturgySettings.toCss({}, state.settings.groups), `Add booklet ${name} (from the editor)`);
+    await state.source.put(LiturgySource.settingsFile(name), LiturgySettings.toCss({}, state.settings.groups, LiturgySource.SETTINGS_VERSION), `Add booklet ${name} (from the editor)`);
     if (await state.source.get(ORDER_FILE, true) !== null) await saveOrder([...existing.filter((n) => n !== name), name]);
     openBook(name);
   }

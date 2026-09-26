@@ -68,12 +68,12 @@
   }
 
   // Changed values → a stylesheet that goes after settings.css
-  function toCss(changed, groups) {
+  function toCss(changed, groups, version = 2) {
     const hints = {};
     groups.forEach((g) => g.items.forEach((i) => (hints[i.name] = i.hint)));
     const lines = Object.entries(changed).map(([k, v]) => `  ${k}: ${v};` + (hints[k] ? `  /* ${hints[k]} */` : ""));
-    // (always with the version: how the values are read — see source.js upgradeSettings)
-    return `/* Booklet settings changed in the editor. Anything not listed here uses the app's css/settings.css. */\n:root {\n${lines.join("\n")}${lines.length ? "\n" : ""}  --settings-version: 2;\n}\n`;
+    // (always with the version: how the values are read — see source.js settingsVersion)
+    return `/* Booklet settings changed in the editor. Anything not listed here uses the app's css/settings.css. */\n:root {\n${lines.join("\n")}${lines.length ? "\n" : ""}  --settings-version: ${version};\n}\n`;
   }
 
   const label = (name) => { const s = name.replace(/^--/, "").replace(/-/g, " "); return s[0].toUpperCase() + s.slice(1); };
@@ -81,12 +81,25 @@
 
   // Builds the panel. `get()` → current changes {name: value}; `set(changes)` is called on every edit.
   // opts.isOpen(section) / opts.setOpen(section, open): which sections are open (the editor keeps it per booklet).
+  // opts.defaultOf(name): a setting's value when not changed (the booklet's defaults — see opts.older); opts.resetAll():
+  // everything back to the app's defaults. opts.older: { page: "5.5 × 8.5 in", upgrade() } for a booklet whose sizes
+  // are from before pages were designed at letter size.
   function build(box, groups, get, set, opts = {}) {
-    const { isOpen = () => false, setOpen = () => {} } = opts;
+    const { isOpen = () => false, setOpen = () => {}, older = null } = opts;
+    const defaultOf = (name) => (opts.defaultOf ? opts.defaultOf(name) : groups.flatMap((g) => g.items).find((i) => i.name === name).value);
+    const rebuild = () => build(box, groups, get, set, opts);
     box.textContent = "";
-    const intro = el("p", { className: "hint", textContent: "Changes show in the pages straight away. Settings shown with a yellow background are ones changed from the app's defaults; ↺ puts one back." });
-    const resetAll = el("button", { type: "button", textContent: "Set everything back to the defaults", title: "Every setting goes back to the app's default (Save to keep that)", onclick: () => { set({}); build(box, groups, get, set, opts); } });
+    const intro = el("p", { className: "hint", textContent: "Changes show in the pages straight away. Settings shown with a yellow background are ones changed for this booklet; ↺ puts one back." });
+    const resetAll = el("button", { type: "button", textContent: "Set everything back to the defaults",
+      title: "Every setting goes back to the app's default — letter-size pages (Save to keep that)", onclick: () => { if (opts.resetAll) opts.resetAll(); else { set({}); rebuild(); } } });
     box.append(intro, resetAll);
+    if (older) {
+      box.append(el("p", { className: "older" },
+        el("b", { textContent: "Sizes from before letter-size pages. " }),
+        `This booklet's page (${older.page}) and its text sizes, margins and spacing are as they were set before pages were designed at letter size, so it prints as it did. `,
+        el("button", { type: "button", textContent: "Use letter-size pages", onclick: () => older.upgrade() }),
+        el("span", { className: "hint", textContent: " — the page becomes 8.5 × 11 in, with the text sizes, margins and spacing to match (fonts, format and the other choices stay)." })));
+    }
 
     const sections = new Map();
     for (const g of groups) {
@@ -110,14 +123,14 @@
     // Format and binding: one nested choice (format → binding → sheets per signature). The page size stays as it is
     // (printing fits the page to the format). The numbers below it (pages printed, sheets, signatures) are filled in by the editor.
     function formatControl(items) {
-      const dflt = Object.fromEntries(items.map((i) => [i.name, i.value]));
+      const dflt = Object.fromEntries(items.map((i) => [i.name, defaultOf(i.name)]));
       const now = () => LiturgyImpose.mode({ format: get()["--format"] ?? dflt["--format"], binding: get()["--binding"] ?? dflt["--binding"], sheets: get()["--signature-sheets"] ?? dflt["--signature-sheets"] });
       // (the page size stays as it is: printing fits the page to the format)
       const apply = (m) => {
         const c = { ...get(), "--format": m.format, "--binding": m.binding, "--signature-sheets": m.sheets };
         for (const k of Object.keys(c)) if (dflt[k] === c[k]) delete c[k];
         set(c);
-        build(box, groups, get, set, opts);
+        rebuild();
       };
       const m = now(), wrap = el("div", { className: "format-choice" });
       const radio = (name, value, checked, title, hint, onpick, disabled) => el("label", { className: "choice" + (disabled ? " disabled" : "") },
@@ -143,13 +156,14 @@
     }
 
     function control(item) {
-      const current = () => get()[item.name] ?? item.value;
+      const base = defaultOf(item.name);   // (this booklet's default)
+      const current = () => get()[item.name] ?? base;
       const row = el("div", { className: "setting" });
       const id = "set" + item.name;
-      const reset = el("button", { type: "button", className: "reset", title: `Back to ${item.value}`, textContent: "↺" });
+      const reset = el("button", { type: "button", className: "reset", title: `Back to ${base}`, textContent: "↺" });
       const update = (value) => {
         const changed = { ...get() };
-        if (value === item.value || value === "") delete changed[item.name]; else changed[item.name] = value;
+        if (value === base || value === "") delete changed[item.name]; else changed[item.name] = value;
         set(changed);
         reset.hidden = !(item.name in changed);
         row.classList.toggle("changed", !reset.hidden);
@@ -175,7 +189,7 @@
         input = el("input", { id, type: "color", value: current() });
         input.oninput = () => update(input.value);
       } else if (num) {
-        const unit = num[2], dflt = parseFloat(item.value.match(/^-?\d*\.?\d+/)?.[0] || num[1]);
+        const unit = num[2], dflt = parseFloat(base.match(/^-?\d*\.?\d+/)?.[0] || num[1]);
         const step = STEP[unit] || 0.05;
         const lo = Math.min(0, dflt * 2), hi = Math.max(dflt * 2.5, step * 20);
         const round = (x) => +(+x).toFixed(3);
@@ -184,18 +198,18 @@
         range.oninput = () => { box.value = round(range.value); update(round(range.value) + unit); };
         box.oninput = () => { if (box.value !== "") { range.value = box.value; update(round(box.value) + unit); } };
         input = el("span", { className: "numbox" }, range, box, el("span", { className: "unit", textContent: unit }));
-        reset.onclick = () => { range.value = box.value = dflt; update(item.value); };
+        reset.onclick = () => { range.value = box.value = dflt; update(base); };
       } else if (/^".*"$/.test(item.value)) {
         // a piece of text: shown and typed without the quote marks CSS needs
         const unq = (v) => v.replace(/^"|"$/g, "").replace(/\\"/g, '"');
         input = el("input", { id, value: unq(current()) });
         input.oninput = () => update(`"${input.value.replace(/"/g, '\\"')}"`);
-        reset.onclick = () => { input.value = unq(item.value); update(item.value); };
+        reset.onclick = () => { input.value = unq(base); update(base); };
       } else {
         input = el("input", { id, value: current() });
         input.oninput = () => update(input.value.trim());
       }
-      if (!reset.onclick) reset.onclick = () => { input.value = item.value; update(item.value); };
+      if (!reset.onclick) reset.onclick = () => { input.value = base; update(base); };
       reset.hidden = !(item.name in get());
       row.classList.toggle("changed", !reset.hidden);
       row.append(el("label", { htmlFor: id, textContent: label(item.name) }), input, reset);

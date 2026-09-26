@@ -660,6 +660,25 @@ try {
   check(new URL(page.url()).searchParams.get('book') === 'renamed-booklet' && (await status()).startsWith('There is no booklet called “no-such-booklet” — this is “renamed-booklet”'),
     'a booklet that is not there: opens the last one instead, and says so', await status());
 
+  // settings saved before pages were designed at letter size (no version in the file): the booklet keeps its look — its
+  // old defaults are its own, so only what was really changed shows yellow and ↺ goes back to the old value;
+  // "Use letter-size pages" moves it to letter-size pages (other choices stay)
+  writeFileSync(path.join(repo, 'books', 'settings', 'test.css'), ':root {\n  --format: folio;\n  --page-width: 5.5in;\n  --page-height: 8.5in;\n  --english-size: 9pt;\n}\n');
+  await page.goto('http://localhost:8791/liturgy/index.html?book=test'); await settled();
+  const oldLook = await (await shownPreview()).evaluate(() => ['--english-size', '--chinese-size', '--page-width'].map((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim()).join(' '));
+  await openSettings();
+  const oldMarks = await page.evaluate(() => [JSON.stringify(Editor.state.settings.changes), [...document.querySelectorAll('#settings .setting.changed label')].map((l) => l.textContent).join(',')]);
+  await page.click('.setting:has(#set--english-size) .reset'); await afterEdit();
+  const oldReset = await page.inputValue('#set--english-size');
+  await page.click('#settings p.older button'); await afterEdit();
+  const upgraded = await page.evaluate(() => [Editor.state.settings.version, JSON.stringify(Editor.state.settings.changes), !!document.querySelector('#settings p.older')]);
+  const newLook = await (await shownPreview()).evaluate(() => ['--english-size', '--page-width'].map((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim()).join(' '));
+  await closeSettings();
+  check(oldLook === '9pt 14.5pt 5.5in' && oldMarks[0] === '{"--format":"folio","--page-width":"5.5in","--page-height":"8.5in","--english-size":"9pt"}' && oldMarks[1] === 'Page width,Page height,English size' &&
+    oldReset === '8.2' && upgraded[0] === 2 && upgraded[1] === '{"--format":"folio"}' && !upgraded[2] && newLook === '16.4pt 8.5in',
+    'settings from before letter-size pages: the look is kept, only real changes are marked, ↺ goes back to the old value; "Use letter-size pages" moves it on',
+    `${oldLook} | ${oldMarks.join(' | ')} | ↺ ${oldReset} | ${upgraded.join(' ')} | ${newLook}`);
+
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'readonly'));
   page.once('dialog', (d) => d.accept());
   await page.reload(); await settled();
