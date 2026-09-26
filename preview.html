@@ -245,6 +245,12 @@ function pagesInView() {
   return last;
 }
 
+// the editor's keys work here too (after a click in the pages): Ctrl+S saves (not the browser's "Save page as"),
+// Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo and redo
+if (editor) addEventListener("keydown", (ev) => {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || !editor.shortcut) return;
+  if (editor.shortcut(ev.key.toLowerCase(), ev.shiftKey)) ev.preventDefault();
+});
 // click a verse → show its line in the editor
 if (editor) document.addEventListener("click", (ev) => {
   const block = ev.target.closest("[data-line]"), sec = ev.target.closest("[data-file]");

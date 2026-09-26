@@ -495,6 +495,14 @@ try {
   check(refused && /Save your version over it\?/.test(asked) && (await status()).startsWith('Saved') && readFileSync(path.join(repo, 'edits', first), 'utf8').includes('// two'),
     'a newer change on GitHub: never overwritten unasked; Save asks, and can save over it', await status());
 
+  // Ctrl+S / Ctrl+Z with the pages in focus (after a click there): the editor's, not the browser's "Save page as"
+  await edit("return t + '\\n// saved from the pages\\n'"); await afterEdit();
+  const pagesBox = await (await page.$('#preview iframe:not(.loading)')).boundingBox();
+  await page.mouse.click(pagesBox.x + 6, pagesBox.y + 6);
+  const inPages = await page.evaluate(() => document.activeElement.tagName);
+  await page.keyboard.press('Control+s'); await page.waitForFunction(() => document.querySelector('#save').textContent === 'Saved', null, { timeout: 15000 }).catch(() => {});
+  check(inPages === 'IFRAME' && readFileSync(path.join(repo, 'edits', first), 'utf8').includes('// saved from the pages'), 'Ctrl+S in the pages saves (the editor\'s Save, not the browser\'s)', inPages);
+
   await page.evaluate(() => localStorage.setItem('liturgy.githubKey', 'rawcache'));
   await page.reload(); await settled();
   check(/\d+ pages/.test(await status()), 'plain-text answers from GitHub (stale cache) still load', await status());

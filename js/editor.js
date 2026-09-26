@@ -1080,6 +1080,15 @@
       if (!$("#save").disabled) save();
     }
   });
+  // the same keys pressed in the pages (preview.html passes them on): save; undo and redo in the text.
+  // true = done here (the pages then keep the browser from doing its own thing)
+  function shortcut(key, shift) {
+    if (key === "s") { if (!$("#save").disabled) save(); return true; }
+    if (!state.text) return false;
+    if (key === "z" && !shift) { state.text.undo(); return true; }
+    if (key === "y" || (key === "z" && shift)) { state.text.redo(); return true; }
+    return false;
+  }
   window.addEventListener("beforeunload", (ev) => { if (state.book && unsaved().length) { ev.preventDefault(); ev.returnValue = ""; } });
 
   $("#forget").onclick = async (ev) => {
@@ -1143,7 +1152,7 @@
     render();
   }
 
-  window.Editor = { bookForPreview, previewDone, previewEarly, previewScrolled, pagesNeeded, refresh, jumpTo, state, view: () => view };
+  window.Editor = { bookForPreview, previewDone, previewEarly, previewScrolled, pagesNeeded, refresh, jumpTo, shortcut, state, view: () => view };
   start().catch((e) => {
     setStatus("Problem: " + e.message, true);
     $("#forget").hidden = !LiturgySource.key.get();
