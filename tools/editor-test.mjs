@@ -690,6 +690,10 @@ try {
     'a chapter title changed: its contents line, title bar and Chapters tab name follow; no changed-line dot on the contents line (the title has one)', `${renamedRow} ${rowDot} / ${titleDot} / ${renamedShown}`);
   await page.click('#tabs button[data-tab="book"]');
   await page.locator('#chapters li', { hasText: 'RENAMED CHAPTER TITLE' }).first().locator('button', { hasText: 'Remove' }).click(); await afterEdit();
+  // (an edited chapter taken out of the booklet still has its edits saved: it may be in other booklets)
+  await page.keyboard.press('Control+s'); await saveDone();
+  check((existsSync(path.join(repo, 'edits', '10-meal-offering.txt')) ? readFileSync(path.join(repo, 'edits', '10-meal-offering.txt'), 'utf8') : '').includes('# RENAMED CHAPTER TITLE'),
+    'a chapter edited, then taken out of the booklet: its edits are saved all the same');
   await page.click('#tabs button[data-tab="text"]');
   // autosave: switched on in the Save ▾ menu, it saves a few seconds after the last change
   await page.click('#save-more'); await page.check('#autosave'); await page.keyboard.press('Escape');

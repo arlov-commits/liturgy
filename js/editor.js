@@ -1000,8 +1000,10 @@
   // Every file the editor can change, as it is now in memory
   function currentFiles() {
     const files = { [LiturgySource.settingsFile(state.bookName)]: state.book.css, [`books/${state.bookName}.txt`]: state.contents.text };
-    // chapters: the edition file holds the text when it differs from the original; null = no edition file
-    for (const s of state.book.sections) files[s.virtual ? LiturgySource.contentsFile(state.bookName) : LiturgySource.EDITION + s.name] = isEdited(s) ? s.text : null;
+    // chapters: the edition file holds the text when it differs from the original; null = no edition file. Every chapter
+    // opened here counts — also one taken out of this booklet after it was edited (it may be in other booklets)
+    for (const s of Object.values(state.known || {})) if (!s.virtual) files[LiturgySource.EDITION + s.name] = isEdited(s) ? s.text : null;
+    for (const s of state.book.sections) if (s.virtual) files[LiturgySource.contentsFile(state.bookName)] = isEdited(s) ? s.text : null;
     if (state.feedback !== undefined) files[FEEDBACK_FILE] = state.feedback;
     return files;
   }
