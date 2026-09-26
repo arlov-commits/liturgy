@@ -63,6 +63,8 @@
     html.view-sheets #sheets .sig-break { display: flex; align-items: center; gap: 10px; margin: 18px auto 12px; font: 600 14px system-ui, sans-serif; color: #8a5a00; }
     html.view-sheets #sheets .sig-break::before, html.view-sheets #sheets .sig-break::after { content: ""; flex: 1; border-top: 3px double #8a5a00; }
     .pageref-missing { outline: 1.5px solid #d33; }
+    html.draggable { cursor: grab; user-select: none; }
+    html.dragging, html.dragging * { cursor: grabbing !important; }
     .embedded .block { cursor: pointer; }
     .embedded .block:hover { background: rgba(255, 220, 120, .18); }
     .block.here { background: rgba(255, 210, 90, .35); box-shadow: 0 0 0 3px rgba(255, 210, 90, .35); }
@@ -411,6 +413,30 @@ function buildSheets() {
   });
   document.body.append(box);
   return sheets.length;
+}
+
+// ---- dragging the pages scrolls them (any view, handy when zoomed in); a click without dragging still reaches a verse ----
+if (editor) {
+  let drag = null, dragged = false;
+  document.documentElement.classList.add("draggable");
+  addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0 || ev.pointerType === "touch") return;
+    drag = { x: ev.clientX, y: ev.clientY, left: scrollX, top: scrollY };
+    dragged = false;
+  });
+  addEventListener("pointermove", (ev) => {
+    if (!drag || !(ev.buttons & 1)) { drag = null; return; }
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (!dragged && Math.hypot(dx, dy) < 5) return;
+    if (!dragged) { dragged = true; document.documentElement.classList.add("dragging"); getSelection().removeAllRanges(); }
+    scrollTo(drag.left - dx, drag.top - dy);
+    ev.preventDefault();
+  });
+  const stop = () => { drag = null; document.documentElement.classList.remove("dragging"); };
+  addEventListener("pointerup", stop);
+  addEventListener("pointercancel", stop);
+  // the click that ends a drag isn't a click on a verse
+  addEventListener("click", (ev) => { if (dragged) { ev.stopImmediatePropagation(); ev.preventDefault(); dragged = false; } }, true);
 }
 
 // ---- views (the editor's buttons under the pages): single pages, side by side, print layout ----

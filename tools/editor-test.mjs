@@ -189,7 +189,14 @@ try {
   const [single, spread] = [await width('single'), await width('spread')];
   await width('sheets');
   const sheetsView = await (await shownPreview()).evaluate(() => [document.querySelectorAll('#sheets .sheet').length, getComputedStyle(document.getElementById('book')).visibility, document.querySelector('#sheets .sheet-label')?.textContent]);
+  // dragging the pages scrolls them
+  await page.click('#zoom-in'); await page.click('#zoom-in'); await page.click('#zoom-in');
+  const pv = await shownPreview(), scroll0 = await pv.evaluate(() => [scrollX, scrollY]);
+  const mid = await page.$eval('#preview', (e) => { const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+  await page.mouse.move(mid[0], mid[1]); await page.mouse.down(); await page.mouse.move(mid[0] - 120, mid[1] - 160, { steps: 6 }); await page.mouse.up();
+  const scroll1 = await pv.evaluate(() => [scrollX, scrollY]);
   await width('single');
+  check(scroll1[0] > scroll0[0] && scroll1[1] > scroll0[1], 'dragging the pages scrolls them', `${scroll0} → ${scroll1}`);
   check(fitted === refit && zoomedBy !== fitted && zoomPages === pages && spread[0] > 1.8 * single[0] && parseInt(spread[1]) < parseInt(single[1]) &&
     sheetsView[0] === Math.ceil(pages / 8) * 2 && sheetsView[1] === 'hidden' && /^Sheet 1 · front/.test(sheetsView[2]),
     'views: single pages and side by side fitted to the pane, print layout shows the labelled sheets; zoom by hand and back to fit', `${single[1]} / ${spread[1]} / ${sheetsView[0]} sheets`);

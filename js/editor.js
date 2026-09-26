@@ -49,6 +49,7 @@
   // those in view, and a couple more
   function pagesNeeded() {
     const w = frame && frame.contentWindow;
+    if (view === "sheets") return Infinity;   // (the print layout is made from all the pages: shown when they're done)
     return w && w.pagesInView ? w.pagesInView() + 2 : Infinity;
   }
   function swapIn() {
@@ -80,6 +81,7 @@
     early = null;
     if (!info.error && improveLayout(info.spreads || [])) return void setTimeout(render);   // another pass, hidden
     if (!wasEarly) swapIn();
+    requestAnimationFrame(fitZoom);   // (the finished layout — e.g. the print layout's sheets — may need another size)
     $("#print").disabled = !!info.error;
     state.pageCount = info.pages;
     state.pageMap = info.pageMap || {};

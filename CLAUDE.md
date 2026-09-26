@@ -78,6 +78,9 @@ the print layout shows `buildSheets()` — the letter sheets as they print, labe
 starts; clicks and jumps work there too via `pagesRoot()`). Each view is fitted to the pane's width (`contentWidth`,
 `editor.js fitZoom`) unless zoomed by hand (magnifiers; the % goes back to fitting). The preview iframes are scaled
 from outside (`transform` + size ÷ zoom), so Paged.js always lays out at 100% and zoom can't change page breaks.
+The print layout view keeps the booklet pages laid out but unseen (never `display: none`: Paged.js must measure them),
+and is only shown once all its sheets are made. Dragging the pages scrolls them (`preview.html`, pointer events; a
+click without a drag still reaches a verse).
 The pages swap in early only once the new layout reaches the place the current pages are scrolled to (`previewEarly`).
 
 ## Pages
