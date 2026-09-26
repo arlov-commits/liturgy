@@ -599,9 +599,27 @@ try {
     const target = row && document.querySelector(row.querySelector('a.toc-page').getAttribute('href'));
     return [!!row, !!target && target.dataset.title, target && +target.closest('.pagedjs_page').dataset.pageNumber, document.querySelectorAll('.pagedjs_page .toc-entry .pageref-missing').length];
   });
+  // (a line with the chapter's own title again, under it, as an earlier version wrote it: taken out)
+  await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0], d = v.state.doc;
+    for (let i = m.first; i <= m.last; i++) if (d.line(i).text.startsWith('THE MEAL OFFERING')) return v.dispatch({ changes: { from: d.line(i).to, insert: '\n  THE MEAL OFFERING BEFORE THE BUDDHAS [page of 10-meal-offering / THE MEAL OFFERING BEFORE THE BUDDHAS]' } }); });
+  await afterEdit();
+  const mealAgain = await tocText();
   check(/^THE MEAL OFFERING BEFORE THE BUDDHAS \[page of 10-meal-offering\]$/m.test(mealToc) && /^  PRAISE AND MANTRA \[page of 10-meal-offering \/ PRAISE AND MANTRA\]$/m.test(mealToc) &&
+    !/^  THE MEAL OFFERING BEFORE THE BUDDHAS \[page of 10-meal-offering \//m.test(mealToc + '\n' + mealAgain) &&
     mealPages[0] && mealPages[1] === 'PRAISE AND MANTRA' && mealPages[2] === await page.evaluate(() => Editor.state.pageMap['10-meal-offering / PRAISE AND MANTRA']) && mealPages[3] === 0,
-    'table of contents: every # title gets a line, pointing at the title\'s page', JSON.stringify(mealPages));
+    'table of contents: every # title gets a line, pointing at the title\'s page (the chapter\'s own title not twice)', JSON.stringify(mealPages));
+  // the chapter's title changed: its contents line follows, and isn't marked as a change of yours (no dot beside it)
+  const lineOf = (src) => page.evaluate((src) => { const re = new RegExp(src), d = Editor.state.text.view.state.doc; for (let i = 1; i <= d.lines; i++) if (re.test(d.line(i).text)) return i; return 0; }, src);
+  const dotAt = (n) => page.evaluate((n) => { const v = Editor.state.text.view; v.dispatch({ effects: CM.EditorView.scrollIntoView(v.state.doc.line(n).from, { y: 'center' }) });
+    return new Promise((r) => requestAnimationFrame(() => { const top = v.coordsAtPos(v.state.doc.line(n).from).top;
+      const g = [...document.querySelectorAll('.cm-changes .cm-gutterElement')].find((e) => { const b = e.getBoundingClientRect(); return b.top <= top + 2 && b.bottom > top + 2; });
+      const d = g && g.querySelector('.cm-dot:not(.cm-dot-spacer)'); r(d ? d.className.replace('cm-dot cm-dot-', '') : ''); })); }, n);
+  const mealTitle = await lineOf('^# THE MEAL OFFERING BEFORE THE BUDDHAS$');
+  await page.evaluate((n) => { const v = Editor.state.text.view, l = v.state.doc.line(n); v.dispatch({ changes: { from: l.from, to: l.to, insert: '# THE MEAL OFFERING (RENAMED)' } }); }, mealTitle);
+  await afterEdit();
+  const renamedRow = await lineOf('^THE MEAL OFFERING \\(RENAMED\\) \\[page of 10-meal-offering\\]$');
+  const [rowDot, titleDot] = [renamedRow && await dotAt(renamedRow), await dotAt(await lineOf('^# THE MEAL OFFERING \\(RENAMED\\)$'))];
+  check(renamedRow > 0 && rowDot === '' && titleDot === 'changed', 'a chapter title changed: its contents line follows, with no changed-line dot (the title has one)', `${renamedRow} ${rowDot} / ${titleDot}`);
   await page.click('#tabs button[data-tab="book"]');
   await page.locator('#chapters li', { hasText: 'MEAL OFFERING' }).first().locator('button', { hasText: 'Remove' }).click(); await afterEdit();
   await page.click('#tabs button[data-tab="text"]');

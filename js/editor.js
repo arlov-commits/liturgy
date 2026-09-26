@@ -391,12 +391,13 @@
     map.forEach((m, k) => { m.last = (k + 1 < map.length ? map[k + 1].head : lines.length + 1) - 1; });
     return { lines, map };
   }
+  // the whole booklet as originally: the dots beside the lines mark the differences
+  const originalDoc = () => state.book.sections.map((s) => LiturgyText.SEP + s.name + "\n" + norm(s.original ?? s.baseline)).join("");
   // (Re)build the editor from the chapters — after chapters are added, removed or moved
   function loadDoc() {
     const keep = state.docMap && chapterAt(state.cursorLine || 1);
     const doc = state.book.sections.map((s) => LiturgyText.SEP + s.name + "\n" + norm(s.text)).join("");
-    // the same, as originally: the dots beside the lines mark the differences
-    const original = state.book.sections.map((s) => LiturgyText.SEP + s.name + "\n" + norm(s.original ?? s.baseline)).join("");
+    const original = originalDoc();
     state.docMap = mapDoc(doc).map;
     state.text.setDoc(doc, original);
     const back = keep && state.docMap.find((m) => m.name === keep.name);
@@ -543,19 +544,24 @@
   const CONTENTS_OPEN = /^\[contents\]$/i, CONTENTS_CLOSE = /^\[\/contents\]$/i;
   function contentsEntries() {
     const out = [];
+    out.dropKeys = new Set();   // (lines an earlier version wrongly added: the chapter's first title again, under it)
     for (const s of state.book.sections) {
       if (s.virtual) continue;
       const sec = new DOMParser().parseFromString(LiturgyParse.parse(s.text || "", s.name), "text/html").querySelector("section");
       // every chapter of the booklet has a line (its [toc: …] name, else its first # title), then a line for each of
       // its other # titles (and [toc: …] entries further down); "// " in front leaves one out
-      const name = labelOf(s.name), own = sec && sec.dataset.toc, title = own || titleOf(s.text, s.name);
+      const name = labelOf(s.name), given = !!sec && sec.hasAttribute("data-toc-given"), title = (sec && sec.dataset.toc) || titleOf(s.text, s.name);
       out.push({ key: name, title, line: `${title} ${LiturgyText.refText(name)}` });
       const seen = new Set([name]);
-      let first = !own;   // (no [toc: …] name: the first title is the chapter's own line)
+      let firstTitle = true;
       for (const e of sec ? sec.querySelectorAll("[data-toc-entry], [data-title]") : []) {
-        if (e.dataset.title && !e.dataset.tocEntry && first) { first = false; continue; }
-        first = false;
         const part = e.dataset.tocEntry || e.dataset.title, key = `${name} / ${part}`;
+        if (e.dataset.title && firstTitle) {
+          firstTitle = false;
+          // the chapter's first title is its own line already (unless a [toc: …] at the top named it otherwise)
+          // (the same title again further down points at the same page: left out too)
+          if (!e.dataset.tocEntry && (!given || part === title)) { out.dropKeys.add(key); seen.add(key); continue; }
+        }
         if (part === "-" || seen.has(key)) continue;
         seen.add(key);
         out.push({ key, title: part, line: `  ${part} ${LiturgyText.refText(name, part)}` });
@@ -576,12 +582,14 @@
     // entry lines by key; any other line (a note, a heading, a name that matches no chapter) stays with the entry it
     // came before; a line is dropped only when its chapter was taken out of the booklet just now
     const keys = new Set(entries.map((e) => e.key)), gone = (k) => lastTitles.has(k) && !keys.has(k);
+    // a line an earlier version added by mistake, as it wrote it (not a line you changed): taken out
+    const mistake = (k, l) => !keys.has(k) && entries.dropKeys && entries.dropKeys.has(k) && rowTitle(l) === k.slice(k.indexOf(" / ") + 3);
     const have = new Map(), before = new Map();
     let loose = [];
     for (const l of body) {
       const k = rowKey(l);
       if (k && keys.has(k) && !have.has(k)) { have.set(k, l); before.set(k, loose); loose = []; }
-      else if (!(k && gone(k))) loose.push(l);
+      else if (!(k && (gone(k) || mistake(k, l)))) loose.push(l);
     }
     const out = [];
     for (const e of entries) {
@@ -612,11 +620,16 @@
     if (m.last === doc.lines && have[have.length - 1] === "") have.pop();
     let a = 0; while (a < have.length && a < want.length && have[a] === want[a]) a++;
     let b = 0; while (b < have.length - a && b < want.length - a && have[have.length - 1 - b] === want[want.length - 1 - b]) b++;
-    const from = a < have.length - b ? doc.line(m.first + a).from : (a ? doc.line(m.first + a - 1).to : doc.line(m.first).from);
-    const to = a < have.length - b ? doc.line(m.first + have.length - b - 1).to : from;
-    const middle = want.slice(a, want.length - b).join("\n");
-    const insert = a < have.length - b ? middle : (middle ? (a ? "\n" : "") + middle + (a ? "" : "\n") : "");
-    state.text.replaceQuietly(from, to, insert);
+    // lines a … (have.length - b - 1) of the chapter become the lines `middle` of the new text
+    const gone = have.length - b - a, middle = want.slice(a, want.length - b), line = (i) => doc.line(m.first + i);
+    let from, to, insert;
+    if (gone && middle.length) [from, to, insert] = [line(a).from, line(a + gone - 1).to, middle.join("\n")];
+    else if (gone) {   // lines taken out: with their line breaks
+      [from, to] = m.first + a + gone <= doc.lines ? [line(a).from, line(a + gone).from] : [Math.max(0, line(a).from - 1), line(a + gone - 1).to];
+      insert = "";
+    } else [from, to, insert] = a < have.length ? [line(a).from, line(a).from, middle.join("\n") + "\n"] : [line(a - 1).to, line(a - 1).to, "\n" + middle.join("\n")];
+    // (its automatic version changed too: the lines that follow a chapter aren't marked as your changes)
+    state.text.replaceQuietly(from, to, insert, originalDoc());
   }
 
   // ---- the Chapters tab: which chapters, in which order ----

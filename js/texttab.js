@@ -393,9 +393,13 @@
   // change back. Both are ordinary edits, so Undo/Redo work on them too.
   const label = CM.Annotation.define();   // a description of an edit for the Undo/Redo lists
   const addGhost = CM.StateEffect.define(), dropGhost = CM.StateEffect.define();
+  const newOriginal = CM.StateEffect.define();   // the original text changed (the table of contents following the chapters)
   const diffField = CM.StateField.define({
     create: (state) => ({ original: state.doc, chunks: [] }),
-    update: (v, tr) => (tr.docChanged ? { original: v.original, chunks: CM.Chunk.updateB(v.chunks, v.original, tr.newDoc, tr.changes) } : v),
+    update: (v, tr) => {
+      for (const e of tr.effects) if (e.is(newOriginal)) return { original: e.value, chunks: CM.Chunk.build(e.value, tr.newDoc) };
+      return tr.docChanged ? { original: v.original, chunks: CM.Chunk.updateB(v.chunks, v.original, tr.newDoc, tr.changes) } : v;
+    },
   });
   // ghosts: { from, to, text } — a reverted range (in the current text) and what was there before the revert
   const ghostField = CM.StateField.define({
@@ -623,8 +627,12 @@
       },
       // the page numbers from the latest layout ({ "chapter": 3, "chapter / part": 7 }): shown after page references
       setPages(map) { pageNumbers = map || {}; view.dispatch({ effects: [newPages.of(null), recheck.of(null)] }); CM.forceLinting(view); },
-      // a change that isn't a step of its own in Undo (the table of contents following the chapters)
-      replaceQuietly(from, to, text) { view.dispatch({ changes: { from, to, insert: text }, annotations: CM.Transaction.addToHistory.of(false) }); },
+      // a change that isn't a step of its own in Undo (the table of contents following the chapters); original: the
+      // whole document as it would be originally now, if that changed too (so the lines that follow aren't marked)
+      replaceQuietly(from, to, text, original) {
+        view.dispatch({ changes: { from, to, insert: text }, annotations: CM.Transaction.addToHistory.of(false),
+          effects: original != null ? newOriginal.of(CM.EditorState.create({ doc: original }).doc) : [] });
+      },
       undo(n = 1) { for (let i = 0; i < n; i++) CM.undo(view); },
       redo(n = 1) { for (let i = 0; i < n; i++) CM.redo(view); },
       history: () => ({ undo: steps.undo.map(stepText).reverse(), redo: steps.redo.map(stepText).reverse() }),

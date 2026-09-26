@@ -94,7 +94,7 @@
       block = null;
     };
     const open = (n) => (block = block || { html: [], en: [], heads: [], level: 0, mantra: false, start: n + 1 });
-    let tocTitle = null, pendingEntry = null, blocks = 0, lastLevel = 0, lastRunOn = false;
+    let tocTitle = null, tocGiven = false, pendingEntry = null, blocks = 0, lastLevel = 0, lastRunOn = false;
 
     const open_ = [];   // spans ([keep together], [border]) not closed yet
     let blankRun = 0, mostBlank = 0;   // blank lines in a row just before this one; the longest such row since the last text
@@ -122,7 +122,7 @@
       const toc = line.match(TOC_TITLE);
       if (toc) {
         // at the top: the chapter's name in the contents; further down: an extra entry for the next block
-        if (blocks === 0 && !block) tocTitle = toc[1]; else pendingEntry = toc[1];
+        if (blocks === 0 && !block) { tocTitle = toc[1]; tocGiven = true; } else pendingEntry = toc[1];
         continue;
       }
       const mark = line.match(SPAN_MARK);
@@ -192,7 +192,8 @@
       problems.push({ line: o.line, severity: "warning", message: `This [${o.shown}] is never closed — add [/${o.shown}] after its last line` });
       out.push("</div>");
     }
-    const tocAttr = tocTitle && tocTitle !== "-" ? ` data-toc="${esc(tocTitle)}"` : "";
+    // (data-toc-given: the name comes from a [toc: …] line, not from the first title)
+    const tocAttr = tocTitle && tocTitle !== "-" ? ` data-toc="${esc(tocTitle)}"${tocGiven ? " data-toc-given" : ""}` : "";
     return `<section class="sec" id="${anchor(name || "")}" data-file="${esc(name || "")}"${tocAttr}>${out.join("\n")}</section>`;
   }
 
