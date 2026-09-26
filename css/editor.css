@@ -213,7 +213,10 @@ button { font: inherit; padding: 4px 14px; cursor: pointer; }
 @media (max-width: 900px) {
   #app { flex-direction: column; }
   #panel { width: auto; height: 55vh; border-right: 0; border-bottom: 1px solid #ccc; }
-  #toc-nav { display: none; }
+  /* (the contents list is left out; its Feedback button stays, as a strip above the panel) */
+  #toc-nav { width: auto; flex-direction: row; justify-content: flex-end; border-right: 0; border-bottom: 1px solid #ccc; }
+  #toc-list { display: none; }
+  #feedback-btn { margin: 4px 8px; padding: 3px 10px; }
   #preview { min-height: 45vh; }
   #bar { flex-wrap: wrap; }
 }
