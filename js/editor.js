@@ -1080,7 +1080,11 @@
         state.saved[path] = files[path];
       }
       // (an automatic save just shows "Saved" on the button, and leaves the status line to the pages)
-      if (!auto) setStatus(state.source.canSave ? `Saved to ${state.source.usesKey ? "GitHub" : state.source.where}` : `Downloaded ${paths.map((p) => p.split("/").pop()).join(", ")} — put ${paths.length > 1 ? "them" : "it"} in ${state.source.where}`);
+      // (working from a folder the app can't write: each file handed over with the folder it belongs in)
+      const handed = paths.filter((p) => files[p] !== null).map((p) => `${p.split("/").pop()} → ${state.source.where}${p.slice(0, p.lastIndexOf("/") + 1)}`);
+      const unneeded = paths.filter((p) => files[p] === null).map((p) => state.source.where + p);
+      if (!auto) setStatus(state.source.canSave ? `Saved to ${state.source.usesKey ? "GitHub" : state.source.where}` :
+        (handed.length ? `Downloaded — put each file in its folder: ${handed.join(", ")}` : "") + (unneeded.length ? `${handed.length ? " · " : ""}Delete ${unneeded.join(", ")} (not needed any more)` : ""));
       autosaveBlocked = false;
     } catch (e) {
       setStatus("Not saved: " + e.message + (e.conflict ? " — click Save to choose what to do. Your changes are still here." : ""), true);
