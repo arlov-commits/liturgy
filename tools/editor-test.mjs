@@ -603,6 +603,21 @@ try {
     fixedShown === '99' && warned > 0 && /set by hand/.test(handChip) && /SHORT NAME \[page of /.test(tocBack) && !/page 99/.test(tocBack),
     'table of contents written out in the text: rename an entry; a page number typed by hand is warned; one click back to the automatic number',
     `${chips.join(',')} | ${aliasShown[0]} | ${fixedShown} | ${handChip}`);
+  // search and replace across the booklet: a match in a title bar, a page reference or a [tag] line is left alone, the
+  // others are replaced (one of those among the matches used to stop the whole "Replace all")
+  const docSR = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
+  const nameWord = await page.evaluate(() => Editor.state.docMap.find((m) => !m.name.startsWith('[')).name.replace(/\.txt$/, '').split('-').pop());
+  await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap.find((x) => !x.name.startsWith('[')); v.dispatch({ changes: { from: v.state.doc.line(m.first).from, insert: 'LOOK AT THIS WORD\n\n' }, selection: { anchor: v.state.doc.line(m.first).from } }); v.focus(); });
+  await page.keyboard.press('Control+f');
+  await page.fill('.cm-search input[name=search]', nameWord);
+  await page.fill('.cm-search input[name=replace]', 'REPLACED');
+  const beforeReplace = await page.evaluate((w) => (Editor.state.text.view.state.doc.toString().match(new RegExp(w, 'gi')) || []).length, nameWord);
+  await page.click('.cm-search button[name=replaceAll]'); await page.waitForTimeout(300);
+  const afterReplace = await page.evaluate(() => [Editor.state.text.view.state.doc.toString().split('REPLACED').length - 1, Editor.state.docMap.map((m) => m.name).join()]);
+  await page.keyboard.press('Escape');
+  await page.evaluate((d) => { const v = Editor.state.text.view; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: d }, annotations: CM.Transaction.addToHistory.of(false) }); }, docSR);
+  check(beforeReplace > 2 && afterReplace[0] > 0 && afterReplace[0] < beforeReplace && afterReplace[1] === await page.evaluate(() => Editor.state.docMap.map((m) => m.name).join()),
+    'Replace all: matches in title bars and page references stay, the rest are replaced', `"${nameWord}": ${beforeReplace} matches, ${afterReplace[0]} replaced`);
   // Select All + paste with a written-out contents: the paste happens (it used to be taken for deleting the entries)
   const docAll = await page.evaluate(() => Editor.state.text.view.state.doc.toString());
   await page.evaluate(() => Editor.state.text.view.focus());

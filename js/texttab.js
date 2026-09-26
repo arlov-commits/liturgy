@@ -329,6 +329,27 @@
     return changes.length ? { changes, annotations: [label.of("Left out of the table of contents"), CM.Transaction.userEvent.of("delete")] } : [];
   });
 
+  // Search and replace (Ctrl+F) leaves alone what it mustn't change — a chapter's title bar, a [tag] line of a pair, part
+  // of a page reference — and replaces everywhere else. (One of those among the matches used to stop a whole
+  // "replace all", or with a tag, take the tag pair out.)
+  const replaceGuard = EditorState.transactionFilter.of((tr) => {
+    if (!tr.docChanged || !tr.isUserEvent("input.replace")) return tr;
+    const doc = tr.startState.doc, keep = [];
+    let skipped = 0;
+    tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+      let bad = false;
+      for (let n = doc.lineAt(fromA).number; n <= doc.lineAt(toA).number && !bad; n++) {
+        const line = doc.line(n);
+        if (isSep(line.text) || tagAt(doc, n)) bad = true;
+        else for (const m of line.text.matchAll(REF)) if (fromA < line.from + m.index + m[0].length && toA > line.from + m.index) bad = true;
+      }
+      if (bad) skipped++; else keep.push({ from: fromA, to: toA, insert: inserted });
+    });
+    if (!skipped) return tr;
+    onRefused(`${skipped} of the matches left as they are: in a chapter's title bar, a [tag] line or a page reference.`);
+    return keep.length ? { changes: keep, annotations: [CM.Transaction.userEvent.of(tr.annotation(CM.Transaction.userEvent))] } : [];
+  });
+
   // the tag at the cursor and its partner: marked
   const tagPairLine = CM.Decoration.line({ class: "cm-tag-pair" });
   const tagPairs = CM.ViewPlugin.fromClass(class {
@@ -612,7 +633,8 @@
     const create = (doc, original) => EditorState.create({
       doc,
       extensions: [
-        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, pairGuard, refGuard, tagPairs, clipboard, lint, lintGutter(),
+        // (transaction filters run last-listed first: replaceGuard before refGuard, pairGuard, guard)
+        changeGutter, basicSetup, EditorView.lineWrapping, liturgy, syntaxHighlighting(colours), theme, headerField, guard, pairGuard, refGuard, replaceGuard, tagPairs, clipboard, lint, lintGutter(),
         alignSlot.of(alignExt()), groupShading, pageNums,
         diffField.init((st) => { const o = CM.EditorState.create({ doc: original ?? doc }).doc; return { original: o, chunks: CM.Chunk.build(o, st.doc) }; }),
         ghostField,
