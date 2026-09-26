@@ -91,13 +91,18 @@
     box.textContent = "";
     const intro = el("p", { className: "hint", textContent: "Changes show in the pages straight away. Settings shown with a yellow background are ones changed for this booklet; ↺ puts one back." });
     const resetAll = el("button", { type: "button", textContent: "Set everything back to the defaults",
-      title: "Every setting goes back to the app's default — letter-size pages (Save to keep that)", onclick: () => { if (opts.resetAll) opts.resetAll(); else { set({}); rebuild(); } } });
+      title: "Every setting goes back to the app's default — letter-size pages", onclick: () => {
+        if (!confirm("Set EVERY setting of this booklet back to the app's defaults (letter-size pages)?\n\nUndo doesn't bring them back — you'd set them again by hand.")) return;
+        if (opts.resetAll) opts.resetAll(); else { set({}); rebuild(); }
+      } });
     box.append(intro, resetAll);
     if (older) {
       box.append(el("p", { className: "older" },
         el("b", { textContent: "Sizes from before letter-size pages. " }),
         `This booklet's page (${older.page}) and its text sizes, margins and spacing are as they were set before pages were designed at letter size, so it prints as it did. `,
-        el("button", { type: "button", textContent: "Use letter-size pages", onclick: () => older.upgrade() }),
+        el("button", { type: "button", textContent: "Use letter-size pages", onclick: () => {
+          if (confirm(`Change this booklet to letter-size pages?\n\nIts page becomes 8.5 × 11 in, and its text sizes, margins and spacing go to the letter-size defaults — the pages will look different. Undo doesn't bring the old sizes back.`)) older.upgrade();
+        } }),
         el("span", { className: "hint", textContent: " — the page becomes 8.5 × 11 in, with the text sizes, margins and spacing to match (fonts, format and the other choices stay)." })));
     }
 
