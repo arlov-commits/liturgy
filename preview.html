@@ -10,22 +10,23 @@
 <link rel="stylesheet" href="css/book.css">
 <style>
   @media print { #status { display: none; } }
-  /* Letter sheets (printSheets): the pages copied 2 × 2 onto letter paper, in the order of js/impose.js.
+  /* Letter sheets (printSheets): the pages copied onto letter paper — 1, 2 (folio) or 2 × 2 (quarto) a side — in the
+     order of js/impose.js.
      The #sheets rules outrank Paged.js's own print rules, which assume one booklet page per sheet. */
   #sheets { display: none; }
   html.print-sheets #book { display: none !important; }
   html.print-sheets #sheets { display: block; }
   #sheets .sheet { width: 8.5in; height: 11in; display: grid; grid-template: 5.5in 5.5in / 4.25in 4.25in; overflow: hidden; break-after: page; }
+  #sheets .sheet.letter { grid-template: 11in / 8.5in; }
   /* each slot is also a "pagedjs_pages": some of Paged.js's page rules (which corner a page number goes in) only
      apply inside one — without it the right-hand pages' numbers printed in the left corner */
-  #sheets .slot { position: relative; overflow: hidden; display: block !important; }
-  /* folded signatures: a landscape sheet, two pages side by side, each against the fold in the middle */
+  #sheets .slot { position: relative; overflow: hidden; display: flex !important; align-items: center; justify-content: center; }
+  #sheets .fit { flex: none; overflow: hidden; }
+  /* folio: a landscape sheet, two pages side by side, each against the fold in the middle */
   #sheets .sheet.folded { width: 11in; height: 8.5in; grid-template: 8.5in / 5.5in 5.5in; }
-  #sheets .sheet.folded .slot { display: flex !important; align-items: center; }
-  #sheets .sheet.folded .slot > .pagedjs_page { flex: none; }
   #sheets .sheet.folded .slot:first-child { justify-content: flex-end; }
-  #sheets .sheet.folded .slot:first-child .pagedjs_page { transform-origin: top right; }
-  #sheets .pagedjs_page { margin: 0 !important; box-shadow: none !important; border: 0 !important; transform-origin: top left;
+  #sheets .sheet.folded .slot:last-child { justify-content: flex-start; }
+  #sheets .pagedjs_page { margin: 0 !important; box-shadow: none !important; border: 0 !important; transform-origin: 0 0;
     height: var(--pagedjs-height) !important; min-height: 0 !important; max-height: none !important; break-after: auto !important; }
   #sheets .pagedjs_sheet { height: var(--pagedjs-height) !important; min-height: 0 !important; max-height: none !important; }
   /* the print layout view's labels ("Sheet 3 · back", "Signature 2") are for the screen only */
@@ -50,8 +51,8 @@
     html.view-single .pagedjs_pages { grid-template-columns: max-content; }
     html.view-single .pagedjs_page:first-child { grid-column: auto; }
     /* (the booklet pages are still laid out — Paged.js must be able to measure them — just not shown) */
-    html.view-sheets:not(.letter) #book { height: 0; overflow: hidden; visibility: hidden; }
-    html.view-sheets:not(.letter) #sheets { display: block; padding: 16px; }
+    html.view-sheets #book { height: 0; overflow: hidden; visibility: hidden; }
+    html.view-sheets #sheets { display: block; padding: 16px; }
     html.view-sheets #sheets .sheet { margin: 0 auto 18px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.3); position: relative; }
     /* where the sheet is cut (quarto: in quarters) or folded / cut (folio: down the middle) */
     html.view-sheets #sheets .sheet::after { content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -362,29 +363,28 @@ function spreadReport() {
   return out;
 }
 
-// Print on letter sheets, 4 pages a side (see js/impose.js for the order). Each copied page keeps its own
-// page number (Paged.js counts pages in the order they appear, so it's set on each copy).
-// The binding setting: "perfect" (cut into quarters, glued) or "signatures" (folded letter sheets)
-// Format and binding (Settings): folio = folded letter sheets (signatures of `sheets`; perfect bound = one sheet each)
+// Format and binding (Settings): how the pages go onto letter sheets (see js/impose.js). Each copied page keeps its
+// own page number (counter-reset) and is scaled to fit its space.
 const binding = () => {
   const st = getComputedStyle(document.documentElement), v = (n) => st.getPropertyValue(n).trim();
   const m = LiturgyImpose.mode({ format: v("--format"), binding: v("--binding"), sheets: v("--signature-sheets") });
-  return { folded: m.format === "folio", sheets: m.binding === "signatures" ? m.sheets : "1", letter: m.format === "letter" };
+  return { format: m.format, folded: m.format === "folio", sheets: m.binding === "signatures" ? m.sheets : "1", letter: m.format === "letter" };
 };
 function buildSheets() {
   document.getElementById("sheets")?.remove();
   const pages = [...document.querySelectorAll(".pagedjs_pages > .pagedjs_page")];
   const box = Object.assign(document.createElement("div"), { id: "sheets" });
-  const { folded, sheets: perSignature } = binding();
-  // quarto: 2 × 2 quarters of a portrait sheet; folio: 2 halves of a landscape sheet (pages against the middle)
-  const inch = 96, first = pages[0] && pages[0].getBoundingClientRect();
-  const [w, h] = folded ? [5.5, 8.5] : [4.25, 5.5];
-  const scale = first ? Math.min(1, (w * inch) / first.width, (h * inch) / first.height) : 1;   // bigger pages: shrink to fit
-  const sheets = folded
-    ? LiturgyImpose.signatures(pages.length, perSignature)
+  const { format, folded, sheets: perSignature } = binding();
+  // each page is scaled to fit its space on the sheet (letter: the whole sheet; folio: half, against the fold; quarto:
+  // a quarter), in a box of the scaled size so it sits where it should
+  const [sw, sh] = LiturgyImpose.FORMATS[format].map(parseFloat);
+  const pw = pages[0] ? pages[0].offsetWidth / 96 : sw, ph = pages[0] ? pages[0].offsetHeight / 96 : sh;
+  const scale = Math.min(sw / pw, sh / ph);
+  const sheets = folded ? LiturgyImpose.signatures(pages.length, perSignature)
+    : format === "letter" ? Array.from({ length: Math.ceil(pages.length / 2) }, (_, i) => ({ front: [2 * i + 1], back: [2 * i + 2 <= pages.length ? 2 * i + 2 : 0], signature: 0, sheet: i }))
     : LiturgyImpose.layout(pages.length).map((s, i) => ({ ...s, signature: 0, sheet: i }));
   const signatures = folded && perSignature !== "1" ? LiturgyImpose.signaturePlan(pages.length, perSignature) : [];
-  let number = 0;
+  const sheetWidth = folded ? "11in" : "8.5in";
   sheets.forEach((sheet, i) => {
     // (screen only) a clear break where a new signature starts, and each side's label
     if (signatures.length && sheet.sheet === 0) {
@@ -392,20 +392,23 @@ function buildSheets() {
       box.append(Object.assign(document.createElement("div"), { className: "sig-break",
         textContent: `Signature ${sheet.signature + 1} of ${signatures.length} — ${n} sheet${n === 1 ? "" : "s"} (${n * 4} pages)` }));
     }
-    number++;
     for (const [side, slots] of [["front", sheet.front], ["back", sheet.back]]) {
-      const el = Object.assign(document.createElement("div"), { className: "sheet" + (folded ? " folded" : "") });
+      const el = Object.assign(document.createElement("div"), { className: `sheet ${format}` + (folded ? " folded" : "") });
       const label = Object.assign(document.createElement("div"), { className: "sheet-label",
-        textContent: `Sheet ${number} · ${side}` + (signatures.length ? ` (signature ${sheet.signature + 1}, ${sheet.sheet === 0 ? "outside" : "sheet " + (sheet.sheet + 1)})` : "") });
-      label.style.width = folded ? "11in" : "8.5in";
+        textContent: `Sheet ${i + 1} · ${side}` + (signatures.length ? ` (signature ${sheet.signature + 1}, ${sheet.sheet === 0 ? "outside" : "sheet " + (sheet.sheet + 1)})` : "") });
+      label.style.width = sheetWidth;
       for (const n of slots) {
         const slot = Object.assign(document.createElement("div"), { className: "slot pagedjs_pages" });
         if (n) {
           const copy = pages[n - 1].cloneNode(true);
           copy.removeAttribute("id");
           copy.style.counterReset = `page ${n - 1}`;
-          if (scale < 1) copy.style.transform = `scale(${scale})`;
-          slot.append(copy);
+          copy.style.transform = `scale(${scale})`;
+          const fit = Object.assign(document.createElement("div"), { className: "fit" });
+          fit.style.width = `${pw * scale}in`;
+          fit.style.height = `${ph * scale}in`;
+          fit.append(copy);
+          slot.append(fit);
         }
         el.append(slot);
       }
@@ -445,10 +448,9 @@ function setView(v) {
   const el = document.documentElement;
   el.classList.remove("view-single", "view-spread", "view-sheets");
   el.classList.add("view-" + v);
-  el.classList.toggle("letter", binding().letter);
-  if (v === "sheets" && document.body.dataset.ready === "1" && !binding().letter) buildSheets();
+  if (v === "sheets" && document.body.dataset.ready === "1") buildSheets();
 }
-const inSheetsView = () => document.documentElement.classList.contains("view-sheets") && !document.documentElement.classList.contains("letter");
+const inSheetsView = () => document.documentElement.classList.contains("view-sheets");
 // where the pages on show are: the booklet pages, or (print layout) their copies on the sheets
 const pagesRoot = () => (inSheetsView() && document.getElementById("sheets")) || main;
 // the width the current view needs (for the editor to fit it to the pane)

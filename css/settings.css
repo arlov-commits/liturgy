@@ -1,5 +1,6 @@
 /* ===================================================================
    BOOKLET SETTINGS — change the numbers here; everything else follows.
+   Sizes are for the page as designed (letter by default); printing scales the page to the format (quarto: 50%).
    pt = points (1/72 inch), in = inches, em = "times the text size"
    Fonts: the name in quotes must be a font bundled in fonts/ (or installed
    on the computer). Rare characters and ornaments are filled in
@@ -12,13 +13,13 @@
   --signature-sheets: auto;   /* signatures: letter sheets folded together in each signature (4 pages a sheet) */
 
   /* ==== Page layout ==== */
-  /* ---- Page size and margins (the size follows the format; change it only for something else) ---- */
-  --page-width: 4.25in;
-  --page-height: 5.5in;
-  --margin-binding: 0.45in;   /* edge that gets glued or folded — keep generous */
-  --margin-outside: 0.25in;  /* edge you hold */
-  --margin-top: 0.3in;
-  --margin-bottom: 0.45in;
+  /* ---- Page size and margins (the page you design on; printing fits it to the format — see Format and binding) ---- */
+  --page-width: 8.5in;
+  --page-height: 11in;
+  --margin-binding: 0.9in;   /* edge that gets glued or folded — keep generous */
+  --margin-outside: 0.5in;  /* edge you hold */
+  --margin-top: 0.6in;
+  --margin-bottom: 0.9in;
   /* ---- How the pages flow ---- */
   --chapter-start: page;   /* where each chapter starts */
   --title-start: page;     /* where a # title further down a chapter starts ([new page] on its own line always starts one) */
@@ -28,15 +29,15 @@
   /* ==== Text ==== */
   /* ---- English ---- */
   --english-font: "Lora";
-  --english-size: 8.2pt;
+  --english-size: 16.4pt;
   --english-weight: 600;       /* 400 = regular, 600 = semibold (like the old Lucida Bright Demi) */
   /* ---- Chinese ---- */
   --chinese-font: "Noto Serif TC";
-  --chinese-size: 14.5pt;
+  --chinese-size: 29pt;
   --character-spacing: 1.72em; /* width of each character slot (like Excel's columns) */
   /* ---- Pinyin ---- */
   --pinyin-font: "Gentium Book Plus";
-  --pinyin-size: 8.4pt;
+  --pinyin-size: 16.8pt;
   /* ---- Titles and notes ---- */
   --title-scale: 1.15;     /* titles are this much larger */
   --subtitle-scale: 0.8;   /* small headings are this much smaller */
@@ -44,26 +45,26 @@
   /* ---- Each verse ---- */
   --verse-order: en-zh-py;  /* the order of the parts of every verse */
   /* ---- Spacing ---- */
-  --space-english-to-chinese: 1pt;  /* gap above the Chinese line */
-  --space-chinese-to-pinyin: -1pt;  /* gap between a character and its pinyin */
-  --space-between-verses: 6pt;
+  --space-english-to-chinese: 2pt;  /* gap above the Chinese line */
+  --space-chinese-to-pinyin: -2pt;  /* gap between a character and its pinyin */
+  --space-between-verses: 12pt;
 
   /* ==== Page numbers ==== */
   --page-number-position: outside;   /* which corner of the page (the binding is the inside) */
   --page-number-edge: bottom;        /* at the top or the bottom of the page */
   --page-number-font: "Lora";
-  --page-number-size: 10pt;
+  --page-number-size: 20pt;
 
   /* ==== Contents page ==== */
   --contents-title: "CONTENTS";   /* heading above the table of contents (empty = none) */
-  --contents-size: 9pt;      /* size of the table of contents lines */
-  --contents-spacing: 4pt;   /* gap between contents lines */
+  --contents-size: 18pt;      /* size of the table of contents lines */
+  --contents-spacing: 8pt;   /* gap between contents lines */
 
   /* ==== Borders ==== */
-  --border-width: 0.75pt;   /* thickness of the line around a bordered section */
+  --border-width: 1.5pt;   /* thickness of the line around a bordered section */
   --border-style: solid;    /* kind of line */
   --border-color: #000000;  /* colour of the line (#000000 = black) */
-  --border-padding: 5pt;    /* space between the line and the text inside */
+  --border-padding: 10pt;    /* space between the line and the text inside */
   --border-radius: 0pt;     /* rounded corners (0 = square) */
-  --border-space: 6pt;      /* space above and below the box */
+  --border-space: 12pt;      /* space above and below the box */
 }

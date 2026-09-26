@@ -226,7 +226,25 @@
   // Each booklet's settings (only the ones changed from the app's defaults) are kept in books/settings/<booklet>.css.
   // A booklet without its own starts from the shared settings.css (where all booklets' settings used to be kept).
   const settingsFile = (bookName) => `books/settings/${bookName}.css`;
-  const loadSettings = async (source, bookName) => (await source.get(settingsFile(bookName), true)) ?? (await source.get(SETTINGS_FILE, true)) ?? "";
+  // Settings saved before 2026-09-26 were for a 4.25 × 5.5 in page with the text sizes of that time. Since then the page
+  // is designed at letter size (printing scales it to the format) and the defaults are twice as big. An older file
+  // ("--settings-version: 2" missing) is read with the old defaults for anything it doesn't set, so it looks as before.
+  const SETTINGS_VERSION = 2;
+  const OLD_DEFAULTS = {
+    "--page-width": "4.25in", "--page-height": "5.5in", "--margin-binding": "0.45in", "--margin-outside": "0.25in",
+    "--margin-top": "0.3in", "--margin-bottom": "0.45in", "--page-number-size": "10pt", "--english-size": "8.2pt",
+    "--chinese-size": "14.5pt", "--pinyin-size": "8.4pt", "--space-english-to-chinese": "1pt", "--space-chinese-to-pinyin": "-1pt",
+    "--space-between-verses": "6pt", "--border-width": "0.75pt", "--border-padding": "5pt", "--border-space": "6pt",
+    "--contents-size": "9pt", "--contents-spacing": "4pt",
+  };
+  function upgradeSettings(css) {
+    if (!css.trim() || /--settings-version\s*:\s*2\b/.test(css)) return css;
+    const set = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+    const add = Object.entries(OLD_DEFAULTS).filter(([k]) => !set.has(k)).map(([k, v]) => `  ${k}: ${v};  /* (from before 2026-09-26) */`);
+    return css + `\n/* read as it was before 2026-09-26 */\n:root {\n${add.join("\n")}\n  --settings-version: ${SETTINGS_VERSION};\n}\n`;
+  }
+  const loadSettings = async (source, bookName) =>
+    upgradeSettings((await source.get(settingsFile(bookName), true)) ?? (await source.get(SETTINGS_FILE, true)) ?? "");
   async function loadBook(source, bookName) {
     const listText = await source.get(`books/${bookName}.txt`);
     const sections = await Promise.all(listNames(listText).map((name) =>
@@ -236,5 +254,5 @@
     return { listText, sections, css };
   }
 
-  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile, settingsFile, loadSettings };
+  root.LiturgySource = { open, loadBook, loadChapter, ORIGINAL, EDITION, listNames, listEntries, key, pickedFolder, DEFAULT_REPO, SETTINGS_FILE, CONTENTS_ENTRY, CONTENTS_TEXT, loadContents, contentsFile, settingsFile, loadSettings, SETTINGS_VERSION };
 })(window);

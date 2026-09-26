@@ -2,7 +2,7 @@
 
 ## What this is
 A browser app that turns plain-text liturgy files (English / Chinese / pinyin) into printable
-quarter-letter booklet pages (4.25 × 5.5 in), bound by a glue (perfect-bind) machine.
+booklets on letter paper — full pages, folio or quarter-letter (4.25 × 5.5 in), glued (perfect bound) or folded in signatures.
 It will be used by a **non-technical editor**. Every feature must be usable without knowing code.
 
 ## Two repos
@@ -32,11 +32,11 @@ Current choices:
 |---|---|---|
 | Pagination / on-screen page preview | **Paged.js** (vendored, `vendor/paged.min.js`) | Chosen over Vivliostyle in Phase 2 (see below). Needs the small var-filling shim in `index.html` because it can't read `var()` inside `@page`. |
 | Pinyin under characters | native `<ruby>` + `ruby-position: under` | never position pinyin manually |
-| Final print | Chrome's print of the Paged.js preview: **Print…** = letter sheets, 4 pages a side (`preview.html printSheets`); the Print panel also has “just the pages” for checking | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
+| Final print | Chrome's print of the Paged.js preview: **Print…** = letter sheets as the format lays them out (`preview.html printSheets`, every format, letter too); the Print panel also has “just the pages” for checking | Printing the plain page without Paged.js paginates differently (39 vs 41 pages) — always print from the preview. |
 | Text editing | **CodeMirror 6** (vendored, `vendor/codemirror.min.js`) | never `contenteditable`. Bundle built from `tools/vendor/codemirror.mjs` by `npm run vendor` — add any new CodeMirror import there. |
 | Changed-line dots | **@codemirror/merge** `Chunk` (in the CodeMirror bundle) | `texttab.js diffField`: the editor text vs. the same chapters as originally (`loadDoc` builds both); click a dot → that line (or group of added/removed lines) back to the original, a hollow “ghost” dot redoes it. No dots in chapters made in the editor (`marked`). |
 | Pinyin checking | **pinyin-pro** (vendored, loaded only when “Suggest pinyin readings” is ticked) | suggestions only (blue dotted, opt-in) — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate. `toneSandhi: false` so 一/不 aren't flagged. |
-| Format and binding (Settings) | one nested choice (`settings.js formatControl`): `--format` letter (8.5 × 11, pages in order) / folio (letter folded in half, 5.5 × 8.5) / quarto (letter cut in quarters, 4.25 × 5.5); `--binding` perfect or signatures (quarto signatures: coming soon); `--signature-sheets` | `impose.js mode()` reads it (also the older single `--binding: in-order/signatures`), `plan()` gives pages printed, letter sheets and signatures (shown under the choice and in the Print panel; one signature → staple, several → sew and glue). Picking a format sets the page size. |
+| Format and binding (Settings) | one nested choice (`settings.js formatControl`): `--format` letter (8.5 × 11, pages in order) / folio (letter folded in half, 5.5 × 8.5) / quarto (letter cut in quarters, 4.25 × 5.5); `--binding` perfect or signatures (quarto signatures: coming soon); `--signature-sheets` | `impose.js mode()` reads it (also the older single `--binding: in-order/signatures`), `plan()` gives pages printed, letter sheets and signatures (shown under the choice and in the Print panel; one signature → staple, several → sew and glue). The format does **not** change the page size: the page (Settings → Page size, default letter 8.5 × 11) is what you design on, and `buildSheets` scales it to fit the format's slot (letter 100%, folio ~65%, quarto 50%; the Print panel says the %). |
 | Folded sheets (folio) | our own `impose.js signatures()`, following **bookbinder-js** (MPL-2.0; read, not copied) | letter sheets landscape, 2 pages a side, flip on short edge; perfect bound = signatures of one sheet; `signaturePlan`: at most 8 sheets (32 pages) per signature, split evenly (sizes differ by ≤ 1 sheet), blanks at the end; one signature > 32 pages is warned about. |
 | Letter-sheet imposition | none needed: the Paged.js pages are copied into a 2 × 2 letter-sheet grid and printed with `@page { size: letter }` | Order in `js/impose.js`, per sheet of 8 pages: front 2 3 / 6 7, back 4 1 / 8 5 (duplex, flip on long edge); cut in four, stack in page order. Each copy gets `counter-reset: page n−1` so page numbers stay right. (Replaced the earlier save-PDF-then-upload step with pdf-lib.) |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | English choices (Settings): Lora, Gentium Book Plus, Crimson Pro, Alegreya, Libre Baskerville, Merriweather, Noto Serif, Source Serif 4, Noto Sans, Source Sans 3 — Latin + Latin Extended, 400/600 + italics. Rejected at the tone-mark check: EB Garamond (bold À), Spectral (ǖǘǚǜ), Cormorant Garamond (carons). |
@@ -106,7 +106,9 @@ The pages swap in early only once the new layout reaches the place the current p
   `/* ---- Name ---- */`, a trailing `/* hint */` per line), so add new knobs here, never hard-code.
 - `books/settings/<booklet>.css` **in liturgy-text** — each booklet's saved changes (only the values that differ), loaded
   after the app's defaults; a booklet without one starts from the shared `settings.css` there (`source.js loadSettings`).
-  Settings → “Copy all settings from another booklet” replaces them (after a warning). Saving goes to the text repo so one key (Contents: read and write, that repo only) covers everything.
+  Settings → “Copy all settings from another booklet” replaces them (after a warning). Files carry
+  `--settings-version: 2`; an older file (from when the defaults were quarto-sized: 4.25 × 5.5 page, 8.2pt English…)
+  gets the old defaults added for what it didn't set (`source.js upgradeSettings`), so it keeps its look. Saving goes to the text repo so one key (Contents: read and write, that repo only) covers everything.
 - `css/book.css` — layout rules that read those variables.
 - `FORMAT.md` — the text-file format. `js/parse.js` must match it exactly; update both together.
 

@@ -212,13 +212,13 @@ try {
   check(Math.abs(navW2 - navW - 80) < 4 && Math.abs(panelW2 - (panelW - 80 + 120)) < 4, 'contents list and panel can be dragged wider', `${navW}→${navW2}, ${panelW}→${panelW2}`);
 
   await openSettings();
-  await page.fill('#set--english-size', '12'); await afterEdit();
+  await page.fill('#set--english-size', '24'); await afterEdit();
   const bigger = +((await status()).match(/(\d+) pages/) || [])[1];
   check(bigger > pages, 'settings: bigger English makes more pages', `${pages} → ${bigger}`);
   // the preview frames are reused between layouts: a settings change must still apply every time
-  await page.fill('#set--english-size', '8.2'); await afterEdit();
+  await page.fill('#set--english-size', '16.4'); await afterEdit();
   const back = +((await status()).match(/(\d+) pages/) || [])[1];
-  await page.fill('#set--english-size', '12'); await afterEdit();
+  await page.fill('#set--english-size', '24'); await afterEdit();
   const again = +((await status()).match(/(\d+) pages/) || [])[1];
   check(back === pages && again === bigger, 'settings apply on every redraw (reused preview frames)', `${back}, ${again}`);
   await closeSettings();
@@ -239,7 +239,7 @@ try {
   await page.check('.format-choice input[name=binding][value=signatures]'); await page.selectOption('#set--signature-sheets', 'all'); await afterEdit();
   const oneSig = await metrics();
   const size = await page.inputValue('#set--english-size');
-  await page.fill('#set--english-size', '20'); await afterEdit();   // (more pages: one signature gets too thick)
+  await page.fill('#set--english-size', '40'); await afterEdit();   // (more pages: one signature gets too thick)
   const thick = [await metrics(), await status()];
   await page.fill('#set--english-size', size); await afterEdit();
   await page.selectOption('#set--signature-sheets', '2'); await afterEdit();
@@ -255,12 +255,12 @@ try {
   await page.keyboard.press('Escape');
   await openSettings(); await page.check('.format-choice input[name=format][value=quarto]'); await closeSettings(); await afterEdit();
   const backToQuarto = [+((await status()).match(/(\d+) pages/) || [])[1], await page.evaluate(() => JSON.stringify(Editor.state.settings.changes))];
-  check(formats === 'letter,folio,quarto*' && quartoSoon && folioPerfect[0] === '5.5' && /Pages printed: \d+/.test(folioPerfect[1]) && /Cut in half: \d+ pieces/.test(folioPerfect[1]) &&
+  check(formats === 'letter,folio,quarto*' && quartoSoon && folioPerfect[0] === '8.5' && /Pages printed: \d+/.test(folioPerfect[1]) && /Cut in half: \d+ pieces/.test(folioPerfect[1]) &&
     /Signatures: 1 — can be stapled/.test(oneSig) && /too thick/.test(thick[0]) && /too thick/.test(thick[1]) && /Signatures: [2-9] — .*sew and glue/.test(autoSig) &&
-    folded.join() === 'true,true,false,false' && letter[0] === '8.5' && !letter[1] && letterPrint[0] && letterPrint[1] === 'Print the pages…' &&
+    folded.join() === 'true,true,false,false' && letter[0] === '8.5' && !letter[1] && letterPrint[0] && letterPrint[1] === 'Print on letter paper…' &&
     !/--format|--binding|--page-width/.test(backToQuarto[1]),
-    'Format and binding: nested choice sets the page size; pages printed, sheets and signatures shown (staple vs sew); print steps follow',
-    `${folioPerfect[1]} | ${oneSig} | ${thick[0]} | ${autoSig}`);
+    'Format and binding: nested choice (the page size stays); pages printed, sheets and signatures shown (staple vs sew); print steps follow',
+    `${folioPerfect[1]} | ${oneSig} | ${autoSig}`);
   const first = await page.evaluate(() => Editor.state.docMap[0].name);
   const heads = await page.evaluate(() => [Editor.state.docMap.length, document.querySelectorAll('.cm-chapter-head').length, Editor.state.book.sections.filter((s) => !s.virtual).length]);
   check(heads[0] > 1 && heads[0] === heads[2] && heads[1] > 0, 'the text holds the whole booklet, a title bar per chapter', heads.join());
@@ -402,7 +402,7 @@ try {
   await page.keyboard.press('Control+s'); await saveDone();
   check(await page.evaluate(() => Math.round(document.querySelector('#print').getBoundingClientRect().left)) === printX, 'the top-bar buttons stay put when the Save label changes');
   check((await status()).startsWith('Saved') && readFileSync(path.join(repo, 'edits', first), 'utf8').startsWith('// test edit') && !readFileSync(path.join(repo, 'text', first), 'utf8').startsWith('// test edit') &&
-    readFileSync(path.join(repo, 'books', 'settings', 'test.css'), 'utf8').includes('--english-size: 12pt') && !existsSync(path.join(repo, 'settings.css')), 'Ctrl+S saves text (as an edition — the original untouched) and settings');
+    readFileSync(path.join(repo, 'books', 'settings', 'test.css'), 'utf8').includes('--english-size: 24pt') && !existsSync(path.join(repo, 'settings.css')), 'Ctrl+S saves text (as an edition — the original untouched) and settings');
 
   const line = await page.evaluate(() => { const d = Editor.state.text.view.state.doc; for (let i = 1; i < d.lines; i++) if (/[一-鿿]/.test(d.line(i).text) && !/[一-鿿]/.test(d.line(i + 1).text) && d.line(i + 1).text.trim()) return i + 1; });
   await page.evaluate((n) => { const v = Editor.state.text.view; const l = v.state.doc.line(n); const cut = l.text.lastIndexOf(' '); v.dispatch({ changes: { from: l.from + cut, to: l.to } }); }, line);
@@ -461,7 +461,7 @@ try {
   await openSettings(); await page.selectOption('#copy-from', 'test'); await closeSettings(); await afterEdit();
   const copiedSize = await page.evaluate(() => Editor.state.settings.changes['--english-size']);
   await page.keyboard.press('Control+s'); await saveDone();
-  check(ownBefore === '{}' && copiedSize === '12pt' && readFileSync(path.join(repo, 'books', 'settings', 'test-booklet.css'), 'utf8').includes('--english-size: 12pt'),
+  check(ownBefore === '{}' && copiedSize === '24pt' && readFileSync(path.join(repo, 'books', 'settings', 'test-booklet.css'), 'utf8').includes('--english-size: 24pt'),
     'settings per booklet: a new booklet has its own; copy all settings from another booklet', `${ownBefore} → ${copiedSize}`);
   // table of contents: in the text like a chapter, editable, saved with the booklet; its entry in the contents list shows its page
   // a chapter made in the editor: no dots (nothing to compare with)

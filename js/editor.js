@@ -259,6 +259,8 @@
       return setStatus(`Downloaded ${name}.txt — put it in ${state.source.where}books/, then reload`);
     }
     await state.source.put(path, text, `Add booklet ${name} (from the editor)`);
+    // its own settings, from the app's defaults (letter-size pages)
+    await state.source.put(LiturgySource.settingsFile(name), LiturgySettings.toCss({}, state.settings.groups), `Add booklet ${name} (from the editor)`);
     if (await state.source.get(ORDER_FILE, true) !== null) await saveOrder([...existing.filter((n) => n !== name), name]);
     openBook(name);
   }
@@ -887,17 +889,14 @@
     $("#print-perfect").hidden = m.format !== "quarto";
     $("#folded-perfect-steps").hidden = m.binding !== "perfect";
     $("#folded-signature-steps").hidden = $("#folded-signature-fold").hidden = m.binding !== "signatures";
-    $("#print-sheets").textContent = m.format === "letter" ? "Print the pages…" : "Print on letter paper…";
-    // page size different from the format's: say so, with a button to set it
-    const [w, h] = [setting("--page-width"), setting("--page-height")], [fw, fh] = LiturgyImpose.FORMATS[m.format];
-    $("#page-size-note").hidden = w === fw && h === fh;
-    $("#page-size-note span").textContent = `The pages are ${w.replace("in", "")} × ${h.replace("in", "")} in; this format's are ${fw.replace("in", "")} × ${fh.replace("in", "")} in. `;
-    $("#use-format-size").textContent = `Make the pages ${fw.replace("in", "")} × ${fh.replace("in", "")} in`;
+    // the pages are scaled to fit their space on the sheet
+    const [w, h] = [setting("--page-width"), setting("--page-height")].map(parseFloat), [fw, fh] = LiturgyImpose.FORMATS[m.format].map(parseFloat);
+    const scale = Math.round(Math.min(fw / w, fh / h) * 100);
     if (!state.pageCount) return;
     const p = LiturgyImpose.plan(m, state.pageCount);
     const thick = p.signatures > 0 && Math.max(...p.plan) > LiturgyImpose.MAX_SHEETS;
     // the three numbers: pages printed, sheets, signatures (one can be stapled; several are sewn and glued)
-    const parts = [`Pages printed: <b>${p.pagesPrinted}</b>` + (p.blanks && m.format !== "letter" ? ` (${state.pageCount} + ${plural(p.blanks, "blank")})` : ""),
+    const parts = [`Pages printed at <b>${scale}%</b> of their size (${w} × ${h} in into ${fw} × ${fh} in)`, `Pages printed: <b>${p.pagesPrinted}</b>` + (p.blanks && m.format !== "letter" ? ` (${state.pageCount} + ${plural(p.blanks, "blank")})` : ""),
       `Sheets (letter, both sides): <b>${p.sheets}</b>`];
     if (m.binding === "signatures") {
       const list = (xs) => (xs.length > 1 ? xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1] : String(xs[0]));
@@ -911,17 +910,10 @@
     $("#signature-warning").textContent = thick ? "too thick" : "";
     state.bindingWarning = thick;
   }
-  $("#use-format-size").onclick = () => {
-    const [w, h] = LiturgyImpose.FORMATS[bindingMode().format];
-    const changes = { ...state.settings.changes, "--page-width": w, "--page-height": h };
-    for (const k of ["--page-width", "--page-height"]) if (changes[k] === defaultSetting(k)) delete changes[k];
-    applySettings(changes);
-    startSettings.rebuild();
-  };
 
   // ---- print ----
-  // regular letter size: the pages as laid out, in order; folio and quarto: the letter sheets (preview.html printSheets)
-  const printSheets = () => frame && (bindingMode().format === "letter" ? frame.contentWindow.print() : frame.contentWindow.printSheets());
+  // the letter sheets for the format (preview.html printSheets); "just the pages": each page at its own size
+  const printSheets = () => frame && frame.contentWindow.printSheets();
   $("#print-sheets").onclick = printSheets;
   $("#print-pages").onclick = () => frame && frame.contentWindow.print();
 

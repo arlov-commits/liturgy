@@ -16,9 +16,9 @@
   // Format and binding: shown as one nested choice (formatControl)
   const BINDING_PARTS = ["--format", "--binding", "--signature-sheets"];
   const FORMAT_TEXT = {
-    letter: ["Regular letter size", "pages 8.5 × 11 in, printed in order on both sides; no cutting; can be stapled"],
-    folio: ["Folio", "letter sheets printed two pages a side — pages 5.5 × 8.5 in"],
-    quarto: ["Quarto", "letter sheets printed four pages a side — pages 4.25 × 5.5 in"],
+    letter: ["Regular letter size", "one page on each side of a letter sheet (8.5 × 11 in), in order; no cutting; can be stapled"],
+    folio: ["Folio", "two pages on each side of a letter sheet, each in 5.5 × 8.5 in"],
+    quarto: ["Quarto", "four pages on each side of a letter sheet, each in 4.25 × 5.5 in"],
   };
   const BINDING_TEXT = {
     folio: { perfect: ["Perfect bound", "one cut per sheet (down the middle), the halves stacked in page order; glued, or can be stapled"],
@@ -72,7 +72,8 @@
     const hints = {};
     groups.forEach((g) => g.items.forEach((i) => (hints[i.name] = i.hint)));
     const lines = Object.entries(changed).map(([k, v]) => `  ${k}: ${v};` + (hints[k] ? `  /* ${hints[k]} */` : ""));
-    return lines.length ? `/* Booklet settings changed in the editor. Anything not listed here uses the app's css/settings.css. */\n:root {\n${lines.join("\n")}\n}\n` : "";
+    // (always with the version: how the values are read — see source.js upgradeSettings)
+    return `/* Booklet settings changed in the editor. Anything not listed here uses the app's css/settings.css. */\n:root {\n${lines.join("\n")}${lines.length ? "\n" : ""}  --settings-version: 2;\n}\n`;
   }
 
   const label = (name) => { const s = name.replace(/^--/, "").replace(/-/g, " "); return s[0].toUpperCase() + s.slice(1); };
@@ -111,20 +112,19 @@
     function formatControl(items) {
       const dflt = Object.fromEntries(items.map((i) => [i.name, i.value]));
       const now = () => LiturgyImpose.mode({ format: get()["--format"] ?? dflt["--format"], binding: get()["--binding"] ?? dflt["--binding"], sheets: get()["--signature-sheets"] ?? dflt["--signature-sheets"] });
-      const pageDefaults = Object.fromEntries(groups.flatMap((g) => g.items).filter((i) => /^--page-(width|height)$/.test(i.name)).map((i) => [i.name, i.value]));
-      const apply = (m, sizeToo) => {
+      // (the page size stays as it is: printing fits the page to the format)
+      const apply = (m) => {
         const c = { ...get(), "--format": m.format, "--binding": m.binding, "--signature-sheets": m.sheets };
-        if (sizeToo) [c["--page-width"], c["--page-height"]] = LiturgyImpose.FORMATS[m.format];
-        for (const k of Object.keys(c)) if ((dflt[k] ?? pageDefaults[k]) === c[k] && (k in dflt || k in pageDefaults)) delete c[k];
+        for (const k of Object.keys(c)) if (dflt[k] === c[k]) delete c[k];
         set(c);
-        build(box, groups, get, set, opts);   // (the page size controls below show the new size)
+        build(box, groups, get, set, opts);
       };
       const m = now(), wrap = el("div", { className: "format-choice" });
       const radio = (name, value, checked, title, hint, onpick, disabled) => el("label", { className: "choice" + (disabled ? " disabled" : "") },
         el("input", { type: "radio", name, value, checked, disabled, onchange: onpick }), el("b", { textContent: title }), el("span", { className: "hint", textContent: " — " + hint }));
       for (const [format, [title, hint]] of Object.entries(FORMAT_TEXT)) {
         const on = m.format === format;
-        wrap.append(radio("format", format, on, title, hint, () => apply({ ...m, format, binding: "perfect" }, true)));
+        wrap.append(radio("format", format, on, title, hint, () => apply({ ...m, format, binding: "perfect" })));
         if (!on || !BINDING_TEXT[format]) continue;
         const sub = el("div", { className: "sub" });
         for (const [binding, [t, h, soon]] of Object.entries(BINDING_TEXT[format])) {
