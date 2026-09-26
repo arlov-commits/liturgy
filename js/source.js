@@ -122,7 +122,7 @@
     const call = (url, init = {}) => fetch("https://api.github.com/repos/" + repo + url, {
       cache: "no-store", ...init,
       headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28", ...init.headers },
-    }).catch(() => { throw new SourceError("GitHub can't be reached — is this computer online? Nothing is lost: it's still here in the editor."); });
+    }).catch(() => { const e = new SourceError("GitHub can't be reached — is this computer online?"); e.offline = true; throw e; });
     const contents = (path) => "/contents/" + path.split("/").map(encodeURIComponent).join("/");
     // a file's version: known from reading it, else asked for (e.g. it was read as plain text, see get)
     async function version(path) {

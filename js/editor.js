@@ -1093,7 +1093,7 @@
         (handed.length ? `Downloaded — put each file in its folder: ${handed.join(", ")}` : "") + (unneeded.length ? `${handed.length ? " · " : ""}Delete ${unneeded.join(", ")} (not needed any more)` : ""));
       autosaveBlocked = false;
     } catch (e) {
-      setStatus("Not saved: " + e.message + (e.conflict ? " — click Save to choose what to do. Your changes are still here." : ""), true);
+      setStatus("Not saved: " + e.message + (e.conflict ? " — click Save to choose what to do. Your changes are still here." : e.offline ? " Your changes are still here in the editor." : ""), true);
       autosavePaused = true;   // (until you change something: no retrying every few seconds)
       if (e.conflict) autosaveBlocked = true;   // (not until Save sorted it out: it would only fail again)
     }
