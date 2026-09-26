@@ -17,7 +17,7 @@ const repo = path.join(tmp, 'repo');                  // the fake GitHub repo
 cpSync(path.resolve('../liturgy-text'), repo, { recursive: true, filter: (p) => !p.includes('/.git') });
 // start from a known state, whatever is in the text repo now: a two-chapter test booklet, the app's default settings,
 // no edited chapters, no tables of contents or booklet order
-for (const p of ['edits', 'books/contents', 'books/settings', 'settings.css', 'booklets.txt']) rmSync(path.join(repo, p), { recursive: true, force: true });
+for (const p of ['edits', 'books/contents', 'books/settings', 'settings.css', 'booklets.txt', 'FEEDBACK.md']) rmSync(path.join(repo, p), { recursive: true, force: true });
 writeFileSync(path.join(repo, 'books', 'test.txt'), '// Test booklet (made by editor-test)\n03-amitabha-sutra.txt\n04-rebirth-mantra.txt\n');
 mkdirSync(path.join(tmp, 'site'));
 symlinkSync(app, path.join(tmp, 'site', 'liturgy'));   // like github.io: no liturgy-text next to the app
@@ -134,6 +134,14 @@ try {
   await page.fill('#signin input', 'good'); await Promise.all([page.waitForNavigation(), page.click('#signin button')]); await settled();
   const pages = +((await status()).match(/(\d+) pages/) || [])[1];
   check(pages > 0 && !(await status()).includes('problem'), 'good key: booklet renders', await status());
+
+  // feedback: notes about the app, saved to FEEDBACK.md with the text
+  await page.click('#feedback-btn'); await page.click('#feedback-new');
+  await page.keyboard.type('The zoom buttons are great.');
+  await page.keyboard.press('Control+s'); await saveDone();
+  const fb = existsSync(path.join(repo, 'FEEDBACK.md')) ? readFileSync(path.join(repo, 'FEEDBACK.md'), 'utf8') : '';
+  await page.click('#feedback-panel .drawer-close');
+  check(/^# Feedback/.test(fb) && /\n## \d{4}-\d\d-\d\d — test\n\nThe zoom buttons are great\./.test(fb), 'Feedback panel: a dated entry, saved to FEEDBACK.md', JSON.stringify(fb.slice(0, 120)));
 
   // letter sheets: each copied page keeps its page number in the outside corner (right-hand pages: right)
   const sides = await (await shownPreview()).evaluate(() => {

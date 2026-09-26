@@ -432,7 +432,7 @@
   // ---- the contents list (left): the chapters, by file name; click to go there (text and pages) ----
   const navLabel = (name) => (state.contents && chapterAliases()[name]) || (name === LiturgySource.CONTENTS_ENTRY ? "Table of contents" : labelOf(name));
   function renderNav() {
-    const nav = $("#toc-nav");
+    const nav = $("#toc-list");
     nav.textContent = "";
     nav.append(Object.assign(document.createElement("div"), { className: "nav-top", textContent: "Contents" }));
     for (const s of state.book.sections) {
@@ -466,7 +466,7 @@
     for (const a of links) if (+a.dataset.line <= line) here = a;
     links.forEach((a) => a.classList.toggle("here", a === here));
     if (here && scroll) {
-      const box = $("#toc-nav").getBoundingClientRect(), r = here.getBoundingClientRect();
+      const box = $("#toc-list").getBoundingClientRect(), r = here.getBoundingClientRect();
       if (r.top < box.top + 36 || r.bottom > box.bottom) here.scrollIntoView({ block: "nearest" });
     }
   }
@@ -811,7 +811,7 @@
 
   // ---- settings: a drawer over the left side ----
   // ---- Settings and Print: panels over the left side, reaching the right edge of the text panel (at least 420 px) ----
-  const drawers = { settings: ["#settings", "#settings-btn"], print: ["#print-panel", "#print"] };
+  const drawers = { settings: ["#settings", "#settings-btn"], print: ["#print-panel", "#print"], feedback: ["#feedback-panel", "#feedback-btn"] };
   function fitDrawers() {
     const w = Math.max(420, Math.round($("#panel").getBoundingClientRect().right - $("#app").getBoundingClientRect().left));
     for (const [panel] of Object.values(drawers)) $(panel).style.width = w + "px";
@@ -880,12 +880,35 @@
   $("#print-sheets").onclick = printSheets;
   $("#print-pages").onclick = () => frame && frame.contentWindow.print();
 
+  // ---- feedback: notes about the app, kept in FEEDBACK.md with the text (the same for every booklet) ----
+  const FEEDBACK_FILE = "FEEDBACK.md", FEEDBACK_START = "# Feedback and notes about the app\n\nNewest first. Written in the editor's Feedback panel.\n";
+  async function startFeedback() {
+    state.feedback = (await state.source.get(FEEDBACK_FILE, true)) ?? "";
+    state.saved[FEEDBACK_FILE] = state.feedback;
+    $("#feedback-text").value = state.feedback || FEEDBACK_START;
+    if (state.source.usesKey) $("#feedback-where").href = `https://github.com/${state.source.where}/blob/main/${FEEDBACK_FILE}`;
+    else $("#feedback-where").removeAttribute("href");
+  }
+  $("#feedback-text").oninput = () => { state.feedback = $("#feedback-text").value; changed(); };
+  $("#feedback-new").onclick = () => {
+    const box = $("#feedback-text"), text = box.value || FEEDBACK_START;
+    const heading = `## ${new Date().toISOString().slice(0, 10)} — ${state.bookName}\n\n\n`;
+    // after the file's own opening lines, before the older entries
+    const first = text.search(/^## /m), at = first >= 0 ? first : text.length;
+    const before = text.slice(0, at).replace(/\n*$/, "\n\n");
+    box.value = before + heading + text.slice(at);
+    box.focus();
+    box.selectionStart = box.selectionEnd = before.length + heading.length - 1;
+    box.oninput();
+  };
+
   // ---- saving ----
   // Every file the editor can change, as it is now in memory
   function currentFiles() {
     const files = { [LiturgySource.settingsFile(state.bookName)]: state.book.css, [`books/${state.bookName}.txt`]: state.contents.text };
     // chapters: the edition file holds the text when it differs from the original; null = no edition file
     for (const s of state.book.sections) files[s.virtual ? LiturgySource.contentsFile(state.bookName) : LiturgySource.EDITION + s.name] = isEdited(s) ? s.text : null;
+    if (state.feedback !== undefined) files[FEEDBACK_FILE] = state.feedback;
     return files;
   }
   const unsaved = () => { const f = currentFiles(); return Object.keys(f).filter((p) => f[p] !== state.saved[p]); };
@@ -918,6 +941,7 @@
     changed(false);
   };
   function commitMessage(path) {
+    if (path === FEEDBACK_FILE) return "Feedback notes (from the editor)";
     if (path === LiturgySource.settingsFile(state.bookName)) return `Change the settings of booklet ${state.bookName} (from the editor)`;
     if (path === LiturgySource.contentsFile(state.bookName))
       return currentFiles()[path] === null ? `Back to the automatic table of contents of booklet ${state.bookName} (from the editor)` : `Edit the table of contents of booklet ${state.bookName} (from the editor)`;
@@ -1012,6 +1036,7 @@
     state.book = await LiturgySource.loadBook(state.source, state.bookName);
     await startSettings();
     await startText();
+    await startFeedback();
     if (!state.book.sections.length) $('#tabs button[data-tab="book"]').click();
     state.saved = currentFiles();
     showAutosave();

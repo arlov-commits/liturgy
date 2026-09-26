@@ -69,6 +69,8 @@ both tags (one Undo step), typing beside a tag goes on its own line; the pair at
 Undo/Redo in the top bar use CodeMirror's history; `texttab.js track()` keeps a description of each step in step with
 it (`undoDepth`/`redoDepth`) for the ▾ lists; programmatic edits pass a `label` annotation. Adding, removing or
 moving chapters rebuilds the editor, which starts a fresh history.
+Feedback (button at the bottom of the contents list): a plain notes panel saved as `FEEDBACK.md` in the text repo (the same
+for every booklet; readable on GitHub) — for the person testing the app to record wanted changes and problems.
 Autosave (Save ▾, on by default, per browser): `save(true)` 4 s after the last change, only where the source can save;
 a failed save pauses it until the next change.
 Zoom (magnifier buttons over the pages, per browser): the preview iframes are scaled from outside (`transform` + size ÷ zoom), so

@@ -69,7 +69,10 @@
 </div>
 
 <main id="app" hidden>
-  <nav id="toc-nav" aria-label="Contents of the booklet"></nav>
+  <nav id="toc-nav" aria-label="Contents of the booklet">
+    <div id="toc-list"></div>
+    <button type="button" id="feedback-btn" title="Notes about the app: changes you'd like, things that went wrong (kept for all booklets)">✉ Feedback</button>
+  </nav>
   <aside id="panel">
     <nav id="tabs">
       <button type="button" data-tab="book">Chapters</button>
@@ -119,6 +122,14 @@
       <div class="hint">Marks with blue dots the pinyin that differs from the usual reading (pinyin-pro). Suggestions only:
         liturgical readings such as nā mó are deliberate.</div>
     </details>
+  </aside>
+  <aside id="feedback-panel" class="drawer" hidden aria-label="Feedback">
+    <div class="drawer-head"><b>Feedback and notes about the app</b> <button type="button" class="drawer-close" title="Close (Esc)">✕</button></div>
+    <p class="hint">Write down anything about the app itself — a change you'd like, something that went wrong, an idea.
+      It is kept with the text (<a id="feedback-where" target="_blank" rel="noopener">FEEDBACK.md</a>), the same for every
+      booklet, and saved like everything else (Save, or by itself when saving is automatic).</p>
+    <p><button type="button" id="feedback-new">New entry</button> <span class="hint">adds today's date at the top</span></p>
+    <textarea id="feedback-text" spellcheck="true" placeholder="For example: “When I paste from Word, the pinyin comes out wrong.”"></textarea>
   </aside>
   <aside id="print-panel" class="drawer" hidden aria-label="Print">
     <div class="drawer-head"><b>Print</b> <button type="button" class="drawer-close" title="Close (Esc)">✕</button></div>
