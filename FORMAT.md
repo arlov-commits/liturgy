@@ -23,11 +23,12 @@ A **blank line** separates blocks; each further blank line in a row adds one lin
 (two blank lines = a block break plus one empty line, and so on). A normal block is:
 
 ```
-IN THE JETA GROVE, IN THE GARDEN OF THE
-BENEFACTOR OF ORPHANS AND THE SOLITARY,
-祇樹給孤獨園。
-qí shù jǐ gū dú yuán
+THE MORNING BELL RINGS
+OVER THE QUIET HALL.
+晨鐘響徹靜堂。
+chén zhōng xiǎng chè jìng táng
 ```
+(a made-up example: the liturgy text itself stays in the private text repository)
 
 - **English**: any lines with no Chinese in them. Line breaks are kept exactly as typed.
 - **Chinese line**: the characters as printed, including punctuation ( , 。 『 』 › ).
