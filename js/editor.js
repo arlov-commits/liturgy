@@ -793,7 +793,7 @@
   }
   // ---- how the pages are shown (per browser): the view (single pages, side by side, print layout), fitted to the
   // width of the pane unless zoomed by hand. The frames are scaled from outside; the page at the top stays in view. ----
-  const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
+  const ZOOMS = [0.3, 0.4, 0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
   const VIEWS = ["single", "spread", "sheets"];
   const stored = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
   const store = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
@@ -808,8 +808,8 @@
     $("#zoom-reset").textContent = Math.round(z * 100) + "%";
     $("#zoom-reset").title = fit ? "Fitted to the width of the pane" : "Fit to the width of the pane";
     $("#zoom-reset").classList.toggle("fitting", fit);
-    $("#zoom-out").disabled = z <= ZOOMS[0];
-    $("#zoom-in").disabled = z >= ZOOMS[ZOOMS.length - 1];
+    $("#zoom-out").disabled = z <= ZOOMS[0] * 1.08;
+    $("#zoom-in").disabled = z >= ZOOMS[ZOOMS.length - 1] / 1.08;
     store("liturgy.zoom", fit ? "fit" : z);
     if (top && w.showPage) requestAnimationFrame(() => w.showPage(top));
   }
@@ -828,8 +828,9 @@
     for (const f of document.querySelectorAll("#preview iframe")) if (f.contentWindow && f.contentWindow.setView) f.contentWindow.setView(v);
     requestAnimationFrame(fitZoom);
   }
-  $("#zoom-in").onclick = () => setZoom(ZOOMS.find((z) => z > zoom + 0.001) ?? zoom);
-  $("#zoom-out").onclick = () => setZoom([...ZOOMS].reverse().find((z) => z < zoom - 0.001) ?? zoom);
+  // (the next step that makes a visible difference: from a fitted 49%, zoom in goes to 67%, not 50%)
+  $("#zoom-in").onclick = () => setZoom(ZOOMS.find((z) => z > zoom * 1.08) ?? zoom);
+  $("#zoom-out").onclick = () => setZoom([...ZOOMS].reverse().find((z) => z < zoom / 1.08) ?? zoom);
   $("#zoom-reset").onclick = () => { fitting = true; fitZoom(); };
   for (const b of document.querySelectorAll("#views button")) b.onclick = () => { fitting = true; setView(b.dataset.view); };
   window.addEventListener("resize", () => fitZoom());

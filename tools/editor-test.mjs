@@ -217,6 +217,13 @@ try {
   const [single, spread] = [await width('single'), await width('spread')];
   await width('sheets');
   const sheetsView = await (await shownPreview()).evaluate(() => [document.querySelectorAll('#sheets .sheet').length, getComputedStyle(document.getElementById('book')).visibility, document.querySelector('#sheets .sheet-label')?.textContent]);
+  // zooming keeps the place: in the print layout, the same sheet stays at the top (it went back to the first)
+  const sheetAtTop = async () => (await shownPreview()).evaluate(() => [...document.querySelectorAll('#sheets .sheet')].findIndex((x) => x.getBoundingClientRect().bottom > 0));
+  await (await shownPreview()).evaluate(() => document.querySelectorAll('#sheets .sheet')[2].scrollIntoView());
+  const sheetBefore = await sheetAtTop();
+  await page.click('#zoom-in'); await page.waitForTimeout(300);
+  const sheetAfter = await sheetAtTop();
+  check(sheetBefore === 2 && sheetAfter === 2, 'print layout: zooming keeps the same sheet in view', `${sheetBefore} → ${sheetAfter}`);
   // dragging the pages scrolls them
   await page.click('#zoom-in'); await page.click('#zoom-in'); await page.click('#zoom-in');
   const pv = await shownPreview(), scroll0 = await pv.evaluate(() => [scrollX, scrollY]);
