@@ -38,10 +38,10 @@ Current choices:
 | Pinyin checking | **pinyin-pro** (vendored, loaded only when “Suggest pinyin readings” is ticked) | suggestions only (blue dotted, opt-in) — liturgical readings (nā mó, 土 dù, 般若 bō rě) are deliberate. `toneSandhi: false` so 一/不 aren't flagged. |
 | Format and binding (Settings) | one nested choice (`settings.js formatControl`): `--format` letter (8.5 × 11, pages in order) / folio (letter folded in half, 5.5 × 8.5) / quarto (letter cut in quarters, 4.25 × 5.5); `--binding` perfect or signatures (quarto signatures: coming soon); `--signature-sheets` | `impose.js mode()` reads it (also the older single `--binding: in-order/signatures`), `plan()` gives pages printed, letter sheets and signatures (shown under the choice and in the Print panel; one signature → staple, several → sew and glue). The format does **not** change the page size: the page (Settings → Page size, default letter 8.5 × 11) is what you design on, and `buildSheets` scales it to fit the format's slot (letter 100%, folio ~65%, quarto 50%; the Print panel says the %). |
 | Folded sheets (folio) | our own `impose.js signatures()`, following **bookbinder-js** (MPL-2.0; read, not copied) | letter sheets landscape, 2 pages a side, flip on short edge; perfect bound = signatures of one sheet; `signaturePlan`: at most 8 sheets (32 pages) per signature, split evenly (sizes differ by ≤ 1 sheet), blanks at the end; one signature > 32 pages is warned about. |
-| Letter-sheet imposition | none needed: the Paged.js pages are copied into a 2 × 2 letter-sheet grid and printed with `@page { size: letter }` | Order in `js/impose.js`, per sheet of 8 pages: front 2 3 / 6 7, back 4 1 / 8 5 (duplex, flip on long edge); cut in four, stack in page order. Each copy gets `counter-reset: page n−1` so page numbers stay right. (Replaced the earlier save-PDF-then-upload step with pdf-lib.) |
+| Letter-sheet imposition | none needed: the Paged.js pages are copied onto letter sheets (`preview.html buildSheets`: quarto 2 × 2, folio 2 side by side on a landscape sheet, letter 1), each scaled to fit its place, and printed with `@page { size: letter }` (folio: landscape) | Order in `js/impose.js`, per sheet of 8 pages: front 2 3 / 6 7, back 4 1 / 8 5 (duplex, flip on long edge); cut in four, stack in page order. Each copy gets `counter-reset: page n−1` so page numbers stay right. (Replaced the earlier save-PDF-then-upload step with pdf-lib.) |
 | Fonts | **Fontsource** packages, self-hosted in `fonts/` | English choices (Settings): Lora, Gentium Book Plus, Crimson Pro, Alegreya, Libre Baskerville, Merriweather, Noto Serif, Source Serif 4, Noto Sans, Source Sans 3 — Latin + Latin Extended, 400/600 + italics. Rejected at the tone-mark check: EB Garamond (bold À), Spectral (ǖǘǚǜ), Cormorant Garamond (carons). |
 | Remembering a picked folder | **idb-keyval** (vendored) | stores the folder handle in IndexedDB |
-| Resizable panels | **Split.js** (vendored, `vendor/split.min.js`) | drag bars between contents list, panel and pages; sizes kept in localStorage; not on narrow screens |
+| Resizable panels | **Split.js** (vendored, `vendor/split.min.js`) | drag bars between contents list, panel and pages; sizes kept in localStorage; not on narrow screens (≤ 900 px) — made or destroyed when the window crosses that width (`editor.js wideScreen`) |
 
 Our own code should stay small glue: `js/parse.js` (text → HTML), `js/source.js` (where the text is read from),
 `js/editor.js` (the editor page, incl. the Chapters tab), `js/texttab.js` / `js/settings.js` (Text tab, Settings drawer) and wiring.
@@ -62,8 +62,13 @@ take no room; punctuation gets an empty column), so both lines wrap at the same 
 spaces. Visible lines only (~1 ms a keystroke). Off by default; switch: Settings → The text editor (per browser).
 Page references (`[page of …]`) show as one chip (`texttab.js pageDecos`, an atomic replace widget: `name · p. N`), so a
 name can't be mistyped; a click sets a number by hand. In a written-out contents, `refGuard` keeps them: deleting whole
-entry lines puts `//` in front instead, deleting just a chip is refused (status says why). `syncContents` never drops a
-line except one whose chapter was just taken out of the booklet, and changes only the lines that differ.
+entry lines puts `//` in front instead, deleting just a chip is refused (status says why); an edit reaching the
+`[contents]`/`[/contents]` line or past it (Select All + paste) is left alone. `syncContents` never drops a
+line except one whose chapter was just taken out of the booklet (or, as written by an earlier version, a chapter's own first
+title again under it — `dropKeys`), and changes only the lines that differ (whole lines, with their line breaks).
+When the contents follow the chapters, the editor's comparison text follows too (`replaceQuietly(…, originalDoc())`), so
+those lines get no “changed” dots. Transaction filters run **last-listed first**: `replaceGuard` (search and replace
+leaves matches in title bars, [tag] lines and page references alone, replaces the rest), then `refGuard`, `pairGuard`, `guard`.
 Span tags are pairs (`texttab.js pairGuard`): deleting into `[border]`/`[keep together]`/`[contents]` or its closing tag removes
 both tags (one Undo step), typing beside a tag goes on its own line; the pair at the cursor is outlined (`tagPairs`).
 `[keep together]` spans are shaded amber in the editor, `[border]` spans blue, their midpoint where both apply; darker per nesting level (`texttab.js groupDecos`, lines in view only).
@@ -73,7 +78,10 @@ moving chapters rebuilds the editor, which starts a fresh history.
 Feedback (button at the bottom of the contents list): a plain notes panel saved as `FEEDBACK.md` in the text repo (the same
 for every booklet; readable on GitHub) — for the person testing the app to record wanted changes and problems.
 Autosave (Save ▾, on by default, per browser): `save(true)` 4 s after the last change, only where the source can save;
-a failed save pauses it until the next change.
+a failed save pauses it until the next change. A file changed on GitHub since it was read (another tab or computer) is
+never overwritten unasked: autosave stops (`autosaveBlocked`) and Save asks whether to save over it (`put`/`remove` with
+`{ over: true }`: the version there now; GitHub keeps the other in its history). Offline: “GitHub can't be reached”.
+Ctrl+S / Ctrl+Z / Ctrl+Y pressed in the pages are passed on to the editor (`preview.html` keydown → `Editor.shortcut`).
 Views (buttons under the pages, per browser): single pages (default), side by side, print layout (`preview.html setView`;
 the print layout shows `buildSheets()` — the letter sheets as they print, labelled, with a bar where each signature
 starts; clicks and jumps work there too via `pagesRoot()`). Each view is fitted to the pane's width (`contentWidth`,
@@ -89,7 +97,11 @@ The pages swap in early only once the new layout reaches the place the current p
   version is laid out in the hidden one (`preview.html rerender()`, fonts stay loaded between layouts) and swapped
   in as soon as the pages in view are done (`pagesInView` / `previewEarly`); the rest keeps coming below. A newer
   edit stops an unfinished layout (`stopLayout`). Scroll position is kept. Edits re-render after 250 ms, settings 150 ms.
-  Measured: an edit shows in ~0.5 s (41-page booklet), ~1–2 s (135 pages); a full layout is ~35 ms a page.
+  The second frame is made ready in the background after the first layout (`editor.js warmSpare`, `preview.html?…&warm`:
+  fonts and Paged.js loaded, nothing laid out; a change that comes while it loads is laid out when it's ready — `isPending`),
+  so the first change doesn't wait ~2 s for a fresh frame. The top bar keeps one height (only `#status` shrinks).
+  Measured (Sep 2026): a 94-page booklet lays out in ~4 s from opening (fonts ~2 s); an edit shows in ~1.3 s;
+  ~30 ms a page. A booklet without `?book=` (or one not there) opens the last one used here, else the first.
 - `preview.html` — the pages themselves (Paged.js). Inside the editor it takes the book from `window.parent.Editor`
   so unsaved edits show; opened on its own it reads the text itself (used by `tools/render-test.mjs`).
 - `sw.js` + `manifest.webmanifest` — installable app. The service worker takes app files from the network
@@ -136,7 +148,9 @@ The pages swap in early only once the new layout reaches the place the current p
   hidden (≤4 passes) when a span took more pages than measured, or to move the blank page to the chapter end
   (setting `--blank-page: chapter-end`, done by starting that chapter on the other side).
 - Paged.js quirks (handled in `preview.html`): its task queue waits a screen frame before each page (and stops in a
-  background tab) — `chunker.q.tick` is replaced with a MessageChannel; it drops `@media screen` rules from the sheets it paginates
+  background tab) — `chunker.q.tick` is replaced with a MessageChannel; before laying out it loads **every** font the page
+  declares (`chunker.loadFonts`: all 266 files, 23 MB) — replaced: the book's own fonts are already loaded
+  (`document.fonts.ready` with its text in place), only the page numbers' font is checked; it drops `@media screen` rules from the sheets it paginates
   (screen-only looks go in preview.html's own `<style>`), it paginates the whole page if given no content,
   and it can leave an invisible copy of a moved block in a page's overflow (`removeOverflow()`).
 - **Missing glyphs:** every font list in `book.css` ends with **"Liturgy Extra"** (`fonts/extra/`,
