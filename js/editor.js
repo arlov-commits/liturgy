@@ -444,10 +444,20 @@
     changed();
     refresh(250);
     clearTimeout(state.contentsTimer);
-    state.contentsTimer = setTimeout(() => updateContents(true), 800);
+    state.contentsTimer = setTimeout(() => { updateContents(true); updateLabels(); }, 800);
     if (flipped) { renderChapters(); state.text.refreshHeaders(); }
     clearTimeout(state.navTimer);
     state.navTimer = setTimeout(renderNav, 400);
+  }
+  // A chapter's title changed in the text: its name in the Chapters tab and on its title bar follow
+  function updateLabels() {
+    let any = false;
+    for (const s of state.book.sections) {
+      if (s.virtual) continue;
+      const label = titleOf(s.text, s.name);
+      if (label !== s.label) { s.label = label; any = true; }
+    }
+    if (any) { renderChapters(); state.text.refreshHeaders(); }
   }
   // The chapter a line of the editor belongs to
   const chapterAt = (line) => [...(state.docMap || [])].reverse().find((m) => m.head <= line) || (state.docMap || [])[0];

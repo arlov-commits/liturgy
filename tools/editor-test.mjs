@@ -633,31 +633,36 @@ try {
   await afterEdit();
   const rowsBefore = await (await shownPreview()).evaluate(() => document.querySelectorAll('.pagedjs_page .toc-entry').length);
   await page.click('#tabs button[data-tab="book"]');
+  // (the chapters' titles are read from the text copy: the liturgy text is never written into this public repo)
+  const { parse: parseText } = require('../js/parse.js');
+  const titlesIn = (file) => [...new Set([...parseText(readFileSync(path.join(repo, 'text', file), 'utf8'), file).matchAll(/data-title="([^"]*)"/g)].map((m) => m[1]))];
+  const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const [refugesTitle] = titlesIn('11-3-three-refuges.txt'), [mealTitleText, mealSecond] = titlesIn('10-meal-offering.txt');
   await page.selectOption('#add-chapter', '11-3-three-refuges.txt'); await page.click('#add-chapter-btn'); await afterEdit();
   await page.click('#tabs button[data-tab="text"]');
   const tocAfter = await tocText();
   const rowsAfter = await (await shownPreview()).evaluate(() => [...document.querySelectorAll('.pagedjs_page .toc-entry .toc-title')].map((t) => t.textContent));
-  check(/^\/\/ .*\[page of /m.test(tocAfter) && /THREE REFUGES \[page of 11-3-three-refuges\]/.test(tocAfter) && rowsAfter.length === rowsBefore + 1 && rowsAfter.includes('THE THREE REFUGES'),
+  check(/^\/\/ .*\[page of /m.test(tocAfter) && new RegExp(reEsc(refugesTitle) + ' \\[page of 11-3-three-refuges\\]').test(tocAfter) && rowsAfter.length === rowsBefore + 1 && rowsAfter.includes(refugesTitle),
     'table of contents: a chapter added gets its line (even one marked [toc: -]); a line with // stays out', `${rowsBefore} → ${rowsAfter.join(' | ')}`);
   await page.click('#tabs button[data-tab="book"]');
-  await page.locator('#chapters li', { hasText: 'THREE REFUGES' }).locator('button', { hasText: 'Remove' }).click(); await afterEdit();
+  await page.locator('#chapters li', { hasText: refugesTitle }).locator('button', { hasText: 'Remove' }).click(); await afterEdit();
   // every # title gets a line (under its chapter's), pointing at the title itself
   await page.selectOption('#add-chapter', '10-meal-offering.txt'); await page.click('#add-chapter-btn'); await afterEdit();
   await page.click('#tabs button[data-tab="text"]');
   const mealToc = await tocText();
-  const mealPages = await (await shownPreview()).evaluate(() => {
-    const row = [...document.querySelectorAll('.pagedjs_page .toc-entry')].find((r) => r.textContent.includes('PRAISE AND MANTRA'));
+  const mealPages = await (await shownPreview()).evaluate((second) => {
+    const row = [...document.querySelectorAll('.pagedjs_page .toc-entry')].find((r) => r.textContent.includes(second));
     const target = row && document.querySelector(row.querySelector('a.toc-page').getAttribute('href'));
     return [!!row, !!target && target.dataset.title, target && +target.closest('.pagedjs_page').dataset.pageNumber, document.querySelectorAll('.pagedjs_page .toc-entry .pageref-missing').length];
-  });
+  }, mealSecond);
   // (a line with the chapter's own title again, under it, as an earlier version wrote it: taken out)
-  await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap[0], d = v.state.doc;
-    for (let i = m.first; i <= m.last; i++) if (d.line(i).text.startsWith('THE MEAL OFFERING')) return v.dispatch({ changes: { from: d.line(i).to, insert: '\n  THE MEAL OFFERING BEFORE THE BUDDHAS [page of 10-meal-offering / THE MEAL OFFERING BEFORE THE BUDDHAS]' } }); });
+  await page.evaluate((t) => { const v = Editor.state.text.view, m = Editor.state.docMap[0], d = v.state.doc;
+    for (let i = m.first; i <= m.last; i++) if (d.line(i).text.startsWith(t + ' [')) return v.dispatch({ changes: { from: d.line(i).to, insert: `\n  ${t} [page of 10-meal-offering / ${t}]` } }); }, mealTitleText);
   await afterEdit();
   const mealAgain = await tocText();
-  check(/^THE MEAL OFFERING BEFORE THE BUDDHAS \[page of 10-meal-offering\]$/m.test(mealToc) && /^  PRAISE AND MANTRA \[page of 10-meal-offering \/ PRAISE AND MANTRA\]$/m.test(mealToc) &&
-    !/^  THE MEAL OFFERING BEFORE THE BUDDHAS \[page of 10-meal-offering \//m.test(mealToc + '\n' + mealAgain) &&
-    mealPages[0] && mealPages[1] === 'PRAISE AND MANTRA' && mealPages[2] === await page.evaluate(() => Editor.state.pageMap['10-meal-offering / PRAISE AND MANTRA']) && mealPages[3] === 0,
+  check(new RegExp(`^${reEsc(mealTitleText)} \\[page of 10-meal-offering\\]$`, 'm').test(mealToc) && new RegExp(`^  ${reEsc(mealSecond)} \\[page of 10-meal-offering / ${reEsc(mealSecond)}\\]$`, 'm').test(mealToc) &&
+    !new RegExp(`^  ${reEsc(mealTitleText)} \\[page of 10-meal-offering /`, 'm').test(mealToc + '\n' + mealAgain) &&
+    mealPages[0] && mealPages[1] === mealSecond && mealPages[2] === await page.evaluate((k) => Editor.state.pageMap[k], '10-meal-offering / ' + mealSecond) && mealPages[3] === 0,
     'table of contents: every # title gets a line, pointing at the title\'s page (the chapter\'s own title not twice)', JSON.stringify(mealPages));
   // the chapter's title changed: its contents line follows, and isn't marked as a change of yours (no dot beside it)
   const lineOf = (src) => page.evaluate((src) => { const re = new RegExp(src), d = Editor.state.text.view.state.doc; for (let i = 1; i <= d.lines; i++) if (re.test(d.line(i).text)) return i; return 0; }, src);
@@ -665,14 +670,17 @@ try {
     return new Promise((r) => requestAnimationFrame(() => { const top = v.coordsAtPos(v.state.doc.line(n).from).top;
       const g = [...document.querySelectorAll('.cm-changes .cm-gutterElement')].find((e) => { const b = e.getBoundingClientRect(); return b.top <= top + 2 && b.bottom > top + 2; });
       const d = g && g.querySelector('.cm-dot:not(.cm-dot-spacer)'); r(d ? d.className.replace('cm-dot cm-dot-', '') : ''); })); }, n);
-  const mealTitle = await lineOf('^# THE MEAL OFFERING BEFORE THE BUDDHAS$');
-  await page.evaluate((n) => { const v = Editor.state.text.view, l = v.state.doc.line(n); v.dispatch({ changes: { from: l.from, to: l.to, insert: '# THE MEAL OFFERING (RENAMED)' } }); }, mealTitle);
+  const mealTitle = await lineOf(`^# ${reEsc(mealTitleText)}$`);
+  await page.evaluate((n) => { const v = Editor.state.text.view, l = v.state.doc.line(n); v.dispatch({ changes: { from: l.from, to: l.to, insert: '# RENAMED CHAPTER TITLE' } }); }, mealTitle);
   await afterEdit();
-  const renamedRow = await lineOf('^THE MEAL OFFERING \\(RENAMED\\) \\[page of 10-meal-offering\\]$');
-  const [rowDot, titleDot] = [renamedRow && await dotAt(renamedRow), await dotAt(await lineOf('^# THE MEAL OFFERING \\(RENAMED\\)$'))];
-  check(renamedRow > 0 && rowDot === '' && titleDot === 'changed', 'a chapter title changed: its contents line follows, with no changed-line dot (the title has one)', `${renamedRow} ${rowDot} / ${titleDot}`);
+  const renamedRow = await lineOf('^RENAMED CHAPTER TITLE \\[page of 10-meal-offering\\]$');
+  const [rowDot, titleDot] = [renamedRow && await dotAt(renamedRow), await dotAt(await lineOf('^# RENAMED CHAPTER TITLE$'))];
+  await page.waitForTimeout(300);
+  const renamedShown = await page.evaluate(() => [document.querySelector('.cm-chapter-head[data-name="10-meal-offering.txt"] .t')?.textContent, [...document.querySelectorAll('#chapters li .title')].map((t) => t.textContent).includes('RENAMED CHAPTER TITLE')]);
+  check(renamedRow > 0 && rowDot === '' && titleDot === 'changed' && renamedShown[0] === 'RENAMED CHAPTER TITLE' && renamedShown[1],
+    'a chapter title changed: its contents line, title bar and Chapters tab name follow; no changed-line dot on the contents line (the title has one)', `${renamedRow} ${rowDot} / ${titleDot} / ${renamedShown}`);
   await page.click('#tabs button[data-tab="book"]');
-  await page.locator('#chapters li', { hasText: 'MEAL OFFERING' }).first().locator('button', { hasText: 'Remove' }).click(); await afterEdit();
+  await page.locator('#chapters li', { hasText: 'RENAMED CHAPTER TITLE' }).first().locator('button', { hasText: 'Remove' }).click(); await afterEdit();
   await page.click('#tabs button[data-tab="text"]');
   // autosave: switched on in the Save ▾ menu, it saves a few seconds after the last change
   await page.click('#save-more'); await page.check('#autosave'); await page.keyboard.press('Escape');
