@@ -1107,9 +1107,18 @@
   };
 
   // The contents list and the panel can be made wider or narrower by dragging the bars between them
-  // (Split.js). Sizes are remembered in this browser. Not on narrow screens, where the panel sits above the pages.
+  // (Split.js). Sizes are remembered in this browser. Not on narrow screens, where the panel sits above the pages —
+  // also when the window gets narrow or wide later (e.g. snapped to half the screen): the bars go or come back.
+  const wideScreen = matchMedia("(min-width: 901px)");
+  let split = null;
+  wideScreen.addEventListener("change", () => {
+    if (wideScreen.matches) startSplit();
+    else if (split) { split.destroy(); split = null; $("#app").classList.remove("split"); }
+    fitDrawers();
+    requestAnimationFrame(fitZoom);
+  });
   function startSplit() {
-    if (typeof Split !== "function" || !matchMedia("(min-width: 901px)").matches) return;
+    if (typeof Split !== "function" || !wideScreen.matches || split || $("#app").hidden) return;
     let sizes = null;
     try { sizes = JSON.parse(localStorage.getItem("liturgy.panelSizes")); } catch {}
     if (!Array.isArray(sizes) || sizes.length !== 3) {
@@ -1117,7 +1126,7 @@
       sizes = [nav, panel, 100 - nav - panel];
     }
     $("#app").classList.add("split");
-    Split(["#toc-nav", "#panel", "#preview"], {
+    split = Split(["#toc-nav", "#panel", "#preview"], {
       sizes, minSize: [120, 300, 250], gutterSize: 7, snapOffset: 0,
       onDrag: () => { fitDrawers(); fitZoom(); },
       onDragEnd: (s) => { fitDrawers(); try { localStorage.setItem("liturgy.panelSizes", JSON.stringify(s)); } catch {} },

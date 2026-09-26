@@ -252,6 +252,13 @@ try {
   }
   const [navW2, panelW2] = await widths();
   check(Math.abs(navW2 - navW - 80) < 4 && Math.abs(panelW2 - (panelW - 80 + 120)) < 4, 'contents list and panel can be dragged wider', `${navW}→${navW2}, ${panelW}→${panelW2}`);
+  // a window made narrow (e.g. half the screen): the panel goes above the pages, full width, no drag bars; wide again:
+  // back as it was
+  await page.setViewportSize({ width: 800, height: 900 }); await page.waitForTimeout(400);
+  const narrow = await page.evaluate(() => [document.querySelectorAll('#app > .gutter').length, Math.round(document.querySelector('#panel').getBoundingClientRect().width), Math.round(document.querySelector('#preview').getBoundingClientRect().width)]);
+  await page.setViewportSize({ width: 1400, height: 900 }); await page.waitForTimeout(400);
+  const wideAgain = await page.evaluate(() => [document.querySelectorAll('#app > .gutter').length, ...['#toc-nav', '#panel'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().width))]);
+  check(narrow.join() === '0,800,800' && wideAgain.join() === `2,${navW2},${panelW2}`, 'window made narrow and wide again: panels above the pages, then side by side as before', `${narrow} / ${wideAgain}`);
 
   await openSettings();
   await page.fill('#set--english-size', '24'); await afterEdit();
