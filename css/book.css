@@ -146,6 +146,7 @@ a.pageref::after { content: target-counter(attr(href), page); }
   text-align: center;
   margin: 1pt 0;
 }
+.en.note.right { text-align: right; }   /* ">>" lines */
 
 .repeat {
   font-family: var(--english-font), "Liturgy Extra", serif;

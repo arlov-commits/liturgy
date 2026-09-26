@@ -62,6 +62,13 @@ const check = (ok, what, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
     'signatures: split evenly (at most 32 pages each), pages in order once folded and nested');
 }
 
+// note lines: "> " centred, ">> " on the right
+{
+  const { parse } = require('../js/parse.js');
+  const html = parse('> centred\n>> on the right\n', 'x.txt');
+  check(html.includes('<p class="en note">centred</p>') && html.includes('<p class="en note right">on the right</p>'), 'note lines: > centred, >> on the right');
+}
+
 const servers = [spawn('python3', ['-m', 'http.server', '8791', '-d', path.join(tmp, 'site')], { stdio: 'ignore' })];
 await new Promise((r) => setTimeout(r, 800));
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
