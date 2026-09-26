@@ -67,6 +67,15 @@ const check = (ok, what, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
   const { parse } = require('../js/parse.js');
   const html = parse('> centred\n>> on the right\n', 'x.txt');
   check(html.includes('<p class="en note">centred</p>') && html.includes('<p class="en note right">on the right</p>'), 'note lines: > centred, >> on the right');
+  // a Chinese line without pinyin: the marker or comment line under it stays what it is (not taken as its pinyin)
+  const { check: problemsOf } = require('../js/parse.js');
+  const kept = problemsOf('[keep together]\n大學\n[/keep together]\n'), commented = parse('大學\n// note\ndà xué\n', 'x.txt');
+  check(kept.length === 1 && /No pinyin/.test(kept[0].message) && !/never closed/.test(JSON.stringify(kept)) && !commented.includes('<rt>//</rt>'),
+    'a Chinese line with no pinyin under it: a [/keep together] or // line there is not read as its pinyin', JSON.stringify(kept));
+  // "# " and "## " are titles; "###" or "#word" are plain text (as the editor colours them)
+  const heads = parse('#hashtag\n\n### three\n\n# Title\n\n## Small\n', 'x.txt');
+  check(heads.includes('<p class="en">#hashtag</p>') && heads.includes('<p class="en">### three</p>') && /class="block title[^"]*"[^>]*><p class="en">Title</.test(heads) && heads.includes('class="block subtitle"'),
+    '# and ## lines are titles; ### and #word stay plain text');
 }
 
 const servers = [spawn('python3', ['-m', 'http.server', '8791', '-d', path.join(tmp, 'site')], { stdio: 'ignore' })];

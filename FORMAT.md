@@ -1,6 +1,7 @@
 # Liturgy text format — v0.3 (draft)
 
-Pages break by themselves: there are no manual page breaks (an old `---` line is ignored and flagged).
+Pages break by themselves, and where you ask for it: `[new page]`, and a `#` title further down a chapter (a setting).
+An old `---` line is ignored and flagged.
 
 Each section of the liturgy is one plain-text file (UTF-8), e.g. `text/03-amitabha-sutra.txt`.
 The files hold **words only**. Fonts, sizes, spacing, margins and page numbers live in the
@@ -33,7 +34,7 @@ qí shù jǐ gū dú yuán
 - (How a verse is *printed* — English first or last, pinyin under or over the characters — is the “verse order”
   setting, not the text: the text is always written English, Chinese, pinyin.)
 - **Pinyin line**: directly under the Chinese line — one syllable per character, separated by
-  spaces. Punctuation gets no syllable. A quote mark may be stuck to a syllable (`«rǔ`, `jīng»`).
+  spaces (a `//` comment or a `[…]` marker line there is not a pinyin line). Punctuation gets no syllable. A quote mark may be stuck to a syllable (`«rǔ`, `jīng»`).
   The app lines each syllable up under its character automatically.
 - A block may contain several Chinese + pinyin pairs (a long sentence wrapped onto two lines).
 - **`x3`** alone on a line = repeat mark (recite three times).
@@ -42,7 +43,7 @@ qí shù jǐ gū dú yuán
 
 | Marker | Meaning |
 |---|---|
-| `# ` | title line (centered, larger) |
+| `# ` | title line (centered, larger) — `#` then a space (`###` or `#word` is plain text) |
 | `## ` | small heading (centered, smaller Chinese) |
 | `> ` | small note line, centred — leader instructions ("The Leader says:"), Sanskrit equivalents, "Proceed to…" |
 | `>> ` | the same small note line, on the right (e.g. a source or attribution under a verse) |
@@ -58,8 +59,8 @@ qí shù jǐ gū dú yuán
 as one chip, `<section> · p. 9`; click it to type a number by hand); `[page of <section> / <part>]` the page of a `[toc: <part>]` in that
 section; `[page 12 of <section>]` prints 12, a number typed by hand — the editor warns that it won't follow changes and
 offers the automatic one back. For example:
-`~~~ Proceed to Meng Shan Offering (Page [page of 05-meng-shan-offering]) ~~~`. The section is named by its
-file name without `.txt` (as in the editor's Section list) and must be in the same booklet — otherwise it
+`~~~ Proceed to Meng Shan Offering (Page [page of 06-meng-shan]) ~~~`. The section is named by its
+file name without `.txt` (as under each chapter's title bar in the editor) and must be in the same booklet — otherwise it
 prints `?` and is flagged.
 
 ## Table of contents
@@ -106,4 +107,4 @@ Suo Po He | 娑婆訶 | x3
 
 - Hard-coded page references such as "(Page 91)" should be replaced with `[page of …]` (by hand, once the
   referenced section is converted).
-- The workbook uses the ASCII comma `,` inside Chinese lines; the renderer could show it as `，`.
+- ASCII punctuation inside a Chinese line (`,` `.` `!` `?` `:` `;`, as the workbook has it) is printed full-width (`，` `。` …).

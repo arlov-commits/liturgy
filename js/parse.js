@@ -12,6 +12,9 @@
   const SPAN_MARK = /^\[(\/?)(keep together|one page|border)\]$/i;
   const BLANK_PAGE = /^\[blank page\]$/i, NEW_PAGE = /^\[new page\]$/i;
   const CONTENTS = /^\[contents\]$/i, CONTENTS_END = /^\[\/contents\]$/i, TOC_TITLE = /^\[toc:\s*(.*?)\s*\]$/i;
+  // a line of its own kind — never the pinyin of the Chinese line above it
+  const MARKER = (l) => l.startsWith("//") || SPAN_MARK.test(l) || BLANK_PAGE.test(l) || NEW_PAGE.test(l) || CONTENTS.test(l) || CONTENTS_END.test(l) || TOC_TITLE.test(l);
+  const HEADING = /^(#{1,2})(?:\s+(.*))?$/;   // "# " title, "## " small heading ("###", "#word": plain text)
   // ASCII punctuation inside a Chinese line is shown as its full-width form
   const FULL_WIDTH = { ",": "，", ".": "。", "!": "！", "?": "？", ":": "：", ";": "；" };
 
@@ -148,7 +151,7 @@
       }
       // a title (#) right under other lines, with no blank line between: it starts a new block there (the lines
       // above keep their own style, with no gap before the title) — and the editor points it out
-      const heading = /^#{1,2}(\s|$)/.test(line);
+      const heading = HEADING.test(line);
       if (heading && block && block.body) {
         problems.push({ line: n + 1, severity: "warning", message: "A title (#) right under other lines, with no blank line between them — the lines above stay as they are and the title starts here, with no space above it. Put a blank line above the title if it should stand apart." });
         block.runOn = true;
@@ -168,7 +171,7 @@
         );
       } else if (HAS_CJK.test(line)) {
         const next = (lines[n + 1] || "").trim();
-        const hasPinyin = next && !HAS_CJK.test(next) && !/^[#>]/.test(next) && next !== "---" && !REPEAT.test(next);
+        const hasPinyin = next && !HAS_CJK.test(next) && !/^[#>]/.test(next) && next !== "---" && !REPEAT.test(next) && !MARKER(next);
         block.html.push(chineseLine(line, hasPinyin ? next : "", n + 1, problems));
         if (hasPinyin) pairs.push({ line: n + 1, han: line, pinyinLine: n + 2, pinyin: lines[n + 1] });
         if (hasPinyin) n++;
@@ -177,11 +180,11 @@
         const right = line.startsWith(">>");
         block.html.push(`<p class="en note${right ? " right" : ""}">${inline(esc(line.replace(/^>>?\s*/, "")))}</p>`);
       } else {
-        const m = line.match(/^(#{1,2})\s*(.*)$/);
+        const m = line.match(HEADING), words = m ? m[2] || "" : line;
         if (m) block.level = block.level ? Math.min(block.level, m[1].length) : m[1].length;
-        if (m && m[1].length === 1) block.heads.push(m[2].replace(PAGE_REF, ""));
-        block.html.push(`<p class="en">${inline(esc(m ? m[2] : line))}</p>`);
-        block.en.push((m ? m[2] : line).replace(PAGE_REF, ""));
+        if (m && m[1].length === 1) block.heads.push(words.replace(PAGE_REF, ""));
+        block.html.push(`<p class="en">${inline(esc(words))}</p>`);
+        block.en.push(words.replace(PAGE_REF, ""));
       }
     }
     close();
