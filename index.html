@@ -140,6 +140,7 @@
   <aside id="print-panel" class="drawer" hidden aria-label="Print">
     <div class="drawer-head"><b>Print</b> <button type="button" class="drawer-close" title="Close (Esc)">✕</button></div>
     <p><button type="button" id="print-sheets" class="primary">Print on letter paper…</button></p>
+    <div id="print-metrics" class="metrics"></div>
     <div id="print-perfect">
       <p class="hint">Quarto, perfect bound (Settings → Format and binding): 4 booklet pages on each side of a letter sheet.</p>
       <h3>Printing on letter paper</h3>
@@ -166,7 +167,6 @@
     </div>
     <div id="print-folded" hidden>
       <p class="hint">Folio (Settings → Format and binding): letter sheets printed sideways, two pages a side, folded in half.</p>
-      <div id="signature-plan" class="metrics"></div>
       <h3>Printing and folding</h3>
       <ol class="steps">
         <li>In the print window: paper <b>Letter</b>, <b>landscape</b>, <b>print on both sides</b> →

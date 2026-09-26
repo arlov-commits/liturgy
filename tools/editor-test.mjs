@@ -309,13 +309,13 @@ try {
   await openSettings(); await page.check('.format-choice input[name=format][value=letter]'); await afterEdit();
   const letter = [await page.inputValue('#set--page-width'), await page.isVisible('.format-choice input[name=binding]')];
   await closeSettings(); await page.click('#print');
-  const letterPrint = [await page.isVisible('#print-inorder'), await page.textContent('#print-sheets')];
+  const letterPrint = [await page.isVisible('#print-inorder'), await page.textContent('#print-sheets'), await page.textContent('#print-metrics')];
   await page.keyboard.press('Escape');
   await openSettings(); await page.check('.format-choice input[name=format][value=quarto]'); await closeSettings(); await afterEdit();
   const backToQuarto = [+((await status()).match(/(\d+) pages/) || [])[1], await page.evaluate(() => JSON.stringify(Editor.state.settings.changes))];
   check(formats === 'letter,folio,quarto*' && quartoSoon && folioPerfect[0] === '8.5' && /Pages printed: \d+/.test(folioPerfect[1]) && /Cut in half: \d+ pieces/.test(folioPerfect[1]) &&
     /Signatures: 1 — can be stapled/.test(oneSig) && /too thick/.test(thick[0]) && /too thick/.test(thick[1]) && /Signatures: [2-9] — .*sew and glue/.test(autoSig) &&
-    folded.join() === 'true,true,false,false' && letter[0] === '8.5' && !letter[1] && letterPrint[0] && letterPrint[1] === 'Print on letter paper…' &&
+    folded.join() === 'true,true,false,false' && letter[0] === '8.5' && !letter[1] && letterPrint[0] && letterPrint[1] === 'Print on letter paper…' && /Pages printed at 100% of their size/.test(letterPrint[2]) &&
     !/--format|--binding|--page-width/.test(backToQuarto[1]),
     'Format and binding: nested choice (the page size stays); pages printed, sheets and signatures shown (staple vs sew); print steps follow',
     `${folioPerfect[1]} | ${oneSig} | ${autoSig}`);

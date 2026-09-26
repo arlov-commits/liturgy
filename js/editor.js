@@ -968,7 +968,7 @@
     else if (m.format === "quarto") parts.push(`Cut in quarters: ${p.sheets * 4} pieces, stacked and glued or stapled`);
     else parts.push("No cutting; can be stapled");
     const html = parts.join("<br>") + (thick ? `<div class="warning">A signature of ${Math.max(...p.plan)} sheets (${Math.max(...p.plan) * 4} pages) is too thick to fold neatly — choose “automatic” to split it into several.</div>` : "");
-    for (const box of document.querySelectorAll("#binding-metrics, #signature-plan")) box.innerHTML = html;
+    for (const box of document.querySelectorAll("#binding-metrics, #print-metrics")) box.innerHTML = html;
     state.bindingWarning = thick;
   }
 
