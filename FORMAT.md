@@ -73,7 +73,8 @@ prints `?` and is flagged.
   [/contents]
   ```
   The text before the reference is what's printed — change it freely (e.g. a shorter name). Every chapter of the
-  booklet gets a line (its `[toc: …]` name, else its first title); to leave one out of this booklet's contents, put
+  booklet gets a line (its `[toc: …]` name, else its first title), and each of its other `#` titles an indented line
+  under it (`[page of <section> / <TITLE>]`, pointing at that title); to leave one out of this booklet's contents, put
   `//` in front of its line (it stays out). The editor keeps the lines in step with the booklet: a chapter added gets
   a line, a chapter taken out loses it, and a line whose text is still the chapter's own title follows it when the
   title changes. A line without a page reference prints as a small

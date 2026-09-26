@@ -17,7 +17,8 @@ It will be used by a **non-technical editor**. Every feature must be usable with
   as its edition when there is one (`source.js loadChapter`); "Original" in the Chapters tab puts the original back,
   and saving then deletes the edition file. A booklet's table of contents (`[contents]` in its list) is edited in the
   text like a chapter and kept in `books/contents/<booklet>.txt` (none = the automatic default, `source.js loadContents`).
-  Its entries are written out (`[contents]` … `[/contents]`, one `title [page of chapter]` line each — every chapter, even
+  Its entries are written out (`[contents]` … `[/contents]`, one `title [page of chapter]` line per chapter plus one per other `#` title (`[page of chapter / TITLE]`, parse.js
+  `data-title`) — every chapter, even
   `[toc: -]` ones; `//` in front leaves one out and it stays out) and kept in step with
   the chapters by `editor.js updateContents` (quietly, not an Undo step); the editor shows each reference's page (from
   `preview.html pageMap`) and warns about `[page 12 of …]` numbers typed by hand (lint action back to automatic).

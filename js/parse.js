@@ -78,8 +78,11 @@
       // title block, nor one that runs on from the text above it
       if (block.level === 1 && blocks > 0 && lastLevel !== 1 && !lastRunOn) cls.push("title-break");
       lastLevel = block.level; lastRunOn = !!block.runOn;
-      // a [toc: …] partway through the chapter: an extra contents entry, pointing at this block
-      const entry = pendingEntry ? ` id="${anchor(name || "")}-l${block.start}" data-toc-entry="${esc(pendingEntry)}"` : "";
+      // a [toc: …] partway through the chapter: an extra contents entry, pointing at this block; a # title: its text,
+      // for a table of contents line pointing at it ([page of chapter / TITLE])
+      const titleText = block.heads.join(" ").replace(/[~\[\]]+/g, " ").replace(/\s+/g, " ").trim();
+      const entry = (pendingEntry || titleText ? ` id="${anchor(name || "")}-l${block.start}"` : "") +
+        (pendingEntry ? ` data-toc-entry="${esc(pendingEntry)}"` : "") + (titleText ? ` data-title="${esc(titleText)}"` : "");
       pendingEntry = null;
       blocks++;
       out.push(`<div class="${cls.join(" ")}" data-line="${block.start}"${entry}>${block.html.join("")}</div>`);
@@ -87,7 +90,7 @@
       if (block.level === 1 && tocTitle === null && block.en.length) tocTitle = block.en.join(" ").replace(/[~\[\]]+/g, " ").replace(/\s+/g, " ").trim();
       block = null;
     };
-    const open = (n) => (block = block || { html: [], en: [], level: 0, mantra: false, start: n + 1 });
+    const open = (n) => (block = block || { html: [], en: [], heads: [], level: 0, mantra: false, start: n + 1 });
     let tocTitle = null, pendingEntry = null, blocks = 0, lastLevel = 0, lastRunOn = false;
 
     const open_ = [];   // spans ([keep together], [border]) not closed yet
@@ -175,6 +178,7 @@
       } else {
         const m = line.match(/^(#{1,2})\s*(.*)$/);
         if (m) block.level = block.level ? Math.min(block.level, m[1].length) : m[1].length;
+        if (m && m[1].length === 1) block.heads.push(m[2].replace(PAGE_REF, ""));
         block.html.push(`<p class="en">${inline(esc(m ? m[2] : line))}</p>`);
         block.en.push((m ? m[2] : line).replace(PAGE_REF, ""));
       }

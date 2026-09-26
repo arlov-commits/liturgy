@@ -530,12 +530,19 @@
     for (const s of state.book.sections) {
       if (s.virtual) continue;
       const sec = new DOMParser().parseFromString(LiturgyParse.parse(s.text || "", s.name), "text/html").querySelector("section");
-      // every chapter of the booklet has a line (its [toc: …] name, else its first title); "// " in front leaves it out
-      const name = labelOf(s.name), title = (sec && sec.dataset.toc) || titleOf(s.text, s.name);
+      // every chapter of the booklet has a line (its [toc: …] name, else its first # title), then a line for each of
+      // its other # titles (and [toc: …] entries further down); "// " in front leaves one out
+      const name = labelOf(s.name), own = sec && sec.dataset.toc, title = own || titleOf(s.text, s.name);
       out.push({ key: name, title, line: `${title} ${LiturgyText.refText(name)}` });
-      for (const e of sec ? sec.querySelectorAll("[data-toc-entry]") : []) {
-        const part = e.dataset.tocEntry;
-        out.push({ key: `${name} / ${part}`, title: part, line: `  ${part} ${LiturgyText.refText(name, part)}` });
+      const seen = new Set([name]);
+      let first = !own;   // (no [toc: …] name: the first title is the chapter's own line)
+      for (const e of sec ? sec.querySelectorAll("[data-toc-entry], [data-title]") : []) {
+        if (e.dataset.title && !e.dataset.tocEntry && first) { first = false; continue; }
+        first = false;
+        const part = e.dataset.tocEntry || e.dataset.title, key = `${name} / ${part}`;
+        if (part === "-" || seen.has(key)) continue;
+        seen.add(key);
+        out.push({ key, title: part, line: `  ${part} ${LiturgyText.refText(name, part)}` });
       }
     }
     return out;

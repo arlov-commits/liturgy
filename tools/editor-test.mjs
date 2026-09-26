@@ -527,6 +527,20 @@ try {
     'table of contents: a chapter added gets its line (even one marked [toc: -]); a line with // stays out', `${rowsBefore} → ${rowsAfter.join(' | ')}`);
   await page.click('#tabs button[data-tab="book"]');
   await page.locator('#chapters li', { hasText: 'THREE REFUGES' }).locator('button', { hasText: 'Remove' }).click(); await afterEdit();
+  // every # title gets a line (under its chapter's), pointing at the title itself
+  await page.selectOption('#add-chapter', '10-meal-offering.txt'); await page.click('#add-chapter-btn'); await afterEdit();
+  await page.click('#tabs button[data-tab="text"]');
+  const mealToc = await tocText();
+  const mealPages = await (await shownPreview()).evaluate(() => {
+    const row = [...document.querySelectorAll('.pagedjs_page .toc-entry')].find((r) => r.textContent.includes('PRAISE AND MANTRA'));
+    const target = row && document.querySelector(row.querySelector('a.toc-page').getAttribute('href'));
+    return [!!row, !!target && target.dataset.title, target && +target.closest('.pagedjs_page').dataset.pageNumber, document.querySelectorAll('.pagedjs_page .toc-entry .pageref-missing').length];
+  });
+  check(/^THE MEAL OFFERING BEFORE THE BUDDHAS \[page of 10-meal-offering\]$/m.test(mealToc) && /^  PRAISE AND MANTRA \[page of 10-meal-offering \/ PRAISE AND MANTRA\]$/m.test(mealToc) &&
+    mealPages[0] && mealPages[1] === 'PRAISE AND MANTRA' && mealPages[2] === await page.evaluate(() => Editor.state.pageMap['10-meal-offering / PRAISE AND MANTRA']) && mealPages[3] === 0,
+    'table of contents: every # title gets a line, pointing at the title\'s page', JSON.stringify(mealPages));
+  await page.click('#tabs button[data-tab="book"]');
+  await page.locator('#chapters li', { hasText: 'MEAL OFFERING' }).first().locator('button', { hasText: 'Remove' }).click(); await afterEdit();
   await page.click('#tabs button[data-tab="text"]');
   // autosave: switched on in the Save ▾ menu, it saves a few seconds after the last change
   await page.click('#save-more'); await page.check('#autosave'); await page.keyboard.press('Escape');

@@ -155,7 +155,7 @@ async function render(id) {
   for (const a of main.querySelectorAll("a.pageref, a.toc-page")) {
     let target = document.getElementById(a.getAttribute("href").slice(1));
     if (target && a.dataset.entry) {
-      target = [...target.querySelectorAll("[data-toc-entry]")].find((e) => e.dataset.tocEntry === a.dataset.entry) || null;
+      target = [...target.querySelectorAll("[data-toc-entry], [data-title]")].find((e) => e.dataset.tocEntry === a.dataset.entry || e.dataset.title === a.dataset.entry) || null;
       if (target) a.setAttribute("href", "#" + target.id);
     }
     if (!target) a.replaceWith(Object.assign(document.createElement("span"), { className: a.className + " pageref-missing", textContent: "?" }));
@@ -268,10 +268,11 @@ function fillContents(main) {
 // { "03-amitabha-sutra": 3, "10-meal-offering / Incense Praise": 57 }
 function pageMap() {
   const out = {};
-  for (const el of document.querySelectorAll(".pagedjs_page [data-file], .pagedjs_page [data-toc-entry]")) {
+  for (const el of document.querySelectorAll(".pagedjs_pages .pagedjs_page [data-file], .pagedjs_pages .pagedjs_page [data-toc-entry], .pagedjs_pages .pagedjs_page [data-title]")) {
     const sec = el.closest("[data-file]"), file = sec && sec.dataset.file.replace(/\.txt$/, "");
-    const key = el.dataset.tocEntry ? `${file} / ${el.dataset.tocEntry}` : file;
-    if (file && !(key in out)) out[key] = +el.closest(".pagedjs_page").dataset.pageNumber;
+    const n = +el.closest(".pagedjs_page").dataset.pageNumber;
+    const keys = el.dataset.file ? [file] : [el.dataset.tocEntry, el.dataset.title].filter(Boolean).map((e) => `${file} / ${e}`);
+    for (const key of keys) if (file && !(key in out)) out[key] = n;
   }
   return out;
 }
