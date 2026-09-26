@@ -724,6 +724,10 @@
       return alert(`There is already a chapter called “${base}”. Pick another name, or add that chapter with “Add a chapter”.`);
     addKnown({ name, text: `# ${title.toUpperCase()}\n\n`, original: null, edited: true });
     await setChapters([...chapterNames(), name]);
+    // the cursor goes two lines under the title, with a blank line between: what you type is a verse of its own
+    // (typed straight under the title it would be part of the title)
+    const m = state.docMap.find((x) => x.name === name);
+    if (m) { const title = state.text.view.state.doc.line(m.first); state.text.replaceQuietly(title.to, title.to, "\n\n"); }
     jumpTo(name, 3);
   }
   // Keep together / Border: wrap the selected lines in [keep together] … [/keep together] or [border] … [/border]

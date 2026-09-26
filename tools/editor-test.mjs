@@ -526,9 +526,12 @@ try {
   page.on('dialog', onNew);
   await page.click('#tabs button[data-tab="book"]'); await page.click('#tab-book .new-chapter'); await afterEdit();
   page.off('dialog', onNew);
+  // (the cursor waits two lines under the title: what's typed there is a verse of its own, not part of the title)
+  await page.keyboard.type('FIRST VERSE');
+  const newText = await page.evaluate(() => Editor.state.known['brand-new.txt'].text);
   await page.evaluate(() => { const v = Editor.state.text.view, m = Editor.state.docMap.find((x) => x.name === 'brand-new.txt'); v.dispatch({ changes: { from: v.state.doc.line(m.last).to, insert: '\nTyped in the new chapter' } }); Editor.state.text.goto(m.first, false); });
   await page.waitForTimeout(200);
-  check(await dots() === '', 'a new chapter: no changed-line dots', await dots());
+  check(await dots() === '' && newText === '# BRAND NEW\n\nFIRST VERSE\n', 'a new chapter: typing starts a verse under the title (a blank line between); no changed-line dots', JSON.stringify(newText) + ' ' + await dots());
   await page.click('#tabs button[data-tab="book"]');
   await page.locator('#chapters li', { hasText: 'BRAND NEW' }).locator('button', { hasText: 'Remove' }).click(); await afterEdit();
   await page.click('#add-contents'); await afterEdit();
