@@ -150,6 +150,11 @@
         const file = parseJson(body);
         if (file && typeof file.content === "string") {
           shas[path] = file.sha;
+          if (file.encoding === "none" && file.size > 0) {   // (over 1 MB the API leaves the content out: ask for the file itself)
+            const raw = await call(contents(path), { headers: { Accept: "application/vnd.github.raw" } });
+            if (!raw.ok) throw new SourceError(`GitHub said ${raw.status} for ${path}`);
+            return raw.text();
+          }
           return b64decode(file.content);
         }
         // Got the file itself instead of GitHub's description of it: use it; its version is looked up when saving

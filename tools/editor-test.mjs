@@ -117,6 +117,11 @@ await ctx.route('https://api.github.com/**', async (route) => {
   }
   if (statSync(file).isDirectory()) return json(200, readdirSync(file).map((name) => ({ name, type: statSync(path.join(file, name)).isDirectory() ? 'dir' : 'file' })));
   const buf = readFileSync(file);
+  // (like GitHub for a file over 1 MB: no content in the description — the file itself when asked for raw)
+  if (rel === 'FEEDBACK.md' && buf.length > 2000) {
+    if ((req.headers().accept || '').includes('raw')) return route.fulfill({ status: 200, headers: { ...headers, 'content-type': 'text/plain; charset=utf-8' }, body: buf });
+    return json(200, { sha: sha(buf), content: '', encoding: 'none', size: buf.length });
+  }
   return json(200, { sha: sha(buf), content: buf.toString('base64'), encoding: 'base64' });
 });
 // autosave off for these checks (each one saves when it means to); it is checked on its own below
@@ -165,6 +170,10 @@ try {
   const fb = existsSync(path.join(repo, 'FEEDBACK.md')) ? readFileSync(path.join(repo, 'FEEDBACK.md'), 'utf8') : '';
   await page.click('#feedback-panel .drawer-close');
   check(/^# Feedback/.test(fb) && /\n## \d{4}-\d\d-\d\d — test\n\nThe zoom buttons are great\./.test(fb), 'Feedback panel: a dated entry, saved to FEEDBACK.md', JSON.stringify(fb.slice(0, 120)));
+  // a big file (GitHub's API leaves out the content of one over 1 MB — the fake does it from 2 kB): read in full
+  writeFileSync(path.join(repo, 'FEEDBACK.md'), fb + '\n' + 'A long note. '.repeat(400) + '\nTHE END OF THE NOTES\n');
+  await page.reload(); await settled();
+  check((await page.inputValue('#feedback-text')).endsWith('THE END OF THE NOTES\n'), 'a file too big for GitHub\'s description is read in full');
 
   // letter sheets: each copied page keeps its page number in the outside corner (right-hand pages: right)
   const sides = await (await shownPreview()).evaluate(() => {
