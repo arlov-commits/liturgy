@@ -195,6 +195,10 @@ async function render(id) {
     const next = new MessageChannel(), waiting = [];
     next.port1.onmessage = () => waiting.shift()();
     previewer.chunker.q.tick = (fn) => { waiting.push(fn); next.port2.postMessage(0); };
+    // Paged.js loads every font of the page before laying out — all 266 files (23 MB: every English font in every
+    // weight, all the Chinese and rare-character pieces). The book's own fonts are loaded already (fonts.ready above,
+    // with its text in place); only the page numbers' font may still be missing.
+    previewer.chunker.loadFonts = () => document.fonts.load(`${rootStyle.getPropertyValue("--page-number-size").trim() || "10pt"} ${rootStyle.getPropertyValue("--page-number-font").trim() || "serif"}`, "0123456789").catch(() => {});
     // Show this version as soon as the pages in view are done (the rest goes on being laid out below)
     const showAt = editor ? editor.pagesNeeded() : Infinity;
     let shown = false;
