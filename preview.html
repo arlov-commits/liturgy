@@ -49,7 +49,8 @@
     /* views (buttons under the pages in the editor): single pages, side by side (above), print layout */
     html.view-single .pagedjs_pages { grid-template-columns: max-content; }
     html.view-single .pagedjs_page:first-child { grid-column: auto; }
-    html.view-sheets:not(.letter) #book { display: none; }
+    /* (the booklet pages are still laid out — Paged.js must be able to measure them — just not shown) */
+    html.view-sheets:not(.letter) #book { height: 0; overflow: hidden; visibility: hidden; }
     html.view-sheets:not(.letter) #sheets { display: block; padding: 16px; }
     html.view-sheets #sheets .sheet { margin: 0 auto 18px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.3); position: relative; }
     /* where the sheet is cut (quarto: in quarters) or folded / cut (folio: down the middle) */

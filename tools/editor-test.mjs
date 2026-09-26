@@ -188,10 +188,10 @@ try {
     const f = document.querySelector('#preview iframe:not(.loading)'); return [f.contentWindow.contentWidth(), document.querySelector('#zoom-reset').textContent]; }, v);
   const [single, spread] = [await width('single'), await width('spread')];
   await width('sheets');
-  const sheetsView = await (await shownPreview()).evaluate(() => [document.querySelectorAll('#sheets .sheet').length, getComputedStyle(document.getElementById('book')).display, document.querySelector('#sheets .sheet-label')?.textContent]);
+  const sheetsView = await (await shownPreview()).evaluate(() => [document.querySelectorAll('#sheets .sheet').length, getComputedStyle(document.getElementById('book')).visibility, document.querySelector('#sheets .sheet-label')?.textContent]);
   await width('single');
   check(fitted === refit && zoomedBy !== fitted && zoomPages === pages && spread[0] > 1.8 * single[0] && parseInt(spread[1]) < parseInt(single[1]) &&
-    sheetsView[0] === Math.ceil(pages / 8) * 2 && sheetsView[1] === 'none' && /^Sheet 1 · front/.test(sheetsView[2]),
+    sheetsView[0] === Math.ceil(pages / 8) * 2 && sheetsView[1] === 'hidden' && /^Sheet 1 · front/.test(sheetsView[2]),
     'views: single pages and side by side fitted to the pane, print layout shows the labelled sheets; zoom by hand and back to fit', `${single[1]} / ${spread[1]} / ${sheetsView[0]} sheets`);
 
   // the contents list and the panel can be dragged wider
